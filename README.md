@@ -1,52 +1,12 @@
-# ZK Learning Repository
+# Brain Dump
 
-Personal repository for exploring Zero-Knowledge Proofs and Ethereum Rollups.
+Personal learning repo. Each top-level directory is a topic — notes, references, and working material as I learn it.
 
-## Repository Structure
+## Topics
 
-```
-zk-learning/
-├── zk-fundamentals/     # Zero-Knowledge Proof fundamentals and cryptography
-├── rollups/             # Ethereum Layer 2 rollups and scaling solutions
-└── docs/                # Additional documentation and resources
-```
+- **[zk-and-blockchain/](./zk-and-blockchain/)** — Zero-knowledge proofs, Ethereum rollups, L2 infrastructure (EigenLayer, NEAR, Succinct).
+- **[obsidian-claude-graphify/](./obsidian-claude-graphify/)** — Workflow for turning codebases, papers, and notes into a navigable knowledge graph that Claude reads before answering.
 
-## Getting Started
+## Adding a new topic
 
-### 📚 Learning Zero-Knowledge Proofs
-Start with **[zk-fundamentals/START-HERE.md](./zk-fundamentals/START-HERE.md)** for a comprehensive introduction to ZK cryptography, proof systems (SNARKs, STARKs), and mathematical foundations.
-
-**Topics covered:**
-- ZK proof fundamentals
-- Cryptographic primitives
-- Proof systems comparison
-- Research papers and researchers
-- ZK applications (privacy, identity, etc.)
-
-### 🚀 Understanding Ethereum Rollups
-Explore **[rollups/ethereum-rollup-interactions.md](./rollups/ethereum-rollup-interactions.md)** to learn how Ethereum interacts with different rollup solutions.
-
-**Topics covered:**
-- Optimistic vs ZK Rollups
-- Rollup architecture
-- Ethereum L1/L2 interactions
-- Data availability strategies
-- Rollup comparisons (Arbitrum, zkSync, Optimism, StarkNet, etc.)
-
-## Directory Details
-
-### 🔐 [zk-fundamentals/](./zk-fundamentals/)
-Deep dive into Zero-Knowledge Proof theory, cryptography, and proof systems. Includes structured learning materials, research references, and visual guides.
-
-### 🌉 [rollups/](./rollups/)
-Comprehensive guides on Ethereum Layer 2 rollup solutions, their architecture, and how they leverage ZK proofs for scaling.
-
-### 📖 [docs/](./docs/)
-Additional documentation, PDFs, and reference materials.
-
-## Key Distinction
-
-- **zk-fundamentals/** → Focus on ZK cryptography and proof theory
-- **rollups/** → Focus on Ethereum scaling and rollup architecture
-
-While ZK Rollups use zero-knowledge proofs, the rollups directory emphasizes their role in Ethereum scaling rather than the underlying cryptographic theory.
+Create a new directory at the root with a `README.md` that explains what's inside and where to start. Keep each topic self-contained so it can grow or be split out without touching the others.
