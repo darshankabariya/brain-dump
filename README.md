@@ -5,6 +5,7 @@ Personal learning repo. Each top-level directory is a topic — notes, reference
 ## Topics
 
 - **[zk-and-blockchain/](./zk-and-blockchain/)** — Zero-knowledge proofs, Ethereum rollups, L2 infrastructure (EigenLayer, NEAR, Succinct).
+- **[quantum-computing/](./quantum-computing/)** — How quantum computing works, from the qubit to Shor's algorithm, with an interactive HTML animation.
 - **[obsidian-claude-graphify/](./obsidian-claude-graphify/)** — Workflow for turning codebases, papers, and notes into a navigable knowledge graph that Claude reads before answering.
 
 ## Adding a new topic

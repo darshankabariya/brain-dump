@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Quantum Computing Works — Interactive Animation</title>
+<style>
+  :root{
+    --bg:#0b0e17; --panel:#141a2b; --panel2:#1c2336; --ink:#e7ecf5; --muted:#93a0bd;
+    --acc:#4fd1ff; --acc2:#b07bff; --good:#3ee08f; --bad:#ff6b8a; --line:#2a3450;
+    --zero:#4fd1ff; --one:#ff8a5b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--acc)}
+  header{padding:26px 22px 10px;max-width:1080px;margin:0 auto;}
+  header h1{margin:0 0 4px;font-size:24px;letter-spacing:.2px}
+  header p{margin:0;color:var(--muted);font-size:14px;max-width:760px;line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:8px 22px 60px}
+  nav{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 14px;position:sticky;top:0;
+    background:var(--bg);padding:10px 0;z-index:10;border-bottom:1px solid var(--line)}
+  nav button{background:var(--panel);color:var(--muted);border:1px solid var(--line);
+    padding:8px 13px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s}
+  nav button:hover{color:var(--ink);border-color:var(--acc)}
+  nav button.active{background:var(--acc);color:#05202b;border-color:var(--acc)}
+  .panel{display:none;animation:fade .25s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+  h2{margin:0 0 6px;font-size:19px}
+  .lead{color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 16px}
+  canvas{display:block;width:100%;background:var(--panel2);border-radius:10px;border:1px solid var(--line)}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+  label.ctl{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:5px;min-width:130px}
+  input[type=range]{width:100%;accent-color:var(--acc)}
+  button.act{background:var(--acc2);color:#fff;border:none;padding:9px 15px;border-radius:9px;
+    cursor:pointer;font-weight:600;font-size:13px}
+  button.act:hover{filter:brightness(1.1)}
+  button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);
+    padding:9px 15px;border-radius:9px;cursor:pointer;font-weight:600;font-size:13px}
+  button.ghost:hover{color:var(--ink);border-color:var(--acc)}
+  .gatebtn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    width:42px;height:38px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px}
+  .gatebtn:hover{border-color:var(--acc);color:var(--acc)}
+  .stat{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+  .kpi{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px}
+  .kpi div{font-size:13px;color:var(--muted)}
+  .kpi b{color:var(--ink);font-size:18px;display:block;font-variant-numeric:tabular-nums}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:14px;
+    border-left:3px solid var(--acc);padding:2px 0 2px 12px}
+  .ket{color:var(--acc);font-weight:600}
+  .ket1{color:var(--one);font-weight:600}
+  code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:12.5px}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    border-radius:20px;padding:3px 10px;font-size:11.5px;color:var(--muted);margin:0 4px 4px 0}
+  .pill{font-size:11px;padding:2px 8px;border-radius:12px;font-weight:700}
+  .footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:30px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <h1>How Quantum Computing Works</h1>
+  <p>An interactive, no-install walkthrough of the core ideas — qubit, superposition,
+  measurement, interference, entanglement, gates, and Grover search. Drag the sliders,
+  press the buttons, watch the math move. Companion to the notes in
+  <code>quantum-computing/</code>.</p>
+</header>
+
+<div class="wrap">
+  <nav id="nav"></nav>
+
+  <!-- ============ 1. QUBIT / BLOCH ============ -->
+  <section class="panel active" data-panel="qubit">
+    <div class="card">
+      <h2>1 · The Qubit & the Bloch Sphere</h2>
+      <p class="lead">A classical bit is one of two points: 0 or 1. A <b>qubit</b> is any point
+      on the surface of a sphere — <span class="ket">|0⟩</span> at the north pole,
+      <span class="ket1">|1⟩</span> at the south. The two angles below are the qubit's two real
+      degrees of freedom: <b>θ</b> (latitude) sets the <i>probabilities</i>,
+      <b>φ</b> (longitude) sets the <i>phase</i>. Gates are just rotations of this sphere.</p>
+      <div class="grid">
+        <div>
+          <canvas id="bloch" height="340"></canvas>
+        </div>
+        <div>
+          <div class="controls" style="flex-direction:column;align-items:stretch">
+            <label class="ctl" style="min-width:auto">θ — polar angle (probability) <span id="thLbl" class="stat"></span>
+              <input id="theta" type="range" min="0" max="180" value="55"></label>
+            <label class="ctl" style="min-width:auto">φ — azimuthal angle (phase) <span id="phLbl" class="stat"></span>
+              <input id="phi" type="range" min="0" max="360" value="40"></label>
+          </div>
+          <div class="kpi">
+            <div>amplitude of <span class="ket">|0⟩</span><b id="a0">—</b></div>
+            <div>amplitude of <span class="ket1">|1⟩</span><b id="a1">—</b></div>
+          </div>
+          <div class="kpi">
+            <div>P(measure 0) = |α|²<b id="p0">—</b></div>
+            <div>P(measure 1) = |β|²<b id="p1">—</b></div>
+          </div>
+          <div style="margin-top:14px" id="stateExpr" class="stat"></div>
+          <div class="controls">
+            <button class="act" data-preset="0">|0⟩</button>
+            <button class="act" data-preset="1">|1⟩</button>
+            <button class="act" data-preset="plus">|+⟩</button>
+            <button class="act" data-preset="minus">|−⟩</button>
+            <button class="act" data-preset="i">|i⟩</button>
+          </div>
+          <p class="note">Spin φ with θ fixed at 90° and the probabilities never change — yet the
+          state does. That invisible-to-one-measurement phase is exactly what algorithms steer
+          (see the Interference tab).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2. SUPERPOSITION / MEASUREMENT ============ -->
+  <section class="panel" data-panel="measure">
+    <div class="card">
+      <h2>2 · Superposition & Measurement</h2>
+      <p class="lead">Set how the qubit is split between <span class="ket">|0⟩</span> and
+      <span class="ket1">|1⟩</span>, then <b>measure</b>. Each measurement returns a single
+      classical bit and <b>collapses</b> the state — the superposition is destroyed. Measure many
+      times (re-preparing each time) and the tally converges to the Born-rule probabilities
+      |α|² and |β|². You can <i>put</i> a continuum in; you only ever <i>get</i> one bit out.</p>
+      <div class="grid">
+        <div>
+          <canvas id="measCanvas" height="300"></canvas>
+          <div class="controls">
+            <label class="ctl" style="min-width:auto;flex:1">split θ → P(1) = <span id="msLbl" class="stat"></span>
+              <input id="msTheta" type="range" min="0" max="180" value="120"></label>
+          </div>
+          <div class="controls">
+            <button class="act" id="measure1">Measure once</button>
+            <button class="act" id="measure100">Measure ×100</button>
+            <button class="ghost" id="measReset">Reset tally</button>
+          </div>
+        </div>
+        <div>
+          <div class="kpi">
+            <div>predicted P(0)<b id="predP0">—</b></div>
+            <div>predicted P(1)<b id="predP1">—</b></div>
+          </div>
+          <div class="kpi">
+            <div>measured 0<b id="cnt0">0</b></div>
+            <div>measured 1<b id="cnt1">0</b></div>
+            <div>total<b id="cntT">0</b></div>
+          </div>
+          <div style="margin-top:8px" class="stat">Last outcome:
+            <span id="lastOut" class="pill" style="background:var(--panel2)">—</span></div>
+          <canvas id="tally" height="150" style="margin-top:14px"></canvas>
+          <p class="note">Before measuring, the qubit is genuinely both at once. After, it's a
+          plain classical bit and stays that way — measure again, same answer. This one-shot,
+          destructive read is why quantum algorithms must arrange the answer <i>before</i> looking.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. INTERFERENCE ============ -->
+  <section class="panel" data-panel="interf">
+    <div class="card">
+      <h2>3 · Interference — the engine</h2>
+      <p class="lead">Amplitudes are arrows (complex numbers), not just probabilities. Two paths
+      leading to the same outcome <b>add as arrows</b>. Point them together →
+      <span style="color:var(--good)">constructive</span> (big probability). Point them apart →
+      <span style="color:var(--bad)">destructive</span> (they cancel, probability → 0). Probabilities
+      alone can never cancel — this is the one thing a quantum computer has that a classical
+      random machine doesn't.</p>
+      <div class="grid">
+        <div>
+          <canvas id="interf" height="320"></canvas>
+        </div>
+        <div>
+          <label class="ctl" style="min-width:auto">phase of path A <span id="paLbl" class="stat"></span>
+            <input id="phaseA" type="range" min="0" max="360" value="0"></label>
+          <label class="ctl" style="min-width:auto">phase of path B <span id="pbLbl" class="stat"></span>
+            <input id="phaseB" type="range" min="0" max="360" value="0"></label>
+          <div class="kpi">
+            <div>sum amplitude |A+B|<b id="sumAmp">—</b></div>
+            <div>probability |A+B|²<b id="sumProb">—</b></div>
+          </div>
+          <canvas id="interfBar" height="80" style="margin-top:12px"></canvas>
+          <div class="controls">
+            <button class="act" id="ifConstr">Make constructive</button>
+            <button class="act" id="ifDestr">Make destructive</button>
+          </div>
+          <p class="note">This is literally the double-slit experiment: each "path" is a slit,
+          the screen brightness is |A+B|². Set the phases 180° apart and the spot goes dark even
+          though each path alone would light it up. Grover and Shor are elaborate versions of
+          exactly this.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. ENTANGLEMENT ============ -->
+  <section class="panel" data-panel="entangle">
+    <div class="card">
+      <h2>4 · Entanglement — the Bell pair</h2>
+      <p class="lead">Build the Bell state <code>(|00⟩+|11⟩)/√2</code> with two gates:
+      <b>H</b> on the top qubit, then <b>CNOT</b>. Afterwards each qubit alone is a fair coin,
+      but the two coins <b>always agree</b> — outcomes <code>01</code> and <code>10</code> never
+      happen. That correlation has no "they had answers all along" explanation (Bell's theorem).</p>
+      <div class="grid">
+        <div>
+          <canvas id="bell" height="300"></canvas>
+          <div class="controls">
+            <button class="act" id="bellStep">Step ▶</button>
+            <button class="ghost" id="bellReset">Reset</button>
+            <button class="act" id="bellMeasure">Measure pair ×200</button>
+          </div>
+          <div class="stat" id="bellStage" style="margin-top:8px"></div>
+        </div>
+        <div>
+          <div class="stat" style="margin-bottom:8px">Amplitudes of the 2-qubit state:</div>
+          <canvas id="bellAmp" height="180"></canvas>
+          <div class="stat" style="margin:14px 0 6px">Joint measurement tally:</div>
+          <canvas id="bellTally" height="120"></canvas>
+          <p class="note">Watch <code>01</code> and <code>10</code> stay at zero. Each single
+          qubit is 50/50 random, yet the pair is locked together. No information travels between
+          them — each side alone sees pure noise — so there's no faster-than-light signalling.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5. GATES / CIRCUIT ============ -->
+  <section class="panel" data-panel="circuit">
+    <div class="card">
+      <h2>5 · Gates & Circuits — build one</h2>
+      <p class="lead">Drop gates onto two qubit wires and watch the 4 amplitudes evolve. Gates are
+      reversible rotations of the whole state vector. <b>H</b> makes superposition,
+      <b>X</b> flips, <b>Z</b> flips phase, <b>CNOT</b> entangles. Try the preset Bell circuit, or
+      <b>H</b> on both qubits to spread amplitude over all four basis states at once.</p>
+      <div class="grid">
+        <div>
+          <div class="stat" style="margin-bottom:6px">Add to <b>qubit 0</b> (top):</div>
+          <div class="controls" style="margin-top:0">
+            <button class="gatebtn" data-add="H,0">H</button>
+            <button class="gatebtn" data-add="X,0">X</button>
+            <button class="gatebtn" data-add="Z,0">Z</button>
+            <button class="gatebtn" data-add="CNOT,0">⊕₀</button>
+          </div>
+          <div class="stat" style="margin:10px 0 6px">Add to <b>qubit 1</b> (bottom):</div>
+          <div class="controls" style="margin-top:0">
+            <button class="gatebtn" data-add="H,1">H</button>
+            <button class="gatebtn" data-add="X,1">X</button>
+            <button class="gatebtn" data-add="Z,1">Z</button>
+            <button class="gatebtn" data-add="CNOT,1">⊕₁</button>
+          </div>
+          <canvas id="circuit" height="170" style="margin-top:14px"></canvas>
+          <div class="controls">
+            <button class="ghost" id="circUndo">Undo</button>
+            <button class="ghost" id="circClear">Clear</button>
+            <button class="act" id="circBell">Preset: Bell</button>
+            <button class="act" id="circGHZ">Preset: H both</button>
+          </div>
+        </div>
+        <div>
+          <div class="stat" style="margin-bottom:8px">Resulting amplitudes:</div>
+          <canvas id="circAmp" height="210"></canvas>
+          <div class="stat" id="circState" style="margin-top:12px;line-height:1.7"></div>
+          <p class="note">⊕₀ / ⊕₁ adds a CNOT whose <i>target</i> is that qubit (control is the
+          other). A CNOT only entangles when its control is already in superposition — that's why
+          the Bell preset does H first, then CNOT.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6. GROVER ============ -->
+  <section class="panel" data-panel="grover">
+    <div class="card">
+      <h2>6 · Grover's Search — amplitude amplification</h2>
+      <p class="lead">Find the one marked item among <span id="gN">16</span> with no structure to
+      exploit. Classically that's ~N/2 guesses. Grover does it in ~<b>√N</b> steps by repeating:
+      <b>(1) oracle</b> flips the marked item's phase, <b>(2) diffusion</b> reflects all amplitudes
+      about their average — nudging the whole state toward the answer. Watch the marked bar grow…
+      and shrink again if you over-iterate (interference cuts both ways).</p>
+      <div class="grid">
+        <div>
+          <canvas id="grover" height="300"></canvas>
+          <div class="controls">
+            <button class="act" id="grOracle">Apply 1 iteration</button>
+            <button class="act" id="grAuto">Auto-run ▶</button>
+            <button class="ghost" id="grReset">Reset</button>
+          </div>
+          <label class="ctl" style="min-width:auto;margin-top:12px">database size N
+            <input id="grSize" type="range" min="2" max="6" value="4">
+            <span class="stat" id="grSizeLbl"></span></label>
+          <label class="ctl" style="min-width:auto">marked item
+            <input id="grMark" type="range" min="0" max="15" value="11"></label>
+        </div>
+        <div>
+          <div class="kpi">
+            <div>iterations done<b id="grIter">0</b></div>
+            <div>optimal ≈ (π/4)√N<b id="grOpt">—</b></div>
+          </div>
+          <div class="kpi">
+            <div>P(measure marked)<b id="grProb">—</b></div>
+          </div>
+          <canvas id="grProbCurve" height="150" style="margin-top:12px"></canvas>
+          <p class="note">The curve is the success probability vs. iteration count. It rises to
+          ~100% near (π/4)√N, then <i>falls</i> — Grover rotates the state at a fixed angle each
+          step, so too many steps swing it past the target. Knowing when to stop is part of the
+          algorithm.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">
+    Built as a companion to the <code>quantum-computing/</code> notes. 100% offline —
+    vanilla JS + canvas, no dependencies, no network.<br>
+    Open the markdown notes alongside this for the full explanations.
+  </div>
+</div>
+
+<script>
+"use strict";
+const TAU = Math.PI*2;
+const C = (re=0,im=0)=>({re,im});
+const cadd=(a,b)=>C(a.re+b.re,a.im+b.im);
+const cmul=(a,b)=>C(a.re*b.re-a.im*b.im, a.re*b.im+a.im*b.re);
+const cabs2=a=>a.re*a.re+a.im*a.im;
+const cabs=a=>Math.hypot(a.re,a.im);
+function fitDPR(cv){
+  const dpr=window.devicePixelRatio||1;
+  // pin the logical height once; CSS pins width to 100%, so neither compounds on redraw
+  if(!cv.dataset.h){ cv.dataset.h=cv.getAttribute('height'); cv.style.height=cv.dataset.h+'px'; }
+  const h=+cv.dataset.h, w=cv.clientWidth;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+const COL={zero:'#4fd1ff',one:'#ff8a5b',acc:'#4fd1ff',acc2:'#b07bff',
+  good:'#3ee08f',bad:'#ff6b8a',line:'#2a3450',muted:'#93a0bd',ink:'#e7ecf5',panel:'#1c2336'};
+
+/* ---------- TABS ---------- */
+const TABS=[['qubit','1 · Qubit'],['measure','2 · Measurement'],['interf','3 · Interference'],
+  ['entangle','4 · Entanglement'],['circuit','5 · Gates'],['grover','6 · Grover']];
+const nav=document.getElementById('nav');
+TABS.forEach(([id,label],i)=>{
+  const b=document.createElement('button');
+  b.textContent=label; b.dataset.t=id; if(i===0)b.classList.add('active');
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelector(`.panel[data-panel="${id}"]`).classList.add('active');
+    if(DRAW[id])DRAW[id]();
+  };
+  nav.appendChild(b);
+});
+const DRAW={};
+
+/* ================= 1. BLOCH ================= */
+(function(){
+  const cv=document.getElementById('bloch');
+  const thS=document.getElementById('theta'), phS=document.getElementById('phi');
+  function draw(){
+    const {ctx,w,h}=fitDPR(cv);
+    ctx.clearRect(0,0,w,h);
+    const th=thS.value*Math.PI/180, ph=phS.value*Math.PI/180;
+    const cx=w/2, cy=h/2, R=Math.min(w,h)/2-34;
+    // sphere outline + equator (perspective ellipse)
+    ctx.strokeStyle=COL.line; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx,cy,R,R*0.32,0,0,TAU); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx,cy,R*0.32,R,0,0,TAU); ctx.stroke();
+    // axes
+    ctx.strokeStyle='#33405f';
+    ctx.beginPath();ctx.moveTo(cx,cy-R);ctx.lineTo(cx,cy+R);ctx.stroke();
+    // labels
+    ctx.fillStyle=COL.zero; ctx.font='13px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('|0⟩',cx,cy-R-12);
+    ctx.fillStyle=COL.one; ctx.fillText('|1⟩',cx,cy+R+20);
+    ctx.fillStyle=COL.muted; ctx.fillText('|+⟩',cx+R+14,cy+4);
+    ctx.fillText('|−⟩',cx-R-14,cy+4);
+    // state vector: map sphere coords to 2D (x right, z up, y depth squished)
+    const sx=Math.sin(th)*Math.cos(ph), sy=Math.sin(th)*Math.sin(ph), sz=Math.cos(th);
+    const px=cx + R*sx + R*0.0*sy;
+    const py=cy - R*sz + R*0.32*sy;  // y adds slight vertical for depth
+    // dashed projection
+    ctx.setLineDash([4,4]); ctx.strokeStyle='#445566';
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(px,cy);ctx.lineTo(px,py);ctx.stroke();
+    ctx.setLineDash([]);
+    // arrow
+    const grad=ctx.createLinearGradient(cx,cy,px,py);
+    grad.addColorStop(0,COL.acc2);grad.addColorStop(1,COL.acc);
+    ctx.strokeStyle=grad; ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();
+    ctx.fillStyle=COL.acc; ctx.beginPath();ctx.arc(px,py,5,0,TAU);ctx.fill();
+    ctx.fillStyle=COL.ink; ctx.beginPath();ctx.arc(cx,cy,3,0,TAU);ctx.fill();
+    // readouts
+    const a=Math.cos(th/2);                       // amplitude of |0>
+    const bRe=Math.sin(th/2)*Math.cos(ph), bIm=Math.sin(th/2)*Math.sin(ph);
+    const p0=a*a, p1=1-p0;
+    document.getElementById('thLbl').textContent=`${thS.value}°`;
+    document.getElementById('phLbl').textContent=`${phS.value}°`;
+    document.getElementById('a0').textContent=a.toFixed(3);
+    document.getElementById('a1').textContent=`${bRe.toFixed(2)}${bIm>=0?'+':'−'}${Math.abs(bIm).toFixed(2)}i`;
+    document.getElementById('p0').textContent=(p0*100).toFixed(1)+'%';
+    document.getElementById('p1').textContent=(p1*100).toFixed(1)+'%';
+    document.getElementById('stateExpr').innerHTML=
+      `|ψ⟩ = ${a.toFixed(2)}<span class="ket">|0⟩</span> + (${bRe.toFixed(2)}${bIm>=0?'+':'−'}${Math.abs(bIm).toFixed(2)}i)<span class="ket1">|1⟩</span>`;
+  }
+  thS.oninput=draw; phS.oninput=draw;
+  document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
+    const p=b.dataset.preset;
+    if(p==='0'){thS.value=0;phS.value=0;}
+    if(p==='1'){thS.value=180;phS.value=0;}
+    if(p==='plus'){thS.value=90;phS.value=0;}
+    if(p==='minus'){thS.value=90;phS.value=180;}
+    if(p==='i'){thS.value=90;phS.value=90;}
+    draw();
+  });
+  DRAW.qubit=draw; draw();
+})();
+
+/* ================= 2. MEASUREMENT ================= */
+(function(){
+  const cv=document.getElementById('measCanvas'), tally=document.getElementById('tally');
+  const thS=document.getElementById('msTheta');
+  let c0=0,c1=0,last=null,flash=0;
+  function p1(){const th=thS.value*Math.PI/180; return Math.sin(th/2)**2;}
+  function drawBars(){
+    const {ctx,w,h}=fitDPR(cv); ctx.clearRect(0,0,w,h);
+    const P1=p1(),P0=1-P1;
+    const bw=w*0.32, gap=w*0.12, baseY=h-46, maxH=h-90;
+    const x0=w/2-gap/2-bw, x1=w/2+gap/2;
+    [[x0,P0,COL.zero,'|0⟩'],[x1,P1,COL.one,'|1⟩']].forEach(([x,P,col,lab])=>{
+      ctx.fillStyle='#222b42'; ctx.fillRect(x,baseY-maxH,bw,maxH);
+      ctx.fillStyle=col; ctx.fillRect(x,baseY-maxH*P,bw,maxH*P);
+      ctx.fillStyle=COL.ink; ctx.font='bold 14px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(lab,x+bw/2,baseY+20);
+      ctx.fillStyle=COL.muted; ctx.font='12px sans-serif';
+      ctx.fillText((P*100).toFixed(0)+'%',x+bw/2,baseY-maxH*P-8);
+    });
+    ctx.fillStyle=COL.muted;ctx.font='12px sans-serif';ctx.textAlign='center';
+    ctx.fillText('the live superposition (probabilities)',w/2,26);
+    if(flash>0){ const col=last===0?COL.zero:COL.one;
+      ctx.globalAlpha=flash; ctx.fillStyle=col;
+      const x=last===0?x0:x1; ctx.fillRect(x-3,baseY-maxH-3,bw+6,maxH+6);
+      ctx.globalAlpha=1; flash-=0.04; if(flash>0)requestAnimationFrame(drawBars);
+    }
+    document.getElementById('msLbl').textContent=(P1*100).toFixed(0)+'%';
+    document.getElementById('predP0').textContent=(P0*100).toFixed(1)+'%';
+    document.getElementById('predP1').textContent=(P1*100).toFixed(1)+'%';
+  }
+  function drawTally(){
+    const {ctx,w,h}=fitDPR(tally); ctx.clearRect(0,0,w,h);
+    const tot=c0+c1; const f0=tot?c0/tot:0, f1=tot?c1/tot:0;
+    const baseY=h-22, maxH=h-40, bw=w*0.34, x0=w*0.12, x1=w*0.54;
+    [[x0,f0,c0,COL.zero,'0'],[x1,f1,c1,COL.one,'1']].forEach(([x,f,c,col,lab])=>{
+      ctx.fillStyle='#222b42';ctx.fillRect(x,baseY-maxH,bw,maxH);
+      ctx.fillStyle=col;ctx.fillRect(x,baseY-maxH*f,bw,maxH*f);
+      ctx.fillStyle=COL.muted;ctx.font='11px sans-serif';ctx.textAlign='center';
+      ctx.fillText(`${lab}: ${(f*100).toFixed(0)}%`,x+bw/2,baseY+15);
+    });
+    // predicted line
+    const P1=p1();
+    ctx.strokeStyle=COL.acc2;ctx.setLineDash([4,3]);ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x0,baseY-maxH*(1-P1));ctx.lineTo(x0+bw,baseY-maxH*(1-P1));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x1,baseY-maxH*P1);ctx.lineTo(x1+bw,baseY-maxH*P1);ctx.stroke();
+    ctx.setLineDash([]);
+    document.getElementById('cnt0').textContent=c0;
+    document.getElementById('cnt1').textContent=c1;
+    document.getElementById('cntT').textContent=tot;
+  }
+  function measure(n){
+    const P1=p1();
+    for(let i=0;i<n;i++){ if(Math.random()<P1){c1++;last=1;}else{c0++;last=0;} }
+    const el=document.getElementById('lastOut');
+    el.textContent=last; el.style.color=last===0?COL.zero:COL.one;
+    flash=1; drawBars(); drawTally();
+  }
+  thS.oninput=()=>{drawBars();drawTally();};
+  document.getElementById('measure1').onclick=()=>measure(1);
+  document.getElementById('measure100').onclick=()=>measure(100);
+  document.getElementById('measReset').onclick=()=>{c0=0;c1=0;last=null;
+    document.getElementById('lastOut').textContent='—';drawBars();drawTally();};
+  DRAW.measure=()=>{drawBars();drawTally();};
+})();
+
+/* ================= 3. INTERFERENCE ================= */
+(function(){
+  const cv=document.getElementById('interf'), bar=document.getElementById('interfBar');
+  const aS=document.getElementById('phaseA'), bS=document.getElementById('phaseB');
+  function vecs(){
+    const pa=aS.value*Math.PI/180, pb=bS.value*Math.PI/180, r=0.5;
+    const A=C(r*Math.cos(pa),r*Math.sin(pa)), B=C(r*Math.cos(pb),r*Math.sin(pb));
+    return {A,B,sum:cadd(A,B)};
+  }
+  function arrow(ctx,x,y,vx,vy,col,lab){
+    ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+vx,y+vy);ctx.stroke();
+    const ang=Math.atan2(vy,vx),L=9;
+    ctx.beginPath();ctx.moveTo(x+vx,y+vy);
+    ctx.lineTo(x+vx-L*Math.cos(ang-0.4),y+vy-L*Math.sin(ang-0.4));
+    ctx.lineTo(x+vx-L*Math.cos(ang+0.4),y+vy-L*Math.sin(ang+0.4));
+    ctx.closePath();ctx.fill();
+    if(lab){ctx.font='bold 13px sans-serif';ctx.fillText(lab,x+vx+8,y+vy);}
+  }
+  function draw(){
+    const {ctx,w,h}=fitDPR(cv); ctx.clearRect(0,0,w,h);
+    const cx=w/2, cy=h/2, S=Math.min(w,h)/2-40;
+    ctx.strokeStyle=COL.line;ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(cx,cy,S,0,TAU);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-S,cy);ctx.lineTo(cx+S,cy);
+    ctx.moveTo(cx,cy-S);ctx.lineTo(cx,cy+S);ctx.stroke();
+    const {A,B,sum}=vecs();
+    // A from origin, B chained on A, sum from origin
+    arrow(ctx,cx,cy,A.re*S,-A.im*S,COL.acc,'A');
+    arrow(ctx,cx+A.re*S,cy-A.im*S,B.re*S,-B.im*S,COL.acc2,'B');
+    const mag=cabs(sum);
+    const col= mag<0.15?COL.bad : mag>0.85?COL.good : COL.ink;
+    arrow(ctx,cx,cy,sum.re*S,-sum.im*S,col,'A+B');
+    document.getElementById('paLbl').textContent=aS.value+'°';
+    document.getElementById('pbLbl').textContent=bS.value+'°';
+    document.getElementById('sumAmp').textContent=mag.toFixed(3);
+    document.getElementById('sumProb').textContent=(cabs2(sum)).toFixed(3);
+    // bar
+    const b=fitDPR(bar); b.ctx.clearRect(0,0,b.w,b.h);
+    b.ctx.fillStyle='#222b42';b.ctx.fillRect(10,b.h/2-14,b.w-20,28);
+    const prob=cabs2(sum); // max is 1 (0.5+0.5)^2
+    b.ctx.fillStyle=col;b.ctx.fillRect(10,b.h/2-14,(b.w-20)*prob,28);
+    b.ctx.fillStyle=COL.ink;b.ctx.font='12px sans-serif';b.ctx.textAlign='left';
+    b.ctx.fillText('screen brightness |A+B|² = '+(prob*100).toFixed(0)+'%',12,b.h/2+30);
+  }
+  aS.oninput=draw;bS.oninput=draw;
+  document.getElementById('ifConstr').onclick=()=>{aS.value=45;bS.value=45;draw();};
+  document.getElementById('ifDestr').onclick=()=>{aS.value=0;bS.value=180;draw();};
+  DRAW.interf=draw;
+})();
+
+/* ================= 4. ENTANGLEMENT (Bell) ================= */
+(function(){
+  const cv=document.getElementById('bell'), ampCv=document.getElementById('bellAmp'),
+        tallyCv=document.getElementById('bellTally');
+  let stage=0; // 0 |00>, 1 after H, 2 after CNOT
+  let tally={'00':0,'01':0,'10':0,'11':0};
+  const r2=1/Math.SQRT2;
+  function state(){
+    if(stage===0)return [C(1),C(0),C(0),C(0)];
+    if(stage===1)return [C(r2),C(0),C(r2),C(0)];
+    return [C(r2),C(0),C(0),C(r2)];
+  }
+  function drawCircuit(){
+    const {ctx,w,h}=fitDPR(cv); ctx.clearRect(0,0,w,h);
+    const y0=h*0.32,y1=h*0.68, xL=70, xR=w-30;
+    ctx.strokeStyle=COL.line;ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(xL,y0);ctx.lineTo(xR,y0);
+    ctx.moveTo(xL,y1);ctx.lineTo(xR,y1);ctx.stroke();
+    ctx.fillStyle=COL.zero;ctx.font='14px sans-serif';ctx.textAlign='right';
+    ctx.fillText('|0⟩',xL-8,y0+5);ctx.fillText('|0⟩',xL-8,y1+5);
+    // H box at xH
+    const xH=w*0.40, xC=w*0.66;
+    function box(x,y,t,on){
+      ctx.fillStyle=on?COL.acc2:'#2a3450';ctx.strokeStyle=on?COL.acc2:COL.line;
+      ctx.fillRect(x-16,y-16,32,32);ctx.strokeRect(x-16,y-16,32,32);
+      ctx.fillStyle=on?'#fff':COL.muted;ctx.font='bold 15px sans-serif';ctx.textAlign='center';
+      ctx.fillText(t,x,y+5);
+    }
+    box(xH,y0,'H',stage>=1);
+    // CNOT
+    const on2=stage>=2;
+    ctx.strokeStyle=on2?COL.acc2:COL.line;ctx.fillStyle=on2?COL.acc2:COL.line;ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(xH+ (xC-xH),y0,6,0,TAU);ctx.fill(); // control dot on q0 at xC
+    ctx.beginPath();ctx.moveTo(xC,y0);ctx.lineTo(xC,y1);ctx.stroke();
+    ctx.beginPath();ctx.arc(xC,y1,15,0,TAU);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(xC-15,y1);ctx.lineTo(xC+15,y1);
+    ctx.moveTo(xC,y1-15);ctx.lineTo(xC,y1+15);ctx.stroke();
+    const names=['start: |00⟩','after H on q0: (|00⟩+|10⟩)/√2','after CNOT: (|00⟩+|11⟩)/√2  ← entangled'];
+    document.getElementById('bellStage').textContent=names[stage];
+  }
+  function drawAmps(){
+    const {ctx,w,h}=fitDPR(ampCv); ctx.clearRect(0,0,w,h);
+    const st=state(), labels=['00','01','10','11'];
+    const bw=w/4, baseY=h-26, maxH=h-44;
+    st.forEach((a,i)=>{
+      const p=cabs2(a), x=i*bw+bw*0.18, bwi=bw*0.64;
+      ctx.fillStyle='#222b42';ctx.fillRect(x,baseY-maxH,bwi,maxH);
+      const col=(i===1||i===2)?COL.bad:COL.good;
+      ctx.fillStyle=p<0.001?'#2a3450':col;ctx.fillRect(x,baseY-maxH*p,bwi,maxH*p);
+      ctx.fillStyle=COL.ink;ctx.font='12px sans-serif';ctx.textAlign='center';
+      ctx.fillText('|'+labels[i]+'⟩',x+bwi/2,baseY+16);
+      ctx.fillStyle=COL.muted;ctx.font='10px sans-serif';
+      ctx.fillText((p*100).toFixed(0)+'%',x+bwi/2,baseY-maxH*p-6);
+    });
+  }
+  function drawTally(){
+    const {ctx,w,h}=fitDPR(tallyCv); ctx.clearRect(0,0,w,h);
+    const labels=['00','01','10','11'], tot=Object.values(tally).reduce((a,b)=>a+b,0);
+    const bw=w/4, baseY=h-20, maxH=h-34;
+    labels.forEach((l,i)=>{
+      const f=tot?tally[l]/tot:0, x=i*bw+bw*0.18, bwi=bw*0.64;
+      ctx.fillStyle='#222b42';ctx.fillRect(x,baseY-maxH,bwi,maxH);
+      const col=(i===1||i===2)?COL.bad:COL.good;
+      ctx.fillStyle=col;ctx.fillRect(x,baseY-maxH*f,bwi,maxH*f);
+      ctx.fillStyle=COL.muted;ctx.font='10px sans-serif';ctx.textAlign='center';
+      ctx.fillText(l+': '+tally[l],x+bwi/2,baseY+14);
+    });
+  }
+  function redraw(){drawCircuit();drawAmps();drawTally();}
+  document.getElementById('bellStep').onclick=()=>{stage=Math.min(2,stage+1);redraw();};
+  document.getElementById('bellReset').onclick=()=>{stage=0;tally={'00':0,'01':0,'10':0,'11':0};redraw();};
+  document.getElementById('bellMeasure').onclick=()=>{
+    const st=state(), probs=st.map(cabs2), labels=['00','01','10','11'];
+    for(let i=0;i<200;i++){ let r=Math.random(),acc=0,pick='00';
+      for(let k=0;k<4;k++){acc+=probs[k]; if(r<=acc){pick=labels[k];break;}}
+      tally[pick]++;
+    }
+    drawTally();
+  };
+  DRAW.entangle=redraw;
+})();
+
+/* ================= 5. CIRCUIT BUILDER ================= */
+(function(){
+  const cv=document.getElementById('circuit'), ampCv=document.getElementById('circAmp');
+  let ops=[]; // {g:'H'|'X'|'Z'|'CNOT', q:0|1}  (for CNOT, q is target)
+  const r2=1/Math.SQRT2;
+  function applyOp(st,op){
+    const out=[C(),C(),C(),C()];
+    // basis index = q0*2 + q1  (q0 top)
+    if(op.g==='CNOT'){
+      const ctrl=op.q===0?1:0, tgt=op.q;
+      for(let i=0;i<4;i++){
+        const bits=[(i>>1)&1, i&1];
+        let j=i;
+        if(bits[ctrl]===1){ const nb=[...bits]; nb[tgt]^=1; j=nb[0]*2+nb[1]; }
+        out[j]=cadd(out[j],st[i]);
+      }
+      return out;
+    }
+    // single qubit gate matrix
+    let m;
+    if(op.g==='H')m=[[C(r2),C(r2)],[C(r2),C(-r2)]];
+    if(op.g==='X')m=[[C(0),C(1)],[C(1),C(0)]];
+    if(op.g==='Z')m=[[C(1),C(0)],[C(0),C(-1)]];
+    const q=op.q;
+    for(let i=0;i<4;i++){
+      const bits=[(i>>1)&1,i&1], b=bits[q];
+      for(let nb=0;nb<2;nb++){
+        const coeff=m[nb][b]; if(coeff.re===0&&coeff.im===0)continue;
+        const nbits=[...bits];nbits[q]=nb; const j=nbits[0]*2+nbits[1];
+        out[j]=cadd(out[j],cmul(coeff,st[i]));
+      }
+    }
+    return out;
+  }
+  function compute(){ let st=[C(1),C(),C(),C()]; ops.forEach(o=>st=applyOp(st,o)); return st; }
+  function drawCircuit(){
+    const {ctx,w,h}=fitDPR(cv); ctx.clearRect(0,0,w,h);
+    const y0=h*0.32,y1=h*0.68,xL=60,xR=w-20;
+    ctx.strokeStyle=COL.line;ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(xL,y0);ctx.lineTo(xR,y0);ctx.moveTo(xL,y1);ctx.lineTo(xR,y1);ctx.stroke();
+    ctx.fillStyle=COL.zero;ctx.font='13px sans-serif';ctx.textAlign='right';
+    ctx.fillText('q0 |0⟩',xL-6,y0+5);ctx.fillText('q1 |0⟩',xL-6,y1+5);
+    const slot=42;
+    ops.forEach((o,i)=>{
+      const x=xL+30+i*slot;
+      if(o.g==='CNOT'){
+        const yc=o.q===0?y1:y0, yt=o.q===0?y0:y1;
+        ctx.strokeStyle=COL.acc2;ctx.fillStyle=COL.acc2;ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(x,yc,5,0,TAU);ctx.fill();
+        ctx.beginPath();ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke();
+        ctx.beginPath();ctx.arc(x,yt,11,0,TAU);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(x-11,yt);ctx.lineTo(x+11,yt);ctx.moveTo(x,yt-11);ctx.lineTo(x,yt+11);ctx.stroke();
+      }else{
+        const y=o.q===0?y0:y1;
+        ctx.fillStyle='#2a3450';ctx.strokeStyle=COL.acc;ctx.lineWidth=1.5;
+        ctx.fillRect(x-14,y-14,28,28);ctx.strokeRect(x-14,y-14,28,28);
+        ctx.fillStyle=COL.acc;ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+        ctx.fillText(o.g,x,y+5);
+      }
+    });
+    if(ops.length===0){ctx.fillStyle=COL.muted;ctx.font='12px sans-serif';ctx.textAlign='center';
+      ctx.fillText('empty circuit — add gates above',w/2,h-10);}
+  }
+  function drawAmps(){
+    const {ctx,w,h}=fitDPR(ampCv); ctx.clearRect(0,0,w,h);
+    const st=compute(), labels=['00','01','10','11'];
+    const bw=w/4, baseY=h-44, maxH=h-70;
+    let expr=[];
+    st.forEach((a,i)=>{
+      const p=cabs2(a), x=i*bw+bw*0.18, bwi=bw*0.64;
+      ctx.fillStyle='#222b42';ctx.fillRect(x,baseY-maxH,bwi,maxH);
+      // colour encodes sign/phase of amplitude
+      let col=COL.acc; if(a.re<-0.001)col=COL.bad; if(Math.abs(a.im)>0.01)col=COL.acc2;
+      ctx.fillStyle=p<0.0005?'#2a3450':col;ctx.fillRect(x,baseY-maxH*p,bwi,maxH*p);
+      ctx.fillStyle=COL.ink;ctx.font='12px sans-serif';ctx.textAlign='center';
+      ctx.fillText('|'+labels[i]+'⟩',x+bwi/2,baseY+16);
+      ctx.fillStyle=COL.muted;ctx.font='10px sans-serif';
+      ctx.fillText((p*100).toFixed(0)+'%',x+bwi/2,baseY-maxH*p-6);
+      if(p>0.0005){
+        let amp= Math.abs(a.im)>0.01 ? `${a.re.toFixed(2)}${a.im>=0?'+':'−'}${Math.abs(a.im).toFixed(2)}i`
+                                     : a.re.toFixed(3);
+        expr.push(`(${amp})|${labels[i]}⟩`);
+      }
+    });
+    ctx.fillStyle=COL.muted;ctx.font='11px sans-serif';ctx.textAlign='center';
+    ctx.fillText('bar = probability  ·  blue=+, red=−, purple=complex phase',w/2,h-12);
+    document.getElementById('circState').innerHTML='|ψ⟩ = '+(expr.join(' + ')||'0');
+  }
+  function redraw(){drawCircuit();drawAmps();}
+  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
+    const [g,q]=b.dataset.add.split(','); ops.push({g,q:+q}); redraw();
+  });
+  document.getElementById('circUndo').onclick=()=>{ops.pop();redraw();};
+  document.getElementById('circClear').onclick=()=>{ops=[];redraw();};
+  document.getElementById('circBell').onclick=()=>{ops=[{g:'H',q:0},{g:'CNOT',q:1}];redraw();};
+  document.getElementById('circGHZ').onclick=()=>{ops=[{g:'H',q:0},{g:'H',q:1}];redraw();};
+  DRAW.circuit=redraw;
+})();
+
+/* ================= 6. GROVER ================= */
+(function(){
+  const cv=document.getElementById('grover'), curveCv=document.getElementById('grProbCurve');
+  const sizeS=document.getElementById('grSize'), markS=document.getElementById('grMark');
+  let N=16, marked=11, amps=[], iter=0, timer=null;
+  function init(){
+    N=Math.pow(2,+sizeS.value);
+    markS.max=N-1; if(marked>=N)marked=N-1;
+    marked=Math.min(+markS.value,N-1);
+    amps=new Array(N).fill(1/Math.sqrt(N));
+    iter=0;
+    document.getElementById('gN').textContent=N;
+    document.getElementById('grSizeLbl').textContent=`N = ${N} (n=${sizeS.value} qubits)`;
+    document.getElementById('grOpt').textContent=(Math.PI/4*Math.sqrt(N)).toFixed(1);
+    redraw();
+  }
+  function step(){
+    // oracle: flip marked amplitude
+    amps[marked]=-amps[marked];
+    // diffusion: reflect about mean
+    const mean=amps.reduce((a,b)=>a+b,0)/N;
+    for(let i=0;i<N;i++)amps[i]=2*mean-amps[i];
+    iter++;
+    redraw();
+  }
+  function probMarkedAfter(k){
+    // closed form: sin((2k+1)θ)^2, sinθ=1/√N
+    const th=Math.asin(1/Math.sqrt(N));
+    return Math.sin((2*k+1)*th)**2;
+  }
+  function redraw(){
+    const {ctx,w,h}=fitDPR(cv); ctx.clearRect(0,0,w,h);
+    const baseY=h-30, maxH=h-60, bw=(w-20)/N;
+    // zero line
+    const zeroY=baseY-maxH*0.5;
+    ctx.strokeStyle='#33405f';ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(10,zeroY);ctx.lineTo(w-10,zeroY);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=COL.muted;ctx.font='10px sans-serif';ctx.textAlign='left';ctx.fillText('0',12,zeroY-3);
+    amps.forEach((a,i)=>{
+      const x=10+i*bw, bwi=bw*0.8;
+      const hgt=maxH*0.5*Math.min(1,Math.abs(a)/1);
+      ctx.fillStyle=i===marked?(a<0?COL.bad:COL.good):COL.acc;
+      if(a>=0)ctx.fillRect(x,zeroY-hgt,bwi,hgt);
+      else ctx.fillRect(x,zeroY,bwi,hgt);
+    });
+    // marker label
+    const mx=10+marked*bw+bw*0.4;
+    ctx.fillStyle=COL.good;ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+    ctx.fillText('★ marked',mx, baseY+18);
+    ctx.fillStyle=COL.muted;ctx.textAlign='left';
+    ctx.fillText('amplitudes (height = magnitude, up=+, down=−)',12,18);
+    document.getElementById('grIter').textContent=iter;
+    document.getElementById('grProb').textContent=(amps[marked]**2*100).toFixed(1)+'%';
+    drawCurve();
+  }
+  function drawCurve(){
+    const {ctx,w,h}=fitDPR(curveCv); ctx.clearRect(0,0,w,h);
+    const opt=Math.PI/4*Math.sqrt(N), maxIter=Math.max(6,Math.ceil(opt*2.2));
+    const padL=26,padB=18;
+    ctx.strokeStyle=COL.line;ctx.beginPath();
+    ctx.moveTo(padL,4);ctx.lineTo(padL,h-padB);ctx.lineTo(w-4,h-padB);ctx.stroke();
+    ctx.fillStyle=COL.muted;ctx.font='9px sans-serif';ctx.textAlign='right';
+    ctx.fillText('1',padL-3,10);ctx.fillText('0',padL-3,h-padB);
+    // curve
+    ctx.strokeStyle=COL.acc2;ctx.lineWidth=2;ctx.beginPath();
+    for(let k=0;k<=maxIter;k++){
+      const x=padL+(w-padL-6)*(k/maxIter), y=4+(h-padB-4)*(1-probMarkedAfter(k));
+      k===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    // optimal marker
+    const ox=padL+(w-padL-6)*(opt/maxIter);
+    ctx.strokeStyle=COL.good;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(ox,4);ctx.lineTo(ox,h-padB);ctx.stroke();ctx.setLineDash([]);
+    // current iter dot
+    const cx=padL+(w-padL-6)*(Math.min(iter,maxIter)/maxIter);
+    const cy=4+(h-padB-4)*(1-probMarkedAfter(iter));
+    ctx.fillStyle=COL.acc;ctx.beginPath();ctx.arc(cx,cy,4,0,TAU);ctx.fill();
+    ctx.fillStyle=COL.muted;ctx.font='9px sans-serif';ctx.textAlign='center';
+    ctx.fillText('optimal',ox,h-6);
+  }
+  document.getElementById('grOracle').onclick=()=>{step();};
+  document.getElementById('grReset').onclick=()=>{if(timer){clearInterval(timer);timer=null;
+    document.getElementById('grAuto').textContent='Auto-run ▶';}init();};
+  document.getElementById('grAuto').onclick=function(){
+    if(timer){clearInterval(timer);timer=null;this.textContent='Auto-run ▶';return;}
+    this.textContent='Pause ⏸';
+    timer=setInterval(()=>{ step();
+      if(iter>Math.ceil(Math.PI/4*Math.sqrt(N)*2.1)){clearInterval(timer);timer=null;
+        document.getElementById('grAuto').textContent='Auto-run ▶';}
+    },650);
+  };
+  sizeS.oninput=()=>{if(timer){clearInterval(timer);timer=null;
+    document.getElementById('grAuto').textContent='Auto-run ▶';}init();};
+  markS.oninput=()=>{marked=Math.min(+markS.value,N-1);
+    amps=new Array(N).fill(1/Math.sqrt(N));iter=0;redraw();};
+  DRAW.grover=init; init();
+})();
+
+window.addEventListener('resize',()=>{
+  const active=document.querySelector('.panel.active');
+  if(active&&DRAW[active.dataset.panel])DRAW[active.dataset.panel]();
+});
+</script>
+</body>
+</html>
