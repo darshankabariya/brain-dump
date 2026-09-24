@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside snarkVM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F5F7; --surface:#FFFFFF; --surface-2:#E9EDF1; --ink:#17202B; --muted:#586473; --line:#D5DBE2;
+  --accent:#0A6C78; --accent-soft:#D7ECEE; --priv:#6A46C0; --priv-soft:#ECE6FA; --pub:#A45F00; --pub-soft:#FAEEDB;
+  --ok:#2F7D46; --code:#EDF0F3;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1318; --surface:#151C23; --surface-2:#1C252E; --ink:#E2E8EE; --muted:#95A2AF; --line:#2A3540;
+    --accent:#5CC3CE; --accent-soft:#16343A; --priv:#B59CFF; --priv-soft:#2A2340; --pub:#EDB25C; --pub-soft:#3A2C16;
+    --ok:#6CC486; --code:#111820;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1318; --surface:#151C23; --surface-2:#1C252E; --ink:#E2E8EE; --muted:#95A2AF; --line:#2A3540;
+  --accent:#5CC3CE; --accent-soft:#16343A; --priv:#B59CFF; --priv-soft:#2A2340; --pub:#EDB25C; --pub-soft:#3A2C16;
+  --ok:#6CC486; --code:#111820;
+}
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:18px; line-height:1.62; padding-inline:20px; padding-block:0 80px}
+a{color:var(--accent)}
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.shell{max-width:1240px; margin:0 auto; display:grid; grid-template-columns:260px minmax(0,1fr); gap:56px}
+@media (max-width:980px){ .shell{grid-template-columns:minmax(0,1fr); gap:0} }
+
+/* ---------- TOC ---------- */
+nav.toc{position:sticky; top:env(safe-area-inset-top,0px); align-self:start; max-height:100vh; overflow:auto; padding-block:36px 24px; font-family:var(--display); font-size:14px}
+.toc h2{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; font-weight:500}
+.progress{height:4px; background:var(--surface-2); border-radius:2px; overflow:hidden; margin:0 0 6px}
+.progress > i{display:block; height:100%; width:0; background:var(--accent); transition:width .3s}
+.progress-label{font-size:12px; color:var(--muted); margin:0 0 18px; font-variant-numeric:tabular-nums}
+.toc ol{list-style:none; margin:0; padding:0}
+.toc .part{margin:16px 0 4px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between}
+.toc li.ch{display:flex; align-items:flex-start; gap:8px; padding:3px 0}
+.toc li.ch input{margin:4px 0 0; accent-color:var(--accent); flex:none}
+.toc li.ch a{color:var(--ink); text-decoration:none; line-height:1.35}
+.toc li.ch a:hover{color:var(--accent)}
+.toc li.ch.active a{color:var(--accent); font-weight:700}
+.toc li.ch.done a{color:var(--muted); text-decoration:line-through; text-decoration-color:var(--line)}
+details.toc-mobile{display:none}
+@media (max-width:980px){
+  nav.toc{display:none}
+  details.toc-mobile{display:block; margin:18px 0 0; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px 14px; font-family:var(--display); font-size:15px}
+  details.toc-mobile summary{cursor:pointer; font-weight:700}
+  details.toc-mobile ol{margin:8px 0 0; padding-left:20px}
+}
+
+/* ---------- Main ---------- */
+main{min-width:0; max-width:760px; padding-block:36px 0}
+header.hero{padding-block:18px 28px; border-bottom:1px solid var(--line); margin-bottom:8px}
+.eyebrow{font-family:var(--mono); font-size:12.5px; color:var(--muted); letter-spacing:.02em; margin:0 0 14px}
+h1{font-family:var(--display); font-weight:700; font-size:clamp(40px,6vw,64px); line-height:1.02; letter-spacing:-.02em; margin:0 0 16px; text-wrap:balance}
+h1 .sub{display:block; font-weight:500; color:var(--muted); font-size:.42em; letter-spacing:0; margin-top:12px; line-height:1.3}
+.lede{font-size:20px; color:var(--ink); max-width:62ch; margin:0}
+.thesis{margin:26px 0 0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.thesis div{background:var(--surface); padding:14px 16px; font-family:var(--display); font-size:14.5px; line-height:1.4}
+.thesis b{display:block; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:500; margin-bottom:4px}
+@media (max-width:640px){ .thesis{grid-template-columns:1fr} }
+
+.part-head{margin:72px 0 8px; padding-top:22px; border-top:3px solid var(--ink)}
+.part-head .kicker{font-family:var(--mono); font-size:12.5px; color:var(--accent); margin:0 0 6px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.part-head h2{font-family:var(--display); font-size:clamp(30px,4vw,40px); line-height:1.08; margin:0 0 10px; letter-spacing:-.01em; text-wrap:balance}
+.part-head p{color:var(--muted); margin:0; max-width:62ch}
+
+section.chapter{scroll-margin-top:20px}
+h3{font-family:var(--display); font-size:25px; line-height:1.2; margin:48px 0 12px; text-wrap:balance; display:flex; gap:12px; align-items:baseline}
+h3 .n{font-family:var(--mono); font-size:14px; color:var(--accent); font-weight:600; flex:none}
+h4{font-family:var(--display); font-size:18px; margin:28px 0 8px}
+p{margin:0 0 16px}
+ul,ol{margin:0 0 16px; padding-left:24px}
+li{margin:4px 0}
+strong{font-weight:600}
+code{font-family:var(--mono); font-size:.84em; background:var(--code); padding:.08em .35em; border-radius:4px; overflow-wrap:anywhere}
+pre{font-family:var(--mono); font-size:14px; line-height:1.55; background:var(--code); border:1px solid var(--line); border-radius:8px; padding:16px 18px; overflow-x:auto; margin:0 0 20px}
+pre code{background:none; padding:0; font-size:inherit; overflow-wrap:normal}
+pre .c{color:var(--muted)} pre .k{color:var(--accent); font-weight:600} pre .v{color:var(--priv)} pre .p{color:var(--pub)}
+.priv{color:var(--priv); font-weight:600} .pub{color:var(--pub); font-weight:600}
+
+.callout{border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:14px 18px; margin:0 0 20px; font-size:16.5px}
+.callout > b.lab{display:block; font-family:var(--display); font-size:12px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px}
+.callout.code > b.lab{color:var(--accent)}
+.callout.warn{border-color:var(--pub); background:var(--pub-soft)}
+.callout.warn > b.lab{color:var(--pub)}
+.callout.key{border-left:4px solid var(--accent)}
+.callout p:last-child, .callout ul:last-child{margin-bottom:0}
+.callout ul{padding-left:20px}
+
+details.quiz{border:1px dashed var(--line); border-radius:8px; padding:10px 16px; margin:0 0 22px; font-size:16.5px}
+details.quiz summary{cursor:pointer; font-family:var(--display); font-weight:700}
+details.quiz summary::before{content:"Check yourself · "; color:var(--accent); font-weight:500}
+details.quiz[open] summary{margin-bottom:8px}
+
+.tbl{overflow-x:auto; margin:0 0 22px; border:1px solid var(--line); border-radius:8px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:15.5px; line-height:1.45}
+th,td{text-align:left; vertical-align:top; padding:9px 12px; border-bottom:1px solid var(--line)}
+th{font-family:var(--display); font-size:13px; letter-spacing:.04em; background:var(--surface-2); font-weight:700}
+tr:last-child td{border-bottom:0}
+td code{font-size:.8em}
+
+/* ---------- Diagrams ---------- */
+figure{margin:0 0 26px}
+figcaption{font-family:var(--display); font-size:13.5px; color:var(--muted); margin-top:8px}
+.diagram{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; overflow-x:auto; font-family:var(--display); font-size:14px; line-height:1.35}
+
+.layers{display:grid; gap:6px; min-width:520px}
+.layer{display:grid; grid-template-columns:150px minmax(0,1fr); gap:12px; align-items:center; border:1px solid var(--line); border-radius:6px; padding:9px 12px; background:var(--bg)}
+.layer b{font-size:14px}
+.layer span{color:var(--muted); font-size:13.5px}
+.layer.hl{background:var(--accent-soft); border-color:var(--accent)}
+.layer.hl b{color:var(--accent)}
+.down{text-align:center; color:var(--muted); font-size:12px; line-height:1}
+
+.flow{display:flex; flex-wrap:wrap; gap:8px; align-items:stretch}
+.flow .step{flex:1 1 130px; border:1px solid var(--line); border-radius:6px; padding:9px 11px; background:var(--bg); position:relative}
+.flow .step b{display:block; font-size:13.5px}
+.flow .step span{display:block; color:var(--muted); font-size:12.5px; margin-top:3px}
+.flow .step code{font-size:11.5px}
+.flow .arrow{align-self:center; color:var(--muted); flex:none}
+.flow .step.pv{border-color:var(--priv); background:var(--priv-soft)}
+.flow .step.pb{border-color:var(--pub); background:var(--pub-soft)}
+.flow .step.ac{border-color:var(--accent); background:var(--accent-soft)}
+
+.twin{display:grid; grid-template-columns:1fr 1fr; gap:14px; min-width:520px}
+.twin > div{border:1px solid var(--line); border-radius:8px; padding:12px; background:var(--bg)}
+.twin h5{margin:0 0 6px; font-size:14px}
+.twin pre{margin:0; font-size:12.5px; padding:10px 12px}
+
+.nest{border:1px solid var(--line); border-radius:8px; padding:10px 12px 12px; background:var(--bg); margin-top:8px}
+.nest > .t{font-weight:700; font-size:13.5px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.nest > .t em{font-style:normal; font-weight:400; color:var(--muted); font-family:var(--mono); font-size:11.5px}
+.nest .nest{background:var(--surface)}
+.nest .row{display:flex; flex-wrap:wrap; gap:8px}
+.nest .row > .nest{flex:1 1 200px}
+.chip{display:inline-block; font-family:var(--mono); font-size:11.5px; border:1px solid var(--line); border-radius:4px; padding:1px 6px; margin:2px 2px 0 0; background:var(--surface)}
+.chip.pv{border-color:var(--priv); color:var(--priv)}
+.chip.pb{border-color:var(--pub); color:var(--pub)}
+
+.lanes{display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:0; min-width:640px; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.lanes .lh{background:var(--surface-2); font-weight:700; font-size:13px; padding:8px 10px; border-right:1px solid var(--line)}
+.lanes .cell{padding:8px 10px; border-top:1px solid var(--line); border-right:1px solid var(--line); font-size:13px; min-height:40px}
+.lanes .cell.on{background:var(--accent-soft)}
+.lanes .cell.on b{color:var(--accent)}
+.lanes .cell code{font-size:11px}
+.lanes > :nth-child(4n){border-right:0}
+
+.keys{display:flex; flex-wrap:wrap; gap:8px; align-items:stretch}
+.keys .k{flex:1 1 140px; border:1px solid var(--line); border-radius:6px; padding:10px; background:var(--bg)}
+.keys .k b{display:block; font-size:14px}
+.keys .k code{font-size:11px; display:block; margin:4px 0; background:none; padding:0; color:var(--muted)}
+.keys .k small{display:block; font-size:12px; color:var(--muted)}
+.keys .k.s{border-color:var(--priv)} .keys .k.s b{color:var(--priv)}
+.keys .k.o{border-color:var(--pub)} .keys .k.o b{color:var(--pub)}
+
+.legend{display:flex; flex-wrap:wrap; gap:14px; font-family:var(--display); font-size:13px; color:var(--muted); margin:10px 0 0}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px}
+
+.map{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+.map > div{border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--surface); font-size:15.5px}
+.map b{font-family:var(--display); display:block; margin-bottom:4px}
+@media (max-width:640px){ .map{grid-template-columns:1fr} }
+
+dl.gloss{display:grid; grid-template-columns:max-content minmax(0,1fr); gap:6px 18px; font-size:16px}
+dl.gloss dt{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent); padding-top:2px}
+dl.gloss dd{margin:0}
+@media (max-width:640px){ dl.gloss{grid-template-columns:1fr} dl.gloss dd{margin-bottom:8px} }
+
+footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:15px}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; scroll-behavior:auto!important} }
+html{scroll-behavior:smooth}
+</style>
+
+<div class="shell">
+<nav class="toc" aria-label="Contents">
+  <h2>Reading progress</h2>
+  <div class="progress"><i id="bar"></i></div>
+  <p class="progress-label" id="barlabel">0 of 26 chapters read</p>
+  <ol id="toclist"></ol>
+</nav>
+
+<main>
+<header class="hero">
+  <p class="eyebrow">snarkVM 4.10 · consensus versions V1–V21 · about 90 minutes of reading</p>
+  <h1>Inside snarkVM<span class="sub">How Aleo turns programs into proofs, how validators check them, and how the pieces of the codebase fit together.</span></h1>
+  <p class="lede">This guide is for someone opening the snarkVM repository for the first time. It starts with the maths you need, then describes Aleo as a working system, then walks through the crates and the execution pipeline, and ends with what happens in real transactions and a reading plan for the code.</p>
+  <div class="thesis">
+    <div><b>The user</b>runs the program on their own device and produces a zero-knowledge proof.</div>
+    <div><b>The validator</b>checks the proof and runs only the small public part of the program.</div>
+    <div><b>snarkVM</b>does both halves, and it also defines what counts as a valid transaction, block and ledger state.</div>
+  </div>
+  <details class="toc-mobile"><summary>Contents</summary><ol id="toclist-m"></ol></details>
+</header>
+
+<!-- ======================= PART I ======================= -->
+<div class="part-head" id="part1">
+  <p class="kicker"><span>Part I · Prerequisites</span><span>≈ 25 min</span></p>
+  <h2>The maths you need, and only that</h2>
+  <p>You don't need to be a cryptographer to read snarkVM. You do need a working picture of six ideas, because the code uses them everywhere. Each chapter below ends with where that idea lives in the repository.</p>
+</div>
+
+<section class="chapter" id="c1" data-title="Finite fields" data-part="I">
+<h3><span class="n">01</span>Finite fields: the native number type</h3>
+<p>A <strong>finite field</strong> is arithmetic modulo a prime <code>p</code>. You can add, subtract, multiply, and divide by anything except zero, and the result always wraps back into the range <code>0…p-1</code>. With <code>p = 7</code>: <code>5 + 4 = 2</code>, <code>3 × 5 = 1</code>, so <code>3</code> and <code>5</code> are each other's inverse.</p>
+<p>In snarkVM the prime is about 253 bits long: it's the <em>scalar field of the BLS12-377 curve</em>. A value of that type is called a <code>Field</code>, and it's the machine word of the whole system. Proofs are statements about equations over this field, so anything a circuit touches has to be expressed as field elements at some point.</p>
+<p>The practical consequence: <strong>field operations are cheap in a circuit, and "normal" integer operations are expensive.</strong> A <code>u64</code> addition must also prove there was no overflow, which means breaking the number into 64 bits and constraining each bit to be 0 or 1. Adding two <code>field</code> values is essentially free by comparison. This is why Aleo programs expose <code>field</code> as a first-class type, and why constraint counts matter so much in reviews.</p>
+<div class="callout code"><b class="lab">In the code</b>
+<ul>
+<li><code>fields/</code>: the field traits and concrete prime fields (Fp256, Fp384).</li>
+<li><code>console/types/field</code> and <code>circuit/types/field</code>: the Aleo <code>Field</code> type, in its native and in-circuit forms.</li>
+<li><code>console/types/integers</code> and <code>circuit/types/integers</code>: the <code>u8…u128</code> and <code>i8…i128</code> types, built out of bits.</li>
+</ul></div>
+<details class="quiz"><summary>Why is <code>u64</code> addition more expensive than field addition inside a proof?</summary>
+<p>A field addition wraps modulo <code>p</code>, which is exactly what the proof system does anyway. A <code>u64</code> addition has to behave like a 64-bit integer, so the circuit must decompose values into bits, constrain each bit to be boolean, and check for overflow. That is dozens of constraints instead of about zero.</p></details>
+</section>
+
+<section class="chapter" id="c2" data-title="Elliptic curves" data-part="I">
+<h3><span class="n">02</span>Elliptic curves, keys, and the "curve inside a curve"</h3>
+<p>An <strong>elliptic curve group</strong> is a set of points with an addition rule. Given a fixed generator point <code>G</code> and a secret number <code>s</code>, computing <code>s·G</code> (adding <code>G</code> to itself <code>s</code> times, done quickly) is easy. Going backwards from <code>s·G</code> to <code>s</code> is the <em>discrete logarithm problem</em>, which classical computers can't solve for large groups. That asymmetry gives you key pairs: <code>s</code> is private, <code>s·G</code> is public.</p>
+<p>snarkVM uses two curves, and seeing why is one of the first "aha" moments in the codebase:</p>
+<div class="tbl"><table>
+<tr><th>Curve</th><th>Role</th><th>Why this one</th></tr>
+<tr><td><strong>BLS12-377</strong></td><td>The SNARK's curve. Proofs, verifying keys and polynomial commitments live here.</td><td>It's <em>pairing-friendly</em>: it supports a bilinear map that the proof system needs for KZG commitments.</td></tr>
+<tr><td><strong>Edwards-BLS12</strong><br>(a twisted Edwards curve)</td><td>Everything a program touches: the <code>group</code> type, addresses, signatures, record encryption.</td><td>Its coordinates are elements of BLS12-377's <em>scalar</em> field, the same field circuits work in. So adding points inside a circuit is native arithmetic and relatively cheap.</td></tr>
+</table></div>
+<p>This pattern is called an <em>embedded curve</em>. If addresses used BLS12-377 directly, every signature check inside a proof would mean emulating a foreign field, which would be enormously expensive.</p>
+<div class="callout code"><b class="lab">In the code</b>
+<ul>
+<li><code>curves/</code>: both curves, their parameters and pairing code.</li>
+<li><code>console/types/group</code> and <code>scalar</code>: points on Edwards-BLS12, and the scalars that multiply them.</li>
+<li><code>console/network/src/mainnet_v0.rs</code>: the <code>PairingCurve</code> and the twisted Edwards coefficients <code>A</code> and <code>D</code>.</li>
+</ul></div>
+<div class="callout warn"><b class="lab">Keep in mind</b>
+<p>Both curves depend on discrete logarithms being hard. Shor's algorithm on a large quantum computer would break that. It's the root of the post-quantum discussion: addresses, record encryption and Varuna proofs all rely on these curves.</p></div>
+</section>
+
+<section class="chapter" id="c3" data-title="Hashes, commitments, Merkle trees" data-part="I">
+<h3><span class="n">03</span>Hashes, commitments and Merkle trees</h3>
+<p><strong>Hash functions</strong> map any input to a fixed-size fingerprint. snarkVM carries several, because their cost inside a circuit varies enormously:</p>
+<ul>
+<li><strong>Poseidon</strong> (<code>psd2</code>, <code>psd4</code>, <code>psd8</code>) is designed for field arithmetic and needs only a few hundred constraints. It's used for most internal hashing: tags, IDs, key derivation.</li>
+<li><strong>BHP</strong> (Bowe–Hopwood–Pedersen, in 256/512/768/1024-bit variants) and <strong>Pedersen</strong> are hashes built from curve points. They're used for commitments and Merkle trees.</li>
+<li><strong>Keccak / SHA-3 / SHA-256</strong> are bit-oriented and expensive in circuits. They exist so Aleo programs can interoperate with Ethereum and Bitcoin data.</li>
+</ul>
+<p>A <strong>commitment</strong> <code>Commit(m, r)</code> is a sealed envelope. It hides <code>m</code> (thanks to the random <code>r</code>), and it binds you: you can't later open it to a different <code>m</code>. Every record on Aleo is represented on-chain by a commitment, so the chain can refer to a record without revealing it.</p>
+<p>A <strong>Merkle tree</strong> hashes many leaves pairwise up to a single root. To prove a leaf is in the tree you reveal only the sibling hashes on its path, called a <em>Merkle path</em>. Aleo keeps a global tree over all blocks, transactions, transitions and record commitments. Its root is the <strong>global state root</strong>. When you spend a record, the proof shows inside the circuit that the record's commitment has a valid Merkle path to a recent state root, without revealing which leaf it is.</p>
+<div class="callout code"><b class="lab">In the code</b>
+<ul>
+<li><code>console/algorithms</code> and <code>circuit/algorithms</code>: BHP, Pedersen, Poseidon, Keccak, SHA-3 and ECDSA, in both worlds.</li>
+<li><code>console/collections</code>: Merkle trees.</li>
+<li><code>console/program/src/state_path</code>: the <code>StatePath</code> that proves a record commitment is in the global tree.</li>
+</ul></div>
+</section>
+
+<section class="chapter" id="c4" data-title="Circuits and R1CS" data-part="I">
+<h3><span class="n">04</span>Arithmetic circuits and R1CS</h3>
+<p>A zero-knowledge proof proves a statement of a very specific form: <em>"I know values that satisfy this system of equations."</em> The equations are the <strong>circuit</strong>. snarkVM uses <strong>R1CS</strong> (Rank-1 Constraint System), where every equation looks like</p>
+<pre><code>(linear combination A) × (linear combination B) = (linear combination C)</code></pre>
+<p>A classic toy example: prove you know <code>x</code> such that <code>x³ + x + 5 = 35</code>, without revealing <code>x = 3</code>. You flatten the formula into multiplication steps:</p>
+<pre><code><span class="c">// one multiplication per constraint</span>
+v1 = x  · x         <span class="c">// constraint 1</span>
+v2 = v1 · x         <span class="c">// constraint 2</span>
+(v2 + x + 5) · 1 = 35   <span class="c">// constraint 3 (additions are free)</span>
+
+<span class="c">// witness (secret assignment):  x = 3, v1 = 9, v2 = 27</span>
+<span class="c">// public input:                 35</span></code></pre>
+<p>The full set of values (<code>x</code>, <code>v1</code>, <code>v2</code>) is the <strong>witness</strong> or <em>assignment</em>. Some variables are <strong>public</strong>, and the verifier sees them. Others are <strong>private</strong>, and only the prover knows them. snarkVM models this with three modes: <code>Mode::Constant</code> (fixed in the circuit itself), <code>Mode::Public</code> and <code>Mode::Private</code>.</p>
+<p>Circuits have a <strong>fixed shape</strong>, and that has three consequences for Aleo programs:</p>
+<ul>
+<li><strong>No unbounded loops.</strong> Every loop must be unrolled to a known number of iterations at compile time.</li>
+<li><strong>Both branches of an <code>if</code> are computed.</strong> The result is chosen with a ternary. There's no "skipping" work in a circuit.</li>
+<li><strong>Cost is measured in constraints and variables</strong>, not time. Deployment cost is derived from how big the function's circuit is.</li>
+</ul>
+<div class="callout code"><b class="lab">In the code</b>
+<ul>
+<li><code>algorithms/src/r1cs</code>: the constraint-system representation.</li>
+<li><code>circuit/environment</code>: the <code>Environment</code> that records constraints as circuit types run, plus <code>Mode</code>, <code>Inject</code> (bring a value into the circuit) and <code>Eject</code> (read it back out).</li>
+</ul></div>
+<details class="quiz"><summary>If a function has <code>if cond { a() } else { b() }</code>, what does the circuit contain?</summary>
+<p>Constraints for <em>both</em> <code>a()</code> and <code>b()</code>, plus a selection constraint that picks the output based on <code>cond</code>. The proof cost is the sum of both branches.</p></details>
+</section>
+
+<section class="chapter" id="c5" data-title="zkSNARKs and Varuna" data-part="I">
+<h3><span class="n">05</span>zkSNARKs, and the one snarkVM uses: Varuna</h3>
+<p>A <strong>zkSNARK</strong> (zero-knowledge Succinct Non-interactive ARgument of Knowledge) is a system with three steps:</p>
+<div class="diagram"><div class="flow">
+  <div class="step ac"><b>Setup</b><span>circuit → <em>proving key</em> + <em>verifying key</em></span></div><div class="arrow">→</div>
+  <div class="step pv"><b>Prove</b><span>proving key + public inputs + <em>secret witness</em> → proof π</span></div><div class="arrow">→</div>
+  <div class="step pb"><b>Verify</b><span>verifying key + public inputs + π → accept / reject</span></div>
+</div></div>
+<p>It guarantees four properties. <strong>Completeness</strong>: honest proofs verify. <strong>Soundness</strong>: false statements can't be proven, except with negligible probability. <strong>Zero-knowledge</strong>: the proof reveals nothing about the witness beyond the truth of the statement. <strong>Succinctness</strong>: proofs are small and quick to check, however big the computation was.</p>
+<h4>How Varuna works, at intuition level</h4>
+<p>snarkVM's proof system is <strong>Varuna</strong>, a descendant of Marlin. Its pipeline:</p>
+<ol>
+<li>The R1CS is encoded as polynomials. "The constraints are satisfied" becomes "certain polynomial identities hold."</li>
+<li>The prover commits to those polynomials using <strong>KZG polynomial commitments</strong> on BLS12-377. A KZG commitment is a single curve point that pins down a whole polynomial.</li>
+<li>The verifier, made non-interactive using hashes (Fiat–Shamir), picks random points. The prover opens the commitments there, and pairings check that the openings are consistent. A polynomial identity that holds at a random point almost certainly holds everywhere.</li>
+</ol>
+<p>Two properties of Varuna shape the rest of Aleo:</p>
+<ul>
+<li><strong>Universal setup.</strong> A single <em>universal SRS</em> (structured reference string, a long list of curve points from a one-time ceremony) serves every circuit. Deploying a new program doesn't need a new trusted setup. snarkVM just "indexes" the circuit against the universal SRS to derive that function's proving and verifying keys.</li>
+<li><strong>Batching.</strong> One Varuna proof can cover many different circuits and many instances of each. That's why an Aleo execution with several nested function calls carries <em>one</em> proof, not one per call.</li>
+</ul>
+<div class="callout code"><b class="lab">In the code</b>
+<ul>
+<li><code>algorithms/src/snark/varuna</code>: the prover and verifier (<code>ahp/</code> holds the algebraic core).</li>
+<li><code>algorithms/src/polycommit</code>: <code>kzg10</code> and <code>sonic_pc</code> (the KZG-based commitment scheme Varuna uses).</li>
+<li><code>algorithms/src/fft</code> and <code>msm</code>: the heavy number-crunching (polynomial FFTs, multi-scalar multiplication). <code>algorithms/cuda</code> holds GPU acceleration.</li>
+<li><code>synthesizer/snark</code>: thin wrappers <code>ProvingKey</code>, <code>VerifyingKey</code>, <code>Proof</code> and <code>Certificate</code> used by the rest of the VM.</li>
+<li><code>parameters/</code>: the universal SRS powers, pre-computed keys for <code>credits.aleo</code>, and genesis blocks.</li>
+</ul></div>
+</section>
+
+<section class="chapter" id="c6" data-title="State models and Rust generics" data-part="I">
+<h3><span class="n">06</span>Two state models, and three Rust type parameters</h3>
+<p>Blockchains track state in one of two ways. The <strong>account model</strong> (Ethereum) keeps a global table of balances and storage that transactions mutate. The <strong>UTXO model</strong> (Bitcoin, Zcash) keeps a set of unspent "notes". A transaction consumes some and creates new ones. Aleo uses <strong>both</strong>:</p>
+<ul>
+<li><span class="priv">Records</span> are UTXO-style, encrypted, and owned by one address. This is where privacy lives.</li>
+<li><span class="pub">Mappings</span> are account-style public key→value tables per program. This is where shared state lives.</li>
+</ul>
+<p>Finally, three generic type parameters appear on almost every snarkVM type. Once you recognise them, the signatures stop looking scary:</p>
+<div class="tbl"><table>
+<tr><th>Parameter</th><th>Meaning</th><th>Typical concrete type</th></tr>
+<tr><td><code>N: Network</code></td><td>Which chain: its constants, hash functions, curve and consensus heights.</td><td><code>MainnetV0</code>, <code>TestnetV0</code>, <code>CanaryV0</code></td></tr>
+<tr><td><code>A: circuit::Aleo&lt;Network = N&gt;</code></td><td>The circuit environment that records constraints for network <code>N</code>.</td><td><code>AleoV0</code>, <code>AleoTestnetV0</code>, <code>AleoCanaryV0</code></td></tr>
+<tr><td><code>C: ConsensusStorage&lt;N&gt;</code></td><td>The storage backend for the ledger.</td><td>In-memory, or RocksDB (the <code>rocks</code> feature)</td></tr>
+</table></div>
+<p>So <code>Process::execute::&lt;A, R&gt;(authorization, rng)</code> reads as "execute on this network, recording constraints in circuit environment <code>A</code>, using randomness <code>R</code>."</p>
+</section>
+
+<!-- ======================= PART II ======================= -->
+<div class="part-head" id="part2">
+  <p class="kicker"><span>Part II · Aleo as a system</span><span>≈ 25 min</span></p>
+  <h2>What Aleo is made of, before we open the engine</h2>
+  <p>This part describes the objects snarkVM manipulates (accounts, programs, records, transactions, blocks) and the people and machines that create them.</p>
+</div>
+
+<section class="chapter" id="c7" data-title="Actors and the stack" data-part="II">
+<h3><span class="n">07</span>Actors, and where snarkVM sits</h3>
+<figure><div class="diagram"><div class="layers">
+  <div class="layer"><b>Leo</b><span>High-level language that developers write. Compiles to Aleo instructions.</span></div>
+  <div class="down">↓ compiles to</div>
+  <div class="layer"><b>Aleo instructions</b><span>Assembly-like program text (<code>token.aleo</code>). This is what gets deployed.</span></div>
+  <div class="down">↓ parsed, synthesized, proven and verified by</div>
+  <div class="layer hl"><b>snarkVM</b><span>Program parser and type checker · circuit synthesis · Varuna proving and verification · finalize execution · ledger rules · storage · all cryptography.</span></div>
+  <div class="down">↑ used as a library by</div>
+  <div class="layer"><b>snarkOS</b><span>The node: peer-to-peer networking, AleoBFT consensus, mempool, REST API. Calls snarkVM to validate and apply everything.</span></div>
+  <div class="layer"><b>SDK and wallets</b><span>snarkVM compiled to WebAssembly (<code>wasm/</code>). Creates keys and proofs in the browser, in Node.js or on mobile.</span></div>
+  <div class="layer"><b>Leo CLI and dev tools</b><span>Build, run, test and deploy programs locally. snarkVM runs underneath.</span></div>
+</div></div><figcaption>snarkVM is a library, not a service. Each of these tools embeds it.</figcaption></figure>
+<div class="tbl"><table>
+<tr><th>Actor</th><th>What they do</th><th>What part of snarkVM they run</th></tr>
+<tr><td><strong>User / wallet</strong></td><td>Signs and proves transactions, scans for their records.</td><td>Account keys, <code>authorize</code>, <code>execute</code> (proving), record decryption</td></tr>
+<tr><td><strong>Developer</strong></td><td>Writes and deploys programs.</td><td>Parser, circuit synthesis, <code>deploy</code> (key generation)</td></tr>
+<tr><td><strong>Validator</strong></td><td>Stakes ALEO, runs AleoBFT consensus, produces blocks.</td><td><code>check_transaction</code>, <code>speculate</code>, <code>check_speculate</code>, <code>add_next_block</code></td></tr>
+<tr><td><strong>Prover</strong></td><td>Solves the coinbase puzzle for rewards.</td><td><code>ledger/puzzle</code></td></tr>
+<tr><td><strong>Client / API node</strong></td><td>Follows the chain, serves queries.</td><td>Block verification and storage</td></tr>
+</table></div>
+</section>
+
+<section class="chapter" id="c8" data-title="Accounts and keys" data-part="II">
+<h3><span class="n">08</span>Accounts: one seed, four keys, four powers</h3>
+<p>An Aleo account derives a chain of keys from one random seed. Each key along the chain can do less than the one before it, which is what makes delegated proving and read-only access possible.</p>
+<figure><div class="diagram"><div class="keys">
+  <div class="k s"><b>Private key</b><code>seed → sk_sig, r_sig</code><small>Can spend. Never leaves the wallet.</small></div>
+  <div class="k"><b>Compute key</b><code>pk_sig = G·sk_sig
+pr_sig = G·r_sig
+sk_prf = H(pk_sig‖pr_sig)</code><small>What the circuit uses to check signatures.</small></div>
+  <div class="k"><b>View key</b><code>sk_sig + r_sig + sk_prf</code><small>Can decrypt your records. Can't spend.</small></div>
+  <div class="k o"><b>Address</b><code>G · view_key</code><small>Public. Where people send you records.</small></div>
+</div></div><figcaption>Derivations from <code>console/account/src/compute_key/mod.rs</code>, <code>view_key/try_from.rs</code> and <code>view_key/to_address.rs</code>. <code>G</code> is the Edwards-BLS12 generator.</figcaption></figure>
+<p>Two practical consequences:</p>
+<ul>
+<li>You can hand your <strong>view key</strong> to an auditor, accountant or regulator. They can read your history but can't move funds. This is the "selective disclosure" feature that institutional users care about.</li>
+<li>Proving is expensive, so a phone can <strong>sign an authorization</strong> with the private key and let a proving service build the proof. The service learns the inputs but can't change them or spend anything else.</li>
+</ul>
+<p>There's also a <strong>graph key</strong> (<code>console/account/src/graph_key</code>), derived from the view key. It produces <code>sk_tag</code>, which is used to compute record <em>tags</em> (chapter 10).</p>
+<p>Note that the Aleo address <em>is</em> a curve point. That matters for the quantum discussion: unlike Ethereum, which publishes a hash of the public key, every Aleo address exposes its public point from day one.</p>
+</section>
+
+<section class="chapter" id="c9" data-title="Programs" data-part="II">
+<h3><span class="n">09</span>Programs: functions, finalize, records, mappings</h3>
+<p>A deployed program is a text file of Aleo instructions. Here is a small token program with a private transfer and a public transfer:</p>
+<pre><code><span class="k">program</span> token.aleo;
+
+<span class="c">// Private state: an encrypted UTXO owned by an address.</span>
+<span class="k">record</span> token:
+    owner  as address<span class="v">.private</span>;
+    amount as u64<span class="v">.private</span>;
+
+<span class="c">// Public state: an on-chain key→value table.</span>
+<span class="k">mapping</span> account:
+    key   as address<span class="p">.public</span>;
+    value as u64<span class="p">.public</span>;
+
+<span class="c">// Runs on the USER's machine and is proven. Validators see nothing private.</span>
+<span class="k">function</span> transfer_private:
+    input r0 as token.record;
+    input r1 as address<span class="v">.private</span>;
+    input r2 as u64<span class="v">.private</span>;
+    sub r0.amount r2 into r3;                 <span class="c">// underflow fails the proof</span>
+    cast r1 r2 into r4 as token.record;       <span class="c">// new record for the recipient</span>
+    cast r0.owner r3 into r5 as token.record; <span class="c">// change back to the sender</span>
+    output r4 as token.record;
+    output r5 as token.record;
+
+<span class="c">// Proven part: produces a Future that carries public arguments.</span>
+<span class="k">function</span> transfer_public:
+    input r0 as address<span class="p">.public</span>;
+    input r1 as u64<span class="p">.public</span>;
+    async transfer_public self.caller r0 r1 into r2;
+    output r2 as token.aleo/transfer_public.future;
+
+<span class="c">// Runs on EVERY VALIDATOR, not proven. Reads and writes mappings.</span>
+<span class="k">finalize</span> transfer_public:
+    input r0 as address<span class="p">.public</span>;
+    input r1 as address<span class="p">.public</span>;
+    input r2 as u64<span class="p">.public</span>;
+    get.or_use account[r0] 0u64 into r3;
+    sub r3 r2 into r4;
+    set r4 into account[r0];
+    get.or_use account[r1] 0u64 into r5;
+    add r5 r2 into r6;
+    set r6 into account[r1];</code></pre>
+<div class="tbl"><table>
+<tr><th>Element</th><th>Where it runs</th><th>Proven?</th><th>Touches</th></tr>
+<tr><td><code>function</code></td><td>User's device</td><td>Yes, always</td><td>Inputs, records, calls to other functions</td></tr>
+<tr><td><code>closure</code></td><td>Inside a function's circuit</td><td>Yes, as part of its caller</td><td>Only its inputs</td></tr>
+<tr><td><code>finalize</code> (via <code>async</code> / <code>Future</code>)</td><td>Every validator, in block order</td><td>No, it's re-executed</td><td>Mappings, block height, randomness</td></tr>
+<tr><td><code>constructor</code></td><td>Validators, at deploy or upgrade</td><td>No</td><td>Mappings. Decides whether an upgrade is allowed.</td></tr>
+<tr><td><code>record</code>, <code>struct</code>, <code>mapping</code></td><td colspan="3">Type declarations: private data, composite data, public storage.</td></tr>
+</table></div>
+<p>Why the split between function and finalize? A proof is made <em>before</em> the transaction is ordered in a block. It can't know the current value of a public balance, because another transaction might change it first. So anything that reads or writes shared state is moved into finalize and runs after ordering. It's the same reason Ethereum re-executes everything, applied only to the part that needs it.</p>
+<p>The program language has grown through consensus upgrades. Program upgrades with an edition number and a <code>constructor</code> arrived in V9. ECDSA verification arrived in V11. <code>snark.verify</code>, dynamic dispatch and much larger size limits arrived in V14–V16. More mappings per program arrive in V21.</p>
+<div class="callout code"><b class="lab">In the code</b>
+<ul>
+<li><code>synthesizer/program/src</code>: <code>Program</code>, plus <code>function/</code>, <code>closure/</code>, <code>finalize/</code>, <code>constructor/</code>, <code>mapping/</code> and <code>import/</code>.</li>
+<li><code>synthesizer/program/src/logic/instruction</code>: every opcode (<code>add</code>, <code>hash.bhp256</code>, <code>cast</code>, <code>call</code>, <code>async</code>…).</li>
+<li><code>synthesizer/program/src/logic/command</code>: finalize-only commands (<code>get</code>, <code>get.or_use</code>, <code>set</code>, <code>contains</code>, <code>remove</code>, <code>rand.chacha</code>, <code>branch</code>, <code>position</code>, <code>await</code>).</li>
+<li><code>synthesizer/program/src/resources</code>: <code>credits.aleo</code>, the built-in token and staking program.</li>
+</ul></div>
+</section>
+
+<section class="chapter" id="c10" data-title="Records" data-part="II">
+<h3><span class="n">10</span>Records: the private coin, from birth to spend</h3>
+<p>A record is defined in <code>console/program/src/data/record/mod.rs</code>:</p>
+<pre><code><span class="k">pub struct</span> Record&lt;N, Private&gt; {
+    owner:   Owner&lt;N, Private&gt;,                        <span class="c">// the address that can spend it</span>
+    data:    IndexMap&lt;Identifier&lt;N&gt;, Entry&lt;N, Private&gt;&gt;, <span class="c">// e.g. amount</span>
+    nonce:   Group&lt;N&gt;,                                 <span class="c">// nonce = G · randomizer</span>
+    version: U8&lt;N&gt;,                                    <span class="c">// commitment scheme version</span>
+}</code></pre>
+<p>The type parameter <code>Private</code> is either <code>Plaintext</code> or <code>Ciphertext</code>, so the same struct describes the decrypted and encrypted forms. The life of a record has three stages:</p>
+<figure><div class="diagram"><div class="flow">
+  <div class="step pv"><b>1 · Created</b><span>A function outputs it. The chain stores its <em>commitment</em> and its <em>encrypted</em> form.</span></div><div class="arrow">→</div>
+  <div class="step"><b>2 · Held</b><span>The commitment becomes a leaf in the global state tree. The owner finds it by scanning with their view key.</span></div><div class="arrow">→</div>
+  <div class="step pb"><b>3 · Spent</b><span>The chain sees only a <em>serial number</em> and a <em>tag</em>, plus a proof that the record exists and belongs to the spender.</span></div>
+</div></div></figure>
+<h4>Encryption: how only the owner can read it</h4>
+<p>From <code>record/encrypt.rs</code>: the creator picks a random <code>randomizer</code> and publishes <code>nonce = G·randomizer</code>. They compute the <strong>record view key</strong> <code>(owner_address · randomizer).x</code> and encrypt the fields with it. The owner can recompute the same key as <code>(view_key · nonce).x</code>, because <code>view_key · G · randomizer = randomizer · address</code>. This is a Diffie–Hellman exchange on Edwards-BLS12. Wallets try this against every new record on chain. If decryption yields their own address as owner, the record is theirs.</p>
+<h4>Spending: serial numbers make spends unlinkable</h4>
+<p>From <code>record/serial_number.rs</code> and <code>record/tag.rs</code>:</p>
+<pre><code>H             = HashToGroup(commitment)
+gamma         = sk_sig · H
+serial_number = Commit_bhp512(commitment, Hash(gamma))
+tag           = Hash_psd2(sk_tag, commitment)</code></pre>
+<p>The serial number is deterministic, so spending the same record twice produces the same serial number, and validators reject duplicates. That's double-spend protection. But it's computed from a secret key, so nobody else can connect a serial number to the commitment it came from. The chain learns "some record was spent", never "record #4711 was spent". The spending proof also contains a Merkle path showing the commitment is in the global state tree. That path is checked inside the circuit, against the <code>global_state_root</code> named in the execution.</p>
+<details class="quiz"><summary>What stops Alice from spending the same record in two different blocks?</summary>
+<p>Both spends would publish the same serial number, because it's deterministic from the commitment and her <code>sk_sig</code>. The validator checks serial numbers for uniqueness within the transaction, within the block and against the whole ledger, and rejects the second spend.</p></details>
+</section>
+
+<section class="chapter" id="c11" data-title="Transactions and transitions" data-part="II">
+<h3><span class="n">11</span>Transactions and transitions</h3>
+<p>One function call produces one <strong>transition</strong>. A user's action, which may call several functions through nested <code>call</code>s, produces an <strong>execution</strong>: a set of transitions with one batched proof. Add a fee and you have a <strong>transaction</strong>.</p>
+<figure><div class="diagram">
+<div class="nest"><div class="t">Transaction::Execute <em>ledger/block/src/transaction/mod.rs</em></div>
+  <div class="row">
+    <div class="nest"><div class="t">Execution <em>execution/mod.rs</em></div>
+      <div class="nest"><div class="t">Transition × n <em>transition/mod.rs</em></div>
+        <span class="chip">id</span><span class="chip pb">program_id</span><span class="chip pb">function_name</span><span class="chip">tpk</span><span class="chip">tcm</span><span class="chip">scm</span>
+        <div class="row">
+          <div class="nest"><div class="t">inputs</div><span class="chip pb">Constant</span><span class="chip pb">Public</span><span class="chip pv">Private (ciphertext)</span><span class="chip pv">Record (serial no., tag)</span><span class="chip">ExternalRecord</span></div>
+          <div class="nest"><div class="t">outputs</div><span class="chip pb">Public</span><span class="chip pv">Private (ciphertext)</span><span class="chip pv">Record (commitment, encrypted record)</span><span class="chip pb">Future</span></div>
+        </div>
+      </div>
+      <span class="chip">global_state_root</span><span class="chip">proof (one, batched)</span>
+    </div>
+    <div class="nest"><div class="t">Fee <em>fee/mod.rs</em></div><span class="chip">fee transition</span><span class="chip">its own proof</span><div style="margin-top:6px;font-size:12.5px;color:var(--muted)">From <code>credits.aleo/fee_private</code> (spends a record) or <code>fee_public</code> (debits the public balance).</div></div>
+  </div>
+</div>
+<div class="legend"><span><i style="background:var(--pub)"></i>plaintext on chain</span><span><i style="background:var(--priv)"></i>encrypted or hidden on chain</span></div>
+</div></figure>
+<p>There are exactly three transaction variants:</p>
+<pre><code><span class="k">pub enum</span> Transaction&lt;N&gt; {
+    Deploy(TransactionID, DeploymentID, ProgramOwner, Box&lt;Deployment&gt;, Fee),
+    Execute(TransactionID, ExecutionID, Box&lt;Execution&gt;, Option&lt;Fee&gt;),
+    Fee(TransactionID, Fee),   <span class="c">// what remains of a rejected transaction</span>
+}</code></pre>
+<p>Notice what a transition reveals: <strong>the program ID and function name are plaintext</strong>. An observer can see "someone called <code>token.aleo/transfer_private</code>" but not who, to whom or how much. The <code>tpk</code> (transition public key) and <code>tcm</code> (transition commitment) tie the encrypted inputs and outputs to a per-transition secret, the <em>transition view key</em> (<code>tvk</code>). The <code>scm</code> commits to the signer.</p>
+<h4>Accepted, rejected, aborted</h4>
+<p>Being included in a block doesn't guarantee the transaction succeeded. When the block is built, each transaction becomes a <code>ConfirmedTransaction</code>:</p>
+<ul>
+<li><strong>AcceptedDeploy / AcceptedExecute</strong>: the proof was valid and finalize succeeded. State changes apply.</li>
+<li><strong>RejectedDeploy / RejectedExecute</strong>: the proof was valid, but finalize failed (for example an underflow on a public balance). The original is replaced by a <code>Transaction::Fee</code>, so <strong>the fee is still charged</strong>, and the rejected part is kept for the record.</li>
+<li><strong>Aborted</strong>: couldn't even be processed, for example a double spend or a missing fee. Only its ID is listed, in <code>aborted_transaction_ids</code>.</li>
+</ul>
+</section>
+
+<section class="chapter" id="c12" data-title="Blocks, consensus, puzzle" data-part="II">
+<h3><span class="n">12</span>Blocks, consensus, and the coinbase puzzle</h3>
+<p>From <code>ledger/block/src/lib.rs</code>:</p>
+<pre><code><span class="k">pub struct</span> Block&lt;N&gt; {
+    block_hash, previous_hash,
+    header:                   Header,        <span class="c">// Merkle roots + metadata</span>
+    authority:                Authority,     <span class="c">// Beacon(signature) | Quorum(subdag)</span>
+    ratifications:            Ratifications, <span class="c">// Genesis | BlockReward | PuzzleReward</span>
+    solutions:                Solutions,     <span class="c">// coinbase-puzzle solutions from provers</span>
+    aborted_solution_ids,
+    transactions:             Transactions,  <span class="c">// ConfirmedTransaction list</span>
+    aborted_transaction_ids,
+}</code></pre>
+<p>The <strong>header</strong> commits to everything with Merkle roots: <code>previous_state_root</code>, <code>transactions_root</code>, <code>finalize_root</code> (the result of all the mapping updates), <code>ratifications_root</code>, <code>solutions_root</code> and <code>subdag_root</code>. Its <strong>metadata</strong> holds the network ID, round, height, cumulative weight, puzzle targets and timestamp. Because <code>finalize_root</code> is in the header, two validators that computed different mapping state for the same block produce different block hashes. Any disagreement is caught immediately.</p>
+<h4>Consensus: AleoBFT</h4>
+<p>Consensus runs in snarkOS, but its data structures live in snarkVM (<code>ledger/narwhal/*</code>, <code>ledger/committee</code>). The design is <strong>Narwhal + Bullshark</strong>:</p>
+<ol>
+<li>Validators in the <strong>committee</strong> (<code>Committee</code>: members with stake, an open flag and a commission) each propose a <em>batch</em> of transmissions (transactions and puzzle solutions) every round.</li>
+<li>Other validators sign it. Once enough stake has signed, it becomes a <em>batch certificate</em>. Certificates reference ones from the previous round, which forms a DAG.</li>
+<li>A leader certificate is committed Bullshark-style. Everything it references and hasn't been committed yet forms a <em>subdag</em>.</li>
+<li>snarkVM turns the subdag into a block. The block's <code>authority</code> is <code>Quorum(subdag)</code>, and the genesis block uses <code>Beacon(signature)</code>.</li>
+</ol>
+<p>The committee changes with staking activity through <code>credits.aleo</code> bonding and unbonding, which is applied with a <em>lookback</em>: a committee takes effect a fixed number of rounds after it's formed.</p>
+<h4>The coinbase puzzle</h4>
+<p>Separately from validators, <strong>provers</strong> compete to find puzzle solutions that meet a difficulty target tied to the current epoch (<code>ledger/puzzle</code>). Solutions go into blocks, and provers are paid through the <code>PuzzleReward</code> ratification, while validators receive <code>BlockReward</code>. The idea is to reward hardware that is good at the same kind of work as ZK proving. The puzzle doesn't secure ordering; AleoBFT does that.</p>
+</section>
+
+<!-- ======================= PART III ======================= -->
+<div class="part-head" id="part3">
+  <p class="kicker"><span>Part III · snarkVM internals</span><span>≈ 30 min</span></p>
+  <h2>Opening the engine</h2>
+  <p>Now the repository itself: how the crates are layered, the idea that shapes the whole codebase, and the exact path a transaction takes through the code on both sides of the network.</p>
+</div>
+
+<section class="chapter" id="c13" data-title="The crate map" data-part="III">
+<h3><span class="n">13</span>The crate map</h3>
+<p>Each layer depends only on the layers below it. Reading from the bottom up is the fastest way to build a mental model.</p>
+<figure><div class="diagram"><div class="layers">
+  <div class="layer hl"><b>vm/</b><span>The <code>snarkvm</code> umbrella crate. Re-exports everything, plus helpers for program package files (<code>vm/file</code>: <code>.aleo</code>, manifest, prover and verifier files).</span></div>
+  <div class="layer"><b>ledger/</b><span>The <code>Ledger</code> (wraps the VM), plus <code>block</code>, <code>store</code>, <code>committee</code>, <code>narwhal/*</code>, <code>puzzle</code>, <code>query</code> and <code>authority</code>.</span></div>
+  <div class="layer hl"><b>synthesizer/</b><span>The VM proper. <code>program</code> parses programs; <code>process</code> runs them (<code>Stack</code>, authorize, execute, verify, finalize, cost); <code>snark</code> wraps keys and proofs; <code>src/vm</code> is the top-level <code>VM</code>.</span></div>
+  <div class="layer"><b>circuit/</b><span>Every type and algorithm again, as constraints: types, account, algorithms, collections, program, network and environment.</span></div>
+  <div class="layer"><b>console/</b><span>Every type and algorithm natively: types, account, algorithms, collections, program. Also <code>network</code>, with the MainnetV0 / TestnetV0 / CanaryV0 constants and consensus versions.</span></div>
+  <div class="layer"><b>algorithms/</b><span>Varuna SNARK, KZG polynomial commitments, FFT, MSM, R1CS, the SRS. <code>cuda</code> holds GPU kernels.</span></div>
+  <div class="layer"><b>curves/</b><span>BLS12-377 and Edwards-BLS12.</span></div>
+  <div class="layer"><b>fields/</b><span>Prime-field arithmetic.</span></div>
+  <div class="layer"><b>utilities/</b><span>Serialization (<code>ToBytes</code>/<code>FromBytes</code>), bit utilities, parallelism helpers and derive macros.</span></div>
+</div>
+<p style="margin:10px 0 0;font-size:13px;color:var(--muted)">On the side: <code>parameters/</code> (SRS, <code>credits.aleo</code> keys, genesis blocks), <code>wasm/</code> (browser and Node builds), <code>metrics/</code>.</p>
+</div><figcaption>Dependency order from <code>AGENTS.md</code>, crate list from the workspace <code>Cargo.toml</code>.</figcaption></figure>
+</section>
+
+<section class="chapter" id="c14" data-title="Network and consensus versions" data-part="III">
+<h3><span class="n">14</span>The <code>Network</code> trait and consensus versions</h3>
+<p>Everything chain-specific sits behind <code>trait Network</code> in <code>console/network</code>: the curve types, generators, domain separators, hash functions (<code>N::hash_psd2</code>, <code>N::commit_bhp512</code>…), size limits, fee constants and the Varuna prover and verifier instances. Three networks implement it: <code>MainnetV0</code>, <code>TestnetV0</code> and <code>CanaryV0</code>.</p>
+<p>The most important file for anyone who changes behaviour is <code>console/network/src/consensus_heights.rs</code>. It lists the <code>ConsensusVersion</code>s and the block height at which each one activates on each network:</p>
+<div class="tbl"><table>
+<tr><th>Version</th><th>What it changed (abridged from the source comments)</th></tr>
+<tr><td>V1–V3</td><td>Genesis; block reward and execution cost algorithms; validator count and finalize RNG seed.</td></tr>
+<tr><td>V4</td><td>Varuna version update.</td></tr>
+<tr><td>V8</td><td>New inclusion and record commitment versions; sender ciphertexts.</td></tr>
+<tr><td>V9</td><td>Program upgradability (editions, constructors).</td></tr>
+<tr><td>V10–V11</td><td>Lower fees; ECDSA verification opcodes; arrays up to 512.</td></tr>
+<tr><td>V14</td><td>512 kB programs; <code>snark.verify</code>; dynamic dispatch; identifier literals.</td></tr>
+<tr><td>V16–V19</td><td>Spend-limit check moved to finalize; rejection reasons stored; 2 MB programs; native credits record translation; deployment limits.</td></tr>
+<tr><td>V20–V21</td><td>Stricter root-call type checks and bounded plaintext types; up to 128 mappings per program.</td></tr>
+</table></div>
+<div class="callout warn"><b class="lab">Why this file matters</b>
+<p>Every node must compute identical results for identical inputs, or the network forks. So any change that alters behaviour must be <em>gated</em>: <code>if consensus_version &gt;= V22 { new rule } else { old rule }</code>. Old blocks must still validate with the old rules forever. That's why <code>AGENTS.md</code> says all changes must be backwards compatible, and why you'll see <code>_v1</code>…<code>_v4</code> variants of functions such as <code>deployment_cost</code>.</p></div>
+</section>
+
+<section class="chapter" id="c15" data-title="Console and circuit" data-part="III">
+<h3><span class="n">15</span>The central idea: console and circuit twins</h3>
+<p>Almost every type and algorithm in snarkVM is written twice, with the same structure and the same API:</p>
+<figure><div class="diagram"><div class="twin">
+  <div><h5>console/ · computes values</h5><pre><code><span class="c">// console/types/field</span>
+let a = Field::&lt;N&gt;::from_u64(3);
+let b = Field::&lt;N&gt;::from_u64(4);
+let c = a * b;    <span class="c">// c = 12, done</span></code></pre></div>
+  <div><h5>circuit/ · records constraints</h5><pre><code><span class="c">// circuit/types/field</span>
+let a = Field::&lt;A&gt;::new(Mode::Private, 3);
+let b = Field::&lt;A&gt;::new(Mode::Private, 4);
+let c = &amp;a * &amp;b;  <span class="c">// adds constraint a·b=c</span>
+                   <span class="c">// and witness c = 12</span></code></pre></div>
+</div></div><figcaption>The two versions must always agree. <code>Inject</code> moves a console value into the circuit; <code>Eject</code> reads the value back out.</figcaption></figure>
+<p>During a real execution, snarkVM runs <em>both</em>. The console version produces the actual outputs quickly and gives clear errors. The circuit version builds the R1CS and its witness, which Varuna then proves. At the end the circuit's outputs are ejected and must equal the console outputs.</p>
+<p>If the two versions ever differ, you get one of two failures:</p>
+<ul>
+<li><strong>Circuit stricter than console:</strong> valid transactions can't be proven, and users get stuck.</li>
+<li><strong>Circuit looser than console:</strong> a proof could be made for something the console would reject. That's a <em>soundness</em> bug, the most serious kind in a ZK system.</li>
+</ul>
+<p>That's why the review checklist in <code>AGENTS.md</code> says "circuit constraints match console logic exactly", and why tests compare outputs and constraint counts across the two.</p>
+</section>
+
+<section class="chapter" id="c16" data-title="The program crate" data-part="III">
+<h3><span class="n">16</span><code>synthesizer/program</code>: programs as data</h3>
+<p>This crate turns program text into typed Rust structures, and back. <code>Program::from_str</code> parses (<code>parse.rs</code>); <code>bytes.rs</code> and <code>serialize.rs</code> give the binary and JSON forms stored on chain. A <code>Program</code> holds its ID, imports, structs, records, mappings, closures, functions, an optional constructor, and views (read-only finalize-style helpers).</p>
+<p>Instructions live in <code>logic/instruction</code>. Each opcode has two implementations: <code>evaluate</code> (console) and <code>execute</code> (circuit), following the twin pattern again. Finalize-only commands live in <code>logic/command</code>, and <code>logic/finalize_operation</code> defines the effects finalize can have on storage:</p>
+<pre><code><span class="k">pub enum</span> FinalizeOperation&lt;N&gt; {
+    InitializeMapping(mapping_id),
+    InsertKeyValue(mapping_id, key_id, value_id),
+    UpdateKeyValue(mapping_id, key_id, value_id),
+    RemoveKeyValue(mapping_id, key_id),
+    ReplaceMapping(mapping_id),
+    RemoveMapping(mapping_id),
+}</code></pre>
+<p>These operations are recorded per confirmed transaction and hashed into the block's <code>finalize_root</code>.</p>
+</section>
+
+<section class="chapter" id="c17" data-title="Process, Stack, CallStack" data-part="III">
+<h3><span class="n">17</span>Process, Stack and CallStack</h3>
+<p>Three types in <code>synthesizer/process</code> do the real work.</p>
+<p><strong><code>Process</code></strong> is the registry of all deployed programs. It holds the universal SRS and a map from <code>ProgramID</code> to <code>Stack</code>, with <code>credits.aleo</code> loaded at start-up.</p>
+<p><strong><code>Stack</code></strong> is one per program. It holds the program plus everything derived from it: register types for every function, closure, finalize and view; proving and verifying keys per function; the program address, checksum and per-component checksums; the edition and owner. It also keeps a weak reference back to all stacks, so a <code>call</code> to another program can be resolved.</p>
+<p><strong><code>CallStack</code></strong> is the <em>mode</em> a function runs in. The same <code>execute_function</code> code path serves very different purposes depending on this enum:</p>
+<div class="tbl"><table>
+<tr><th>Mode</th><th>Used for</th><th>Produces</th></tr>
+<tr><td><code>Authorize</code></td><td>Building the signed requests for a call tree</td><td><code>Authorization</code></td></tr>
+<tr><td><code>AuthorizeMocked</code>, <code>AuthorizeRequests</code></td><td>Authorization variants for simulations and multi-request call trees</td><td><code>Authorization</code></td></tr>
+<tr><td><code>Synthesize</code></td><td>Generating keys when a program is deployed</td><td>Proving and verifying keys</td></tr>
+<tr><td><code>CheckDeployment</code></td><td>Validators re-synthesizing a deployment, with constraint and variable limits</td><td>Assignments, which are checked against certificates</td></tr>
+<tr><td><code>Evaluate</code></td><td>Running natively with no circuit</td><td>Outputs only</td></tr>
+<tr><td><code>Execute</code></td><td>Real execution with proof generation</td><td>Transitions + assignments in a <code>Trace</code></td></tr>
+<tr><td><code>PackageRun</code></td><td>Local runs by developer tooling</td><td>Assignments</td></tr>
+</table></div>
+<p><strong>Registers</strong> (<code>stack/registers</code>) are the working memory: <code>r0</code>, <code>r1</code>… Each holds a console value and, in circuit modes, the matching circuit value. <code>register_types</code> and <code>finalize_types</code> are computed once when the program is added, so type errors are caught at deployment, not at runtime.</p>
+</section>
+
+<section class="chapter" id="c18" data-title="Execution pipeline" data-part="III">
+<h3><span class="n">18</span>The execution pipeline, step by step</h3>
+<p>This is the path a wallet follows to create an execute transaction. Top-level entry: <code>VM::execute</code> in <code>synthesizer/src/vm/execute.rs</code>.</p>
+<h4>Step 1: Authorize (sign what you intend to do)</h4>
+<p><code>VM::authorize</code> → <code>Process::authorize</code> → <code>Stack::authorize</code>. For the root call and every nested <code>call</code>, the wallet builds a <strong><code>Request</code></strong> (<code>console/program/src/request</code>):</p>
+<pre><code>Request { signer, network_id, program_id, function_name,
+          input_ids, inputs, signature,
+          sk_tag, tvk, tcm, scm, is_dynamic }</code></pre>
+<p>The signature covers the function and the input IDs (hashes or commitments of the inputs). The <code>tvk</code> (transition view key) is a fresh per-transition secret used to encrypt private inputs and outputs. All the requests together form an <strong><code>Authorization</code></strong>. This is the object you can hand to a delegated prover.</p>
+<h4>Step 2: Execute (run twice, build the circuit)</h4>
+<p><code>Process::execute</code> → <code>Stack::execute_function</code> in <code>stack/execute.rs</code>, in <code>CallStack::Execute</code> mode. Reading the source comments in order, for each request:</p>
+<ol>
+<li>Check the network ID and that input types match the function signature.</li>
+<li>Inject the transition public key <code>tpk</code> as <span class="pub">Public</span> and the whole request as <span class="priv">Private</span>. Inject <code>is_root</code> and the parent as Public.</li>
+<li><strong>Verify the request inside the circuit</strong>: signature, input IDs and <code>tvk</code>. This is what ties the proof to the signer's key.</li>
+<li>Store the inputs into registers, as console values and as circuit values.</li>
+<li>Run each instruction. <code>evaluate</code> runs on console values and <code>execute</code> adds constraints. A <code>call</code> recurses into the callee's stack, which produces its own transition.</li>
+<li>Load the outputs, build the <code>Response</code> (encrypting private outputs, committing to records), and check the circuit is satisfied.</li>
+<li>Insert the transition and its assignment into the <strong><code>Trace</code></strong>.</li>
+</ol>
+<h4>Step 3: Prepare inclusion (prove your input records exist)</h4>
+<p><code>Trace::prepare(query)</code> (<code>process/src/trace</code>). For every record input, fetch a <code>StatePath</code> from a node (through the <code>Query</code> trait in <code>ledger/query</code>) that proves the record's commitment is under a recent <code>global_state_root</code>. These become extra <em>inclusion</em> circuits.</p>
+<h4>Step 4: Prove</h4>
+<p><code>Trace::prove_execution</code> runs Varuna once over <em>all</em> transitions' assignments plus the inclusion assignments, and produces one batched proof. The result is <code>Execution { transitions, global_state_root, proof }</code>.</p>
+<h4>Step 5: Fee</h4>
+<p>The same pipeline runs for <code>credits.aleo/fee_private</code> or <code>fee_public</code> (<code>authorize_fee_*</code>, <code>execute_fee_authorization</code>, <code>Trace::prove_fee</code>). The fee is bound to the execution ID. <code>Transaction::from_execution</code> combines the two, and the wallet broadcasts it to a snarkOS node.</p>
+<figure><div class="diagram"><div class="flow">
+  <div class="step pv"><b>authorize</b><span>Requests + signatures<br><code>vm/authorize.rs</code></span></div><div class="arrow">→</div>
+  <div class="step pv"><b>execute</b><span>console + circuit per call<br><code>stack/execute.rs</code></span></div><div class="arrow">→</div>
+  <div class="step"><b>prepare</b><span>Merkle paths for input records<br><code>trace/inclusion</code></span></div><div class="arrow">→</div>
+  <div class="step ac"><b>prove</b><span>one batched Varuna proof<br><code>Trace::prove_execution</code></span></div><div class="arrow">→</div>
+  <div class="step pb"><b>fee + broadcast</b><span><code>Transaction::Execute</code></span></div>
+</div></div><figcaption>Everything up to "fee + broadcast" happens on the user's device, or at a prover they chose.</figcaption></figure>
+<details class="quiz"><summary>What's the difference between <code>Process::evaluate</code> and <code>Process::execute</code>?</summary>
+<p><code>evaluate</code> runs only the console side: fast, no constraints, no proof. It's useful for simulations and for computing outputs. <code>execute</code> also synthesizes the circuit and records the assignment into a <code>Trace</code>, so a proof can be made. Only an executed transition is valid on chain.</p></details>
+</section>
+
+<section class="chapter" id="c19" data-title="Validator side" data-part="III">
+<h3><span class="n">19</span>The validator side: verify, speculate, finalize</h3>
+<p>On the other side of the network, snarkOS hands the transaction to snarkVM.</p>
+<h4>Step 1: <code>VM::check_transaction</code> (<code>synthesizer/src/vm/verify.rs</code>)</h4>
+<ul>
+<li>Is it well-formed, and under the size limit for the current height?</li>
+<li>Is the transaction ID correct and unique? Are the transition IDs, input IDs, <strong>serial numbers</strong>, <strong>tags</strong>, output IDs, commitments, nonces, <code>tpk</code>s and <code>tcm</code>s all unique, within the transaction and against the ledger?</li>
+<li>Is the fee sufficient, and bound to this transaction?</li>
+<li><strong>Verify the Varuna proof</strong> against each function's stored verifying key and the declared <code>global_state_root</code>. The root must be one the ledger actually had.</li>
+<li>For deployments: the program size and ownership checks, and the upgrade rules (edition, checksum, at least one key changed, constructor required after V9).</li>
+</ul>
+<p>Verification is the expensive part, so results are cached in <code>partially_verified_transactions</code> on the <code>VM</code>, and transactions are verified in parallel batches.</p>
+<h4>Step 2: <code>VM::speculate</code> (<code>vm/finalize.rs</code>)</h4>
+<p>When a validator builds a block from a committed subdag, <code>speculate</code> runs every transaction's finalize logic <strong>in order</strong> against a speculative copy of state (<code>atomic_speculate</code>). Each transaction comes out as accepted, rejected or aborted, with its list of <code>FinalizeOperation</code>s, and the ratifications (rewards) are computed too. The results give the block's <code>finalize_root</code>.</p>
+<h4>Step 3: <code>VM::check_speculate</code></h4>
+<p>When a node <em>receives</em> a block rather than building it, it re-runs the same speculation and checks that it gets identical ratifications, confirmed transactions and finalize root. This is the re-execution half of Aleo: public logic is recomputed by everyone, private logic is checked only through the proof.</p>
+<h4>Step 4: <code>Ledger::check_next_block</code> → <code>Ledger::advance_to_next_block</code> → <code>VM::add_next_block</code></h4>
+<p>The ledger validates the block itself: hashes, header roots, authority (subdag certificates signed by enough stake), puzzle solutions, height, round and timestamp. It then calls <code>VM::add_next_block</code>, which commits everything through <code>atomic_finalize</code>: the block, transactions, transitions, new records, spent serial numbers and mapping updates, all in one atomic batch. Some VM operations must not interleave, so they're routed through a single <code>sequential_ops</code> thread.</p>
+<figure><div class="diagram" style="padding:0;border:0;background:none">
+<div class="lanes">
+  <div class="lh">Wallet / SDK</div><div class="lh">snarkOS</div><div class="lh">snarkVM · VM</div><div class="lh">Ledger + store</div>
+  <div class="cell on"><b>authorize, execute, prove</b></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+  <div class="cell">broadcast →</div><div class="cell">receives the tx, gossips it</div><div class="cell on"><b>check_transaction</b><br>proof, fee, uniqueness</div><div class="cell">reads: state roots, serial numbers</div>
+  <div class="cell"></div><div class="cell">Narwhal batches → certificates → Bullshark commit → subdag</div><div class="cell"></div><div class="cell"></div>
+  <div class="cell"></div><div class="cell">propose block</div><div class="cell on"><b>speculate</b><br>run finalize in order</div><div class="cell">speculative mapping state</div>
+  <div class="cell"></div><div class="cell">receive block</div><div class="cell on"><b>check_speculate</b><br>recompute, compare</div><div class="cell"><code>check_next_block</code></div>
+  <div class="cell"></div><div class="cell"></div><div class="cell on"><b>add_next_block</b></div><div class="cell">atomic write to RocksDB</div>
+  <div class="cell on"><b>scan</b> new records with the view key</div><div class="cell">serves blocks over REST</div><div class="cell"></div><div class="cell"></div>
+</div></div><figcaption>One transaction's journey. Highlighted cells are snarkVM code running.</figcaption></figure>
+</section>
+
+<section class="chapter" id="c20" data-title="Deployment pipeline" data-part="III">
+<h3><span class="n">20</span>The deployment pipeline</h3>
+<p>A deployment publishes a program, and with it a verifying key for every function:</p>
+<pre><code><span class="k">pub struct</span> Deployment&lt;N&gt; {
+    edition:          u16,          <span class="c">// 0 at first deploy, bumped on upgrade</span>
+    program:          Program,
+    verifying_keys:   Vec&lt;(Identifier, (VerifyingKey, Certificate))&gt;,
+    program_checksum: Option&lt;[U8; 32]&gt;,  <span class="c">// required after its migration height</span>
+    program_owner:    Option&lt;Address&gt;,
+}</code></pre>
+<ol>
+<li><strong>Developer side</strong> (<code>VM::deploy</code> → <code>Stack::deploy</code>): each function is synthesized in <code>CallStack::Synthesize</code> mode with dummy inputs to get its circuit. Varuna indexes it against the universal SRS to get the proving and verifying keys. A <strong><code>Certificate</code></strong> is produced for each verifying key, proving the key was derived honestly from the circuit.</li>
+<li><strong>Validator side</strong> (<code>verify_deployment.rs</code>): the validator re-synthesizes each function in <code>CheckDeployment</code> mode, under constraint and variable limits, and checks the certificates. Without this, someone could deploy a program with a fake verifying key that accepts anything.</li>
+<li><strong>Cost</strong> (<code>process/src/cost.rs</code>): storage cost for the bytes, plus synthesis cost based on the number of constraints and variables, plus a namespace cost for short names. Several versions exist, gated by consensus version.</li>
+<li><strong>Finalize</strong> (<code>Process::finalize_deployment</code>): add the new <code>Stack</code>, initialize its mappings and run the constructor if there is one.</li>
+</ol>
+<p><strong>Upgrades</strong> (since V9): a later deployment with a higher edition, checked by the program's own <code>constructor</code> logic. The constructor could require the owner's approval, forbid upgrades completely, or run a governance check. <code>Process</code> keeps <code>old_stacks</code> so it can roll back if a block fails.</p>
+</section>
+
+<section class="chapter" id="c21" data-title="Ledger and storage" data-part="III">
+<h3><span class="n">21</span>Ledger, storage and queries</h3>
+<p>The <strong><code>Ledger</code></strong> (<code>ledger/src/lib.rs</code>) is what snarkOS holds. It wraps the <code>VM</code> and adds the genesis block, the current epoch hash, the current committee and caches. Its files are named for what they do: <code>check_next_block.rs</code>, <code>advance.rs</code>, <code>check_transaction_basic.rs</code>, <code>find.rs</code>, <code>get.rs</code>, <code>contains.rs</code>, <code>iterators.rs</code>.</p>
+<p>Storage (<code>ledger/store</code>) is split into typed stores behind traits, all grouped under a <code>ConsensusStore</code>:</p>
+<div class="tbl"><table>
+<tr><th>Store</th><th>Holds</th></tr>
+<tr><td><code>BlockStore</code></td><td>Blocks, headers, the state-root tree, the height index</td></tr>
+<tr><td><code>TransactionStore</code></td><td>Deployments, executions, fees</td></tr>
+<tr><td><code>TransitionStore</code></td><td>Transitions, with inputs (serial numbers, tags) and outputs (commitments, records)</td></tr>
+<tr><td><code>FinalizeStore</code></td><td>Mappings: the public state</td></tr>
+</table></div>
+<p>Each store has two backends in <code>store/src/helpers</code>: <code>memory</code> for tests and <code>rocksdb</code> for real nodes. <strong><code>Query</code></strong> (<code>ledger/query</code>) is how a prover gets state it doesn't have locally: state paths and the latest state root. It can be answered from a local ledger or from a node's REST API, which is what the SDK uses.</p>
+</section>
+
+<section class="chapter" id="c22" data-title="Cryptographic core" data-part="III">
+<h3><span class="n">22</span>The cryptographic core, briefly</h3>
+<p>You can treat <code>algorithms/</code> as a black box for a long time. When you do open it:</p>
+<ul>
+<li><code>snark/varuna/varuna.rs</code>: the prover and verifier entry points. <code>ahp/</code> holds the algebraic holographic proof (the interactive protocol before it's compiled with commitments). <code>mode.rs</code> defines a hiding (zero-knowledge) mode and a non-hiding mode. snarkVM instantiates Varuna in the hiding mode (<code>synthesizer/snark/src/lib.rs</code>).</li>
+<li><code>polycommit/sonic_pc</code> on <code>kzg10</code>: commit to polynomials, open them at points, and batch many openings.</li>
+<li><code>fft/</code>: evaluation domains and polynomial arithmetic. <code>msm/</code>: multi-scalar multiplication, the dominant proving cost.</li>
+<li><code>srs/</code>: the universal SRS. The real powers are loaded or downloaded by <code>parameters/</code> on demand, with bounded downloads so a stalled mirror can't hang a node.</li>
+<li><code>crypto_hash/</code>: Poseidon sponge and SHA-256, used by Fiat–Shamir and elsewhere.</li>
+</ul>
+</section>
+
+<!-- ======================= PART IV ======================= -->
+<div class="part-head" id="part4">
+  <p class="kicker"><span>Part IV · The real world</span><span>≈ 10 min</span></p>
+  <h2>How it plays out in practice</h2>
+  <p>With the components in place, here is one real transaction end to end, and how the different pieces of software use snarkVM.</p>
+</div>
+
+<section class="chapter" id="c23" data-title="A private payment, end to end" data-part="IV">
+<h3><span class="n">23</span>A private payment, end to end</h3>
+<p>Alice pays Bob 100 units of a private token, for example a private stablecoin program. Alice uses a browser wallet, and Bob uses a mobile wallet.</p>
+<ol>
+<li><strong>Alice's wallet</strong> scans the chain with her view key and finds a record with 250 units.</li>
+<li>It calls <code>authorize</code> for <code>transfer_private(record, bob_address, 100)</code>. Her private key signs the request, and a fresh <code>tvk</code> is generated.</li>
+<li>It asks a node for the Merkle path of her record's commitment and the latest state root (<code>Query</code>).</li>
+<li>snarkVM, compiled to WASM, <strong>executes and proves</strong> in the browser. It outputs two new records: 100 for Bob and 150 change for Alice. Each is encrypted to its owner and has a commitment.</li>
+<li>It builds a fee transition, proves it, and sends the transaction to a snarkOS node.</li>
+<li><strong>Validators</strong> run <code>check_transaction</code>: they verify the proof, check that the serial number is new, and check the fee. The transaction enters a batch, gets certified, and is committed through a subdag.</li>
+<li>This function has no finalize, so <code>speculate</code> just marks it accepted. The block is added: the serial number joins the spent set, and the two commitments join the state tree.</li>
+<li><strong>Bob's wallet</strong> scans the new block, finds a record that decrypts with his view key, and shows +100.</li>
+</ol>
+<div class="tbl"><table>
+<tr><th>Who</th><th>Learns</th><th>Doesn't learn</th></tr>
+<tr><td>Alice's device</td><td>Everything</td><td>Nothing</td></tr>
+<tr><td>A proving service, if Alice delegated</td><td>The inputs of this transaction</td><td>Alice's private key; it can't spend anything else</td></tr>
+<tr><td>Validators and the public</td><td>That <code>transfer_private</code> of this program was called; a serial number; two commitments; ciphertexts; the fee; the time</td><td>Sender, recipient, amount, which record was spent</td></tr>
+<tr><td>Bob</td><td>His new record (amount, and data the program put in it)</td><td>Alice's change record</td></tr>
+<tr><td>Anyone given Alice's view key</td><td>Alice's full history</td><td>Nothing they could spend with</td></tr>
+</table></div>
+<div class="callout warn"><b class="lab">The public/private boundary is the design decision</b>
+<p>If the same token used <code>transfer_public</code>, sender, recipient and amount would all be plaintext in the Future and in the mappings, just like on Ethereum. Aleo programs choose per value. Most real programs mix the two: a private transfer, and public supply or compliance state.</p></div>
+</section>
+
+<section class="chapter" id="c24" data-title="Who calls snarkVM" data-part="IV">
+<h3><span class="n">24</span>Who calls snarkVM, and which parts</h3>
+<div class="map">
+  <div><b>snarkOS (validators and clients)</b>Holds a <code>Ledger</code>. Calls <code>check_transaction</code> on mempool entries, <code>prepare_advance_to_next_quorum_block</code> / <code>speculate</code> when building a block, and <code>check_next_block</code> + <code>advance_to_next_block</code> when syncing. Uses the <code>narwhal/*</code> and <code>committee</code> types for consensus messages.</div>
+  <div><b>SDK and wallets</b>Use snarkVM via <code>wasm/</code>: account key generation, record decryption, <code>authorize</code>, <code>execute</code> with a network <code>Query</code>, fee estimation, transaction serialization.</div>
+  <div><b>Leo CLI</b>Compiles Leo to Aleo instructions, then uses snarkVM to parse and type-check, <code>evaluate</code> / <code>PackageRun</code> for <code>leo run</code>, and <code>deploy</code> / <code>execute</code> to build real transactions.</div>
+  <div><b>Provers, explorers, indexers</b>Provers run <code>ledger/puzzle</code>. Explorers and indexers deserialize blocks and transactions with snarkVM's own types, so their JSON and byte formats match the chain.</div>
+</div>
+<p style="margin-top:16px">As an application developer you usually don't import snarkVM directly. You write Leo and use the SDK, and both embed it. You work in snarkVM when you build infrastructure or change the protocol.</p>
+</section>
+
+<section class="chapter" id="c25" data-title="Working safely in the codebase" data-part="IV">
+<h3><span class="n">25</span>Working safely in this codebase</h3>
+<p>snarkVM is consensus code with deployed versions in the wild. The rules in <code>AGENTS.md</code> follow directly from what you've read:</p>
+<ul>
+<li><strong>No forks.</strong> Same inputs must give the same outputs forever. New behaviour is gated by <code>ConsensusVersion</code>.</li>
+<li><strong>Console and circuit stay in sync.</strong> Change one, check the other, and compare constraint counts.</li>
+<li><strong>Serialization is consensus.</strong> Byte formats feed into IDs and hashes. Round-trips must be exact and backwards compatible.</li>
+<li><strong>Fail closed.</strong> Reject on uncertainty; no panics in production paths. Every <code>unwrap</code> needs a comment saying why it can't panic.</li>
+<li><strong>Performance matters.</strong> Proving and verification dominate costs. Pre-allocate, avoid clones, use <code>rayon</code> where it helps.</li>
+</ul>
+<p>Validation, in order:</p>
+<pre><code>cargo check  -p &lt;crate&gt;
+cargo clippy -p &lt;crate&gt; -- -D warnings
+cargo +nightly-2026-04-02 fmt --check
+cargo test   -p &lt;crate&gt; -- &lt;test_name&gt;     <span class="c"># synthesizer tests are slow: run one at a time</span>
+cargo test   -p snarkvm-synthesizer --features test,dev_println -- &lt;test_name&gt;</code></pre>
+</section>
+
+<!-- ======================= PART V ======================= -->
+<div class="part-head" id="part5">
+  <p class="kicker"><span>Part V · Next steps</span><span>≈ 5 min + practice</span></p>
+  <h2>Reading the code yourself</h2>
+</div>
+
+<section class="chapter" id="c26" data-title="Reading plan and exercises" data-part="V">
+<h3><span class="n">26</span>A reading plan, and five exercises</h3>
+<h4>Reading order</h4>
+<ol>
+<li><code>synthesizer/program/src/resources/credits.aleo</code>: read a real program, especially <code>transfer_private</code>, <code>transfer_public</code>, <code>fee_private</code> and <code>bond_public</code>.</li>
+<li><code>console/types/field</code> next to <code>circuit/types/field</code>: see the twin pattern on the simplest type.</li>
+<li><code>console/account/src</code>: private key → compute key → view key → address, in about 100 lines.</li>
+<li><code>console/program/src/data/record</code>: <code>encrypt.rs</code>, <code>serial_number.rs</code>, <code>tag.rs</code>, <code>to_commitment.rs</code>.</li>
+<li><code>synthesizer/process/src/stack/execute.rs</code>: <code>execute_function</code>, reading the comments in order.</li>
+<li><code>synthesizer/process/src/trace/mod.rs</code>: <code>prepare</code>, <code>prove_execution</code>, <code>verify_execution_proof</code>.</li>
+<li><code>synthesizer/src/vm/verify.rs</code> and <code>finalize.rs</code>: the validator side.</li>
+<li><code>ledger/src/check_next_block.rs</code> and <code>advance.rs</code>: how a block becomes state.</li>
+<li><code>console/network/src/consensus_heights.rs</code>: how the protocol evolves.</li>
+<li>Last and optional: <code>algorithms/src/snark/varuna</code>.</li>
+</ol>
+<h4>Exercises</h4>
+<ol>
+<li><strong>Trace a call.</strong> Starting from <code>VM::execute</code>, write down every function called until <code>Trace::prove_execution</code> returns. Note which ones are console-only and which build circuits.</li>
+<li><strong>Find the double-spend check.</strong> Locate where serial numbers are checked for uniqueness, both within a transaction and against the ledger.</li>
+<li><strong>Count constraints.</strong> Find a test that compares constraint counts for a circuit type, for example in <code>circuit/types/integers</code>, and run it. Predict whether <code>u64</code> multiplication or <code>field</code> multiplication costs more, then check.</li>
+<li><strong>Follow a rejection.</strong> In <code>vm/finalize.rs</code>, find how a failed finalize turns a transaction into <code>RejectedExecute</code> and a <code>Transaction::Fee</code>.</li>
+<li><strong>Read a gate.</strong> Pick any <code>ConsensusVersion::V14</code> check in the codebase with <code>grep -rn "ConsensusVersion::V14"</code>, and explain what would break on old blocks without it.</li>
+</ol>
+</section>
+
+<section class="chapter" id="glossary" data-title="Glossary" data-part="V">
+<h3><span class="n">A–Z</span>Glossary</h3>
+<dl class="gloss">
+<dt>Authorization</dt><dd>The set of signed <code>Request</code>s for a call tree. Enough for a prover to execute and prove, but not to change the inputs.</dd>
+<dt>CallStack</dt><dd>The mode a function runs in: Authorize, Synthesize, CheckDeployment, Evaluate, Execute or PackageRun.</dd>
+<dt>Certificate</dt><dd>A proof that a deployed verifying key was honestly derived from the function's circuit.</dd>
+<dt>Commitment</dt><dd>A hiding and binding fingerprint of a record. It's the leaf in the global state tree.</dd>
+<dt>ConsensusVersion</dt><dd>A numbered protocol upgrade (V1–V21) that activates at a block height, per network.</dd>
+<dt>Finalize</dt><dd>Public, on-chain logic that validators run after ordering. It reads and writes mappings.</dd>
+<dt>Future</dt><dd>The output of an <code>async</code> call. It carries the arguments finalize will run with.</dd>
+<dt>Global state root</dt><dd>The Merkle root over the ledger that input-record inclusion is proven against.</dd>
+<dt>Mapping</dt><dd>A public key→value store belonging to a program.</dd>
+<dt>Process / Stack</dt><dd>The registry of programs, and the per-program state (types, keys, checksums) used to run them.</dd>
+<dt>Record</dt><dd>An encrypted, owner-bound UTXO: owner, data, nonce, version.</dd>
+<dt>Serial number</dt><dd>Published when a record is spent. It's unique per record but unlinkable to its commitment.</dd>
+<dt>SRS</dt><dd>Structured reference string: the universal setup shared by all circuits.</dd>
+<dt>Subdag</dt><dd>The set of Narwhal certificates committed together. It becomes one block's authority.</dd>
+<dt>Tag</dt><dd><code>Hash(sk_tag, commitment)</code>, derived from the graph key. Also recorded on spend.</dd>
+<dt>tpk / tvk / tcm / scm</dt><dd>Transition public key, transition view key (a secret), transition commitment, signer commitment.</dd>
+<dt>Trace</dt><dd>Collects transitions and circuit assignments during execution, then proves them in one batch.</dd>
+<dt>Transition</dt><dd>One function call on chain: program, function name, inputs, outputs and keys.</dd>
+<dt>Varuna</dt><dd>snarkVM's Marlin-family zkSNARK with a universal setup and batch proving.</dd>
+<dt>View key</dt><dd>Decrypts an account's records. Read-only; can't spend.</dd>
+</dl>
+</section>
+
+<footer>
+Built from the snarkVM source (package 4.10.0, <code>staging</code> branch, September 2026). Struct definitions, derivations and pipeline steps are taken from the files cited in each chapter. Protocol details that live in snarkOS (networking, the exact AleoBFT commit rules) are summarized at a high level.
+</footer>
+</main>
+</div>
+
+<script>
+(function(){
+  var KEY = "inside-snarkvm-read";
+  var chapters = Array.prototype.slice.call(document.querySelectorAll("section.chapter"));
+  var read = {};
+  try { read = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch(e) { read = {}; }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var parts = {I:"Prerequisites", II:"Aleo as a system", III:"snarkVM internals", IV:"The real world", V:"Next steps"};
+  var mins = {I:"25m", II:"25m", III:"30m", IV:"10m", V:"5m"};
+  var list = document.getElementById("toclist");
+  var listM = document.getElementById("toclist-m");
+  var lastPart = null;
+  var total = chapters.filter(function(s){ return s.id !== "glossary"; }).length;
+
+  chapters.forEach(function(s){
+    var part = s.getAttribute("data-part");
+    if (part !== lastPart){
+      var ph = document.createElement("li");
+      ph.className = "part";
+      ph.innerHTML = "<span>" + part + " · " + parts[part] + "</span><span>" + mins[part] + "</span>";
+      list.appendChild(ph);
+      lastPart = part;
+    }
+    var li = document.createElement("li");
+    li.className = "ch";
+    li.dataset.id = s.id;
+    var cb = document.createElement("input");
+    cb.type = "checkbox"; cb.id = "read-" + s.id;
+    cb.setAttribute("aria-label", "Mark " + s.getAttribute("data-title") + " as read");
+    cb.checked = !!read[s.id];
+    cb.addEventListener("change", function(){ read[s.id] = cb.checked; save(); refresh(); });
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    var n = s.querySelector("h3 .n");
+    a.textContent = (n && s.id !== "glossary" ? n.textContent + "  " : "") + s.getAttribute("data-title");
+    li.appendChild(cb); li.appendChild(a);
+    list.appendChild(li);
+
+    var m = document.createElement("li");
+    var ma = document.createElement("a");
+    ma.href = "#" + s.id; ma.textContent = s.getAttribute("data-title");
+    m.appendChild(ma); listM.appendChild(m);
+  });
+
+  function refresh(){
+    var done = 0;
+    Array.prototype.forEach.call(list.querySelectorAll("li.ch"), function(li){
+      var d = !!read[li.dataset.id];
+      li.classList.toggle("done", d);
+      if (d && li.dataset.id !== "glossary") done++;
+    });
+    document.getElementById("bar").style.width = (100 * done / total) + "%";
+    document.getElementById("barlabel").textContent = done + " of " + total + " chapters read";
+  }
+  refresh();
+
+  if ("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){
+          Array.prototype.forEach.call(list.querySelectorAll("li.ch"), function(li){
+            li.classList.toggle("active", li.dataset.id === e.target.id);
+          });
+        }
+      });
+    }, {rootMargin:"-20% 0px -70% 0px"});
+    chapters.forEach(function(s){ io.observe(s); });
+  }
+})();
+</script>
+
+</html>

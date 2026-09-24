@@ -1,12 +1,19 @@
-# Brain Dump
+# Field Notes
 
 Personal learning repo. Each top-level directory is a topic — notes, references, and working material as I learn it.
 
 ## Topics
 
+- **[provable/](./provable/)** — The Aleo network and Provable's stack (Leo, snarkVM, snarkOS, SDK): an intro guide to snarkVM, a codebase atlas, learning notes on curves, pairings, KZG and Varuna, and explainers comparing Aleo with Ethereum and Aztec.
 - **[zk-and-blockchain/](./zk-and-blockchain/)** — Zero-knowledge proofs, Ethereum rollups, L2 infrastructure (EigenLayer, NEAR, Succinct).
 - **[quantum-computing/](./quantum-computing/)** — How quantum computing works, from the qubit to Shor's algorithm, with an interactive HTML animation.
 - **[obsidian-claude-graphify/](./obsidian-claude-graphify/)** — Workflow for turning codebases, papers, and notes into a navigable knowledge graph that Claude reads before answering.
+
+## Where to start
+
+- New to zero-knowledge proofs: [zk-and-blockchain/zk-fundamentals/START-HERE.md](./zk-and-blockchain/zk-fundamentals/START-HERE.md).
+- Working on Aleo / snarkVM: [provable/README.md](./provable/README.md).
+- Curious why quantum computers threaten today's cryptography: [quantum-computing/](./quantum-computing/), then [provable/concepts/post-quantum-aleo.md](./provable/concepts/post-quantum-aleo.md).
 
 ## Adding a new topic
 

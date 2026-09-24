@@ -13,3 +13,5 @@ Notes on zero-knowledge proofs, Ethereum rollups, and supporting L2 infrastructu
 
 - `zk-fundamentals/` → ZK cryptography and proof theory.
 - `rollups/` → Ethereum scaling and rollup architecture (which happens to use ZK proofs).
+
+For a ZK-native Layer 1 (Aleo) and how its proof system works in real code, see [../provable/](../provable/).

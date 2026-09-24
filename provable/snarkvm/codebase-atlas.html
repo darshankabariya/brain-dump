@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>snarkVM Codebase Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F5F7; --surface:#FFFFFF; --surface-2:#E9EDF1; --ink:#17202B; --muted:#586473; --line:#D5DBE2;
+  --accent:#0A6C78; --accent-soft:#D7ECEE; --priv:#6A46C0; --priv-soft:#ECE6FA; --pub:#A45F00; --pub-soft:#FAEEDB;
+  --ok:#2F7D46; --code:#EDF0F3;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1318; --surface:#151C23; --surface-2:#1C252E; --ink:#E2E8EE; --muted:#95A2AF; --line:#2A3540;
+    --accent:#5CC3CE; --accent-soft:#16343A; --priv:#B59CFF; --priv-soft:#2A2340; --pub:#EDB25C; --pub-soft:#3A2C16;
+    --ok:#6CC486; --code:#111820;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1318; --surface:#151C23; --surface-2:#1C252E; --ink:#E2E8EE; --muted:#95A2AF; --line:#2A3540;
+  --accent:#5CC3CE; --accent-soft:#16343A; --priv:#B59CFF; --priv-soft:#2A2340; --pub:#EDB25C; --pub-soft:#3A2C16;
+  --ok:#6CC486; --code:#111820;
+}
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:18px; line-height:1.62; padding-inline:20px; padding-block:0 80px}
+a{color:var(--accent)}
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.shell{max-width:1240px; margin:0 auto; display:grid; grid-template-columns:260px minmax(0,1fr); gap:56px}
+@media (max-width:980px){ .shell{grid-template-columns:minmax(0,1fr); gap:0} }
+
+/* ---------- TOC ---------- */
+nav.toc{position:sticky; top:env(safe-area-inset-top,0px); align-self:start; max-height:100vh; overflow:auto; padding-block:36px 24px; font-family:var(--display); font-size:14px}
+.toc h2{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; font-weight:500}
+.progress{height:4px; background:var(--surface-2); border-radius:2px; overflow:hidden; margin:0 0 6px}
+.progress > i{display:block; height:100%; width:0; background:var(--accent); transition:width .3s}
+.progress-label{font-size:12px; color:var(--muted); margin:0 0 18px; font-variant-numeric:tabular-nums}
+.toc ol{list-style:none; margin:0; padding:0}
+.toc .part{margin:16px 0 4px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between}
+.toc li.ch{display:flex; align-items:flex-start; gap:8px; padding:3px 0}
+.toc li.ch input{margin:4px 0 0; accent-color:var(--accent); flex:none}
+.toc li.ch a{color:var(--ink); text-decoration:none; line-height:1.35}
+.toc li.ch a:hover{color:var(--accent)}
+.toc li.ch.active a{color:var(--accent); font-weight:700}
+.toc li.ch.done a{color:var(--muted); text-decoration:line-through; text-decoration-color:var(--line)}
+details.toc-mobile{display:none}
+@media (max-width:980px){
+  nav.toc{display:none}
+  details.toc-mobile{display:block; margin:18px 0 0; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px 14px; font-family:var(--display); font-size:15px}
+  details.toc-mobile summary{cursor:pointer; font-weight:700}
+  details.toc-mobile ol{margin:8px 0 0; padding-left:20px}
+}
+
+/* ---------- Main ---------- */
+main{min-width:0; max-width:760px; padding-block:36px 0}
+header.hero{padding-block:18px 28px; border-bottom:1px solid var(--line); margin-bottom:8px}
+.eyebrow{font-family:var(--mono); font-size:12.5px; color:var(--muted); letter-spacing:.02em; margin:0 0 14px}
+h1{font-family:var(--display); font-weight:700; font-size:clamp(40px,6vw,64px); line-height:1.02; letter-spacing:-.02em; margin:0 0 16px; text-wrap:balance}
+h1 .sub{display:block; font-weight:500; color:var(--muted); font-size:.42em; letter-spacing:0; margin-top:12px; line-height:1.3}
+.lede{font-size:20px; color:var(--ink); max-width:62ch; margin:0}
+.thesis{margin:26px 0 0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.thesis div{background:var(--surface); padding:14px 16px; font-family:var(--display); font-size:14.5px; line-height:1.4}
+.thesis b{display:block; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:500; margin-bottom:4px}
+@media (max-width:640px){ .thesis{grid-template-columns:1fr} }
+
+.part-head{margin:72px 0 8px; padding-top:22px; border-top:3px solid var(--ink)}
+.part-head .kicker{font-family:var(--mono); font-size:12.5px; color:var(--accent); margin:0 0 6px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.part-head h2{font-family:var(--display); font-size:clamp(30px,4vw,40px); line-height:1.08; margin:0 0 10px; letter-spacing:-.01em; text-wrap:balance}
+.part-head p{color:var(--muted); margin:0; max-width:62ch}
+
+section.chapter{scroll-margin-top:20px}
+h3{font-family:var(--display); font-size:25px; line-height:1.2; margin:48px 0 12px; text-wrap:balance; display:flex; gap:12px; align-items:baseline}
+h3 .n{font-family:var(--mono); font-size:14px; color:var(--accent); font-weight:600; flex:none}
+h4{font-family:var(--display); font-size:18px; margin:28px 0 8px}
+p{margin:0 0 16px}
+ul,ol{margin:0 0 16px; padding-left:24px}
+li{margin:4px 0}
+strong{font-weight:600}
+code{font-family:var(--mono); font-size:.84em; background:var(--code); padding:.08em .35em; border-radius:4px; overflow-wrap:anywhere}
+pre{font-family:var(--mono); font-size:14px; line-height:1.55; background:var(--code); border:1px solid var(--line); border-radius:8px; padding:16px 18px; overflow-x:auto; margin:0 0 20px}
+pre code{background:none; padding:0; font-size:inherit; overflow-wrap:normal}
+pre .c{color:var(--muted)} pre .k{color:var(--accent); font-weight:600} pre .v{color:var(--priv)} pre .p{color:var(--pub)}
+.priv{color:var(--priv); font-weight:600} .pub{color:var(--pub); font-weight:600}
+
+.callout{border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:14px 18px; margin:0 0 20px; font-size:16.5px}
+.callout > b.lab{display:block; font-family:var(--display); font-size:12px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px}
+.callout.code > b.lab{color:var(--accent)}
+.callout.warn{border-color:var(--pub); background:var(--pub-soft)}
+.callout.warn > b.lab{color:var(--pub)}
+.callout.key{border-left:4px solid var(--accent)}
+.callout p:last-child, .callout ul:last-child{margin-bottom:0}
+.callout ul{padding-left:20px}
+
+details.quiz{border:1px dashed var(--line); border-radius:8px; padding:10px 16px; margin:0 0 22px; font-size:16.5px}
+details.quiz summary{cursor:pointer; font-family:var(--display); font-weight:700}
+details.quiz summary::before{content:"Check yourself · "; color:var(--accent); font-weight:500}
+details.quiz[open] summary{margin-bottom:8px}
+
+.tbl{overflow-x:auto; margin:0 0 22px; border:1px solid var(--line); border-radius:8px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:15.5px; line-height:1.45}
+th,td{text-align:left; vertical-align:top; padding:9px 12px; border-bottom:1px solid var(--line)}
+th{font-family:var(--display); font-size:13px; letter-spacing:.04em; background:var(--surface-2); font-weight:700}
+tr:last-child td{border-bottom:0}
+td code{font-size:.8em}
+
+/* ---------- Diagrams ---------- */
+figure{margin:0 0 26px}
+figcaption{font-family:var(--display); font-size:13.5px; color:var(--muted); margin-top:8px}
+.diagram{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; overflow-x:auto; font-family:var(--display); font-size:14px; line-height:1.35}
+
+.layers{display:grid; gap:6px; min-width:520px}
+.layer{display:grid; grid-template-columns:150px minmax(0,1fr); gap:12px; align-items:center; border:1px solid var(--line); border-radius:6px; padding:9px 12px; background:var(--bg)}
+.layer b{font-size:14px}
+.layer span{color:var(--muted); font-size:13.5px}
+.layer.hl{background:var(--accent-soft); border-color:var(--accent)}
+.layer.hl b{color:var(--accent)}
+.down{text-align:center; color:var(--muted); font-size:12px; line-height:1}
+
+.flow{display:flex; flex-wrap:wrap; gap:8px; align-items:stretch}
+.flow .step{flex:1 1 130px; border:1px solid var(--line); border-radius:6px; padding:9px 11px; background:var(--bg); position:relative}
+.flow .step b{display:block; font-size:13.5px}
+.flow .step span{display:block; color:var(--muted); font-size:12.5px; margin-top:3px}
+.flow .step code{font-size:11.5px}
+.flow .arrow{align-self:center; color:var(--muted); flex:none}
+.flow .step.pv{border-color:var(--priv); background:var(--priv-soft)}
+.flow .step.pb{border-color:var(--pub); background:var(--pub-soft)}
+.flow .step.ac{border-color:var(--accent); background:var(--accent-soft)}
+
+.twin{display:grid; grid-template-columns:1fr 1fr; gap:14px; min-width:520px}
+.twin > div{border:1px solid var(--line); border-radius:8px; padding:12px; background:var(--bg)}
+.twin h5{margin:0 0 6px; font-size:14px}
+.twin pre{margin:0; font-size:12.5px; padding:10px 12px}
+
+.nest{border:1px solid var(--line); border-radius:8px; padding:10px 12px 12px; background:var(--bg); margin-top:8px}
+.nest > .t{font-weight:700; font-size:13.5px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.nest > .t em{font-style:normal; font-weight:400; color:var(--muted); font-family:var(--mono); font-size:11.5px}
+.nest .nest{background:var(--surface)}
+.nest .row{display:flex; flex-wrap:wrap; gap:8px}
+.nest .row > .nest{flex:1 1 200px}
+.chip{display:inline-block; font-family:var(--mono); font-size:11.5px; border:1px solid var(--line); border-radius:4px; padding:1px 6px; margin:2px 2px 0 0; background:var(--surface)}
+.chip.pv{border-color:var(--priv); color:var(--priv)}
+.chip.pb{border-color:var(--pub); color:var(--pub)}
+
+.lanes{display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:0; min-width:640px; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.lanes .lh{background:var(--surface-2); font-weight:700; font-size:13px; padding:8px 10px; border-right:1px solid var(--line)}
+.lanes .cell{padding:8px 10px; border-top:1px solid var(--line); border-right:1px solid var(--line); font-size:13px; min-height:40px}
+.lanes .cell.on{background:var(--accent-soft)}
+.lanes .cell.on b{color:var(--accent)}
+.lanes .cell code{font-size:11px}
+.lanes > :nth-child(4n){border-right:0}
+
+.keys{display:flex; flex-wrap:wrap; gap:8px; align-items:stretch}
+.keys .k{flex:1 1 140px; border:1px solid var(--line); border-radius:6px; padding:10px; background:var(--bg)}
+.keys .k b{display:block; font-size:14px}
+.keys .k code{font-size:11px; display:block; margin:4px 0; background:none; padding:0; color:var(--muted)}
+.keys .k small{display:block; font-size:12px; color:var(--muted)}
+.keys .k.s{border-color:var(--priv)} .keys .k.s b{color:var(--priv)}
+.keys .k.o{border-color:var(--pub)} .keys .k.o b{color:var(--pub)}
+
+.legend{display:flex; flex-wrap:wrap; gap:14px; font-family:var(--display); font-size:13px; color:var(--muted); margin:10px 0 0}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px}
+
+.map{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+.map > div{border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--surface); font-size:15.5px}
+.map b{font-family:var(--display); display:block; margin-bottom:4px}
+@media (max-width:640px){ .map{grid-template-columns:1fr} }
+
+dl.gloss{display:grid; grid-template-columns:max-content minmax(0,1fr); gap:6px 18px; font-size:16px}
+dl.gloss dt{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent); padding-top:2px}
+dl.gloss dd{margin:0}
+@media (max-width:640px){ dl.gloss{grid-template-columns:1fr} dl.gloss dd{margin-bottom:8px} }
+
+footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:15px}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; scroll-behavior:auto!important} }
+html{scroll-behavior:smooth}
+
+
+/* ---------- Atlas additions ---------- */
+.stats{margin:26px 0 0; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.stats div{background:var(--surface); padding:12px 14px; font-family:var(--display)}
+.stats b{display:block; font-size:26px; line-height:1.1; font-variant-numeric:tabular-nums}
+.stats span{display:block; font-size:12.5px; color:var(--muted); line-height:1.3; margin-top:3px}
+@media (max-width:760px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr))} }
+
+.crate{border:1px solid var(--line); border-radius:10px; background:var(--surface); margin:0 0 14px; overflow:hidden}
+.crate > summary{list-style:none; cursor:pointer; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; padding:12px 16px; align-items:baseline}
+.crate > summary::-webkit-details-marker{display:none}
+.crate > summary .nm{font-family:var(--mono); font-weight:600; font-size:15px; color:var(--accent)}
+.crate > summary .sz{font-family:var(--mono); font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; text-align:right}
+.crate > summary .ds{grid-column:1 / -1; font-family:var(--display); font-size:14.5px; color:var(--ink); line-height:1.4}
+.crate > summary .ds::after{content:" ▸"; color:var(--muted)}
+.crate[open] > summary .ds::after{content:" ▾"}
+.crate .bd{padding:4px 16px 14px; border-top:1px solid var(--line); font-size:16px}
+.crate .bd h5{font-family:var(--display); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:14px 0 6px}
+.crate .bd ul{margin:0 0 6px; padding-left:20px}
+.crate .bd p{margin:0 0 8px}
+.crate .bd .care{border-left:3px solid var(--pub); padding:4px 10px; background:var(--pub-soft); border-radius:0 6px 6px 0; margin-top:10px; font-size:15px}
+.world{font-family:var(--display); font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:30px 0 10px; display:flex; gap:10px; align-items:center}
+.world::after{content:""; flex:1; height:1px; background:var(--line)}
+
+.chart{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px 18px 12px; margin:0 0 10px; position:relative}
+.chart h5{font-family:var(--display); font-size:15px; margin:0 0 2px}
+.chart .cap{font-family:var(--display); font-size:13px; color:var(--muted); margin:0 0 14px}
+.bars{display:grid; grid-template-columns:minmax(0,170px) minmax(0,1fr); gap:5px 12px; align-items:center; font-family:var(--display); font-size:13px}
+.bars .lb{color:var(--ink); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:var(--mono); font-size:12px}
+.bars .tr{position:relative; height:16px; border-left:1px solid var(--line); background:repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), var(--surface-2) calc(25% - 1px), var(--surface-2) 25%)}
+.bars .br{position:absolute; left:0; top:2px; height:12px; background:var(--accent); border-radius:0 4px 4px 0; transition:opacity .15s}
+.bars .br.dim{opacity:.55}
+.bars .row-hit{display:contents}
+.bars .vl{position:absolute; top:0; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; padding-left:6px; line-height:16px}
+.axis{display:grid; grid-template-columns:minmax(0,170px) minmax(0,1fr); gap:12px; font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:4px}
+.axis .ticks{display:flex; justify-content:space-between}
+.tip{position:absolute; pointer-events:none; background:var(--ink); color:var(--bg); font-family:var(--display); font-size:12.5px; padding:6px 9px; border-radius:6px; white-space:nowrap; z-index:5; box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.bars .tr:hover .br, .bars .tr:focus .br{opacity:.8}
+.bars .tr:focus{outline:2px solid var(--accent); outline-offset:1px}
+details.tview{margin:0 0 24px; font-family:var(--display); font-size:14px}
+details.tview summary{cursor:pointer; color:var(--accent)}
+
+.theme{border:1px solid var(--line); border-radius:10px; background:var(--surface); padding:14px 16px; margin:0 0 14px}
+.theme .hd{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline}
+.theme .hd b{font-family:var(--display); font-size:17px}
+.theme .hd .st{font-family:var(--mono); font-size:11.5px; border:1px solid var(--line); border-radius:999px; padding:1px 9px; color:var(--muted)}
+.theme .hd .st.hot{border-color:var(--accent); color:var(--accent)}
+.theme p{font-size:16px; margin:8px 0 8px}
+.prs{display:flex; flex-wrap:wrap; gap:4px}
+.prs .chip{font-size:11.5px}
+.prs .chip.open{border-style:dashed}
+
+.opp{border:1px solid var(--line); border-radius:10px; background:var(--surface); margin:0 0 16px; overflow:hidden}
+.opp .top{display:grid; grid-template-columns:auto minmax(0,1fr); gap:14px; padding:14px 16px 10px; align-items:start}
+.opp .rank{font-family:var(--display); font-weight:700; font-size:30px; line-height:1; color:var(--accent); font-variant-numeric:tabular-nums}
+.opp h4{margin:0 0 4px; font-size:19px}
+.opp .why{font-size:16px; margin:0}
+.meters{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border-top:1px solid var(--line)}
+.meters div{background:var(--bg); padding:8px 12px; font-family:var(--display); font-size:12px; color:var(--muted)}
+.meters b{display:block; color:var(--ink); font-size:13.5px; margin-top:2px}
+.dots{letter-spacing:2px; color:var(--accent); font-size:11px}
+.dots i{font-style:normal; color:var(--line)}
+@media (max-width:640px){ .meters{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.opp .body{padding:10px 16px 14px; border-top:1px solid var(--line); font-size:16px}
+.opp .body ul{margin:0; padding-left:20px}
+
+.plan{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:0 0 20px}
+.plan > div{border:1px solid var(--line); border-radius:8px; background:var(--surface); padding:12px 14px; font-size:15px}
+.plan b{display:block; font-family:var(--display); font-size:13px; color:var(--accent); margin-bottom:4px}
+@media (max-width:860px){ .plan{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:520px){ .plan{grid-template-columns:1fr} }
+.branch{font-family:var(--mono); font-size:13px}
+</style>
+<div class="shell">
+<nav class="toc" aria-label="Contents">
+  <h2>Reading progress</h2>
+  <div class="progress"><i id="bar"></i></div>
+  <p class="progress-label" id="barlabel">0 of 0 chapters read</p>
+  <ol id="toclist"></ol>
+</nav>
+
+<main>
+<header class="hero">
+  <p class="eyebrow">snarkVM 4.10 · <span class="branch">staging</span> @ 4bef3a6 · data as of 23 Sep 2026</p>
+  <h1>snarkVM Codebase Atlas<span class="sub">Every crate and what it owns, the systems that cut across them, what the team is working on now, and where a new contributor can make the most visible difference.</span></h1>
+  <p class="lede">This is the second guide. <em>Inside snarkVM</em> explained the concepts; this one is a map of the code itself. Crate sizes, commit activity, and open PRs and issues are measured from the repository and GitHub, not estimated.</p>
+  <div class="stats">
+    <div><b>≈340k</b><span>lines of Rust across the workspace</span></div>
+    <div><b>643</b><span>commits (no merges) in the last 6 months</span></div>
+    <div><b>26</b><span>distinct commit authors in that period</span></div>
+    <div><b>83</b><span>open pull requests (51 of them drafts)</span></div>
+    <div><b>141</b><span>open issues, 36 labelled bug</span></div>
+  </div>
+  <details class="toc-mobile"><summary>Contents</summary><ol id="toclist-m"></ol></details>
+</header>
+
+<!-- ======================= PART A ======================= -->
+<div class="part-head" id="partA">
+  <p class="kicker"><span>Part A · Architecture</span><span>≈ 30 min</span></p>
+  <h2>Five worlds, one dependency direction</h2>
+  <p>The workspace has about 50 crates. They group into five "worlds", and dependencies only ever point downward: the chain depends on the machine, the machine on the twin types, the twin types on the math core.</p>
+</div>
+
+<section class="chapter" id="a1" data-title="The five worlds" data-part="A">
+<h3><span class="n">A1</span>The five worlds</h3>
+<figure><div class="diagram"><div class="layers">
+  <div class="layer"><b>5 · Packaging</b><span><code>vm/</code> (umbrella crate <code>snarkvm</code>), <code>wasm/</code>, <code>parameters/</code>, <code>metrics/</code></span></div>
+  <div class="down">↓</div>
+  <div class="layer hl"><b>4 · The chain</b><span><code>ledger/</code>: <code>block</code>, <code>store</code>, <code>narwhal/*</code>, <code>committee</code>, <code>puzzle</code>, <code>query</code>, <code>authority</code>, and the <code>Ledger</code> itself</span></div>
+  <div class="down">↓</div>
+  <div class="layer hl"><b>3 · The machine</b><span><code>synthesizer/</code>: <code>program</code> (language), <code>process</code> (execution), <code>snark</code> (key and proof wrappers), <code>src/vm</code> (the <code>VM</code>)</span></div>
+  <div class="down">↓</div>
+  <div class="layer"><b>2 · The twin types</b><span><code>console/</code> (native values) and <code>circuit/</code> (the same, as constraints). Mirrored crate by crate.</span></div>
+  <div class="down">↓</div>
+  <div class="layer"><b>1 · The math core</b><span><code>utilities/</code>, <code>fields/</code>, <code>curves/</code>, <code>algorithms/</code> (Varuna, KZG, FFT, MSM)</span></div>
+</div></div></figure>
+<div class="tbl"><table>
+<tr><th>Area</th><th style="text-align:right">Lines of Rust</th><th style="text-align:right">Files</th><th>Share of attention (commits, 6 mo)</th></tr>
+<tr><td><code>ledger/</code> (all sub-crates)</td><td style="text-align:right">62,820</td><td style="text-align:right">241</td><td>High: store, block, narwhal</td></tr>
+<tr><td><code>circuit/</code></td><td style="text-align:right">62,601</td><td style="text-align:right">353</td><td>Low: stable, changes only with new opcodes</td></tr>
+<tr><td><code>console/</code></td><td style="text-align:right">56,213</td><td style="text-align:right">469</td><td>Medium, mostly <code>console/network</code></td></tr>
+<tr><td><code>synthesizer/src</code> (VM)</td><td style="text-align:right">47,940</td><td style="text-align:right">65</td><td><strong>Highest</strong></td></tr>
+<tr><td><code>synthesizer/program</code></td><td style="text-align:right">31,733</td><td style="text-align:right">119</td><td>High</td></tr>
+<tr><td><code>synthesizer/process</code></td><td style="text-align:right">30,823</td><td style="text-align:right">62</td><td><strong>Very high</strong></td></tr>
+<tr><td><code>algorithms/</code></td><td style="text-align:right">21,104</td><td style="text-align:right">90</td><td>Medium: performance and hardening</td></tr>
+<tr><td><code>curves/</code> + <code>fields/</code> + <code>utilities/</code></td><td style="text-align:right">20,173</td><td style="text-align:right">96</td><td>Low–medium: canonical-encoding fixes</td></tr>
+<tr><td><code>vm/</code>, <code>parameters/</code>, <code>synthesizer/snark</code>, <code>wasm/</code></td><td style="text-align:right">7,417</td><td style="text-align:right">49</td><td>Low</td></tr>
+</table></div>
+<p>Two things stand out. <code>synthesizer/src</code> is only 65 files but carries the most change: the <code>VM</code> is where consensus rules, limits and block processing live, so every protocol upgrade touches it. And <code>circuit/</code> is huge but quiet. It's mature, and it only changes when the language gains a new operation.</p>
+</section>
+
+<section class="chapter" id="a2" data-title="World 1: math core" data-part="A">
+<h3><span class="n">A2</span>World 1: the math core</h3>
+<p>Open each card for what the crate owns, the types you'll meet, and what to be careful with.</p>
+
+<details class="crate"><summary><span class="nm">utilities/</span><span class="sz">5.3k lines</span><span class="ds">Serialization, bit manipulation, parallelism helpers and derive macros used by every other crate.</span></summary><div class="bd">
+<h5>Owns</h5><ul><li><code>ToBytes</code> / <code>FromBytes</code>: the canonical little-endian binary encoding used for IDs, hashes and storage.</li><li><code>ToBits</code> / <code>FromBits</code>; <code>cfg_iter!</code>-style macros that switch between rayon and sequential iteration.</li><li><code>utilities/derives</code>: procedural macros.</li></ul>
+<div class="care"><strong>Touch with care.</strong> Byte encodings feed into transaction and block IDs, so a changed encoding is a consensus change. Recent work bounds every length-prefixed read (<code>#3391</code>, <code>#3413</code> open) so malformed input can't force huge allocations.</div>
+</div></details>
+
+<details class="crate"><summary><span class="nm">fields/</span><span class="sz">5.5k lines</span><span class="ds">Prime-field arithmetic: the numbers everything else is made of.</span></summary><div class="bd">
+<h5>Owns</h5><ul><li><code>Fp256</code>, <code>Fp384</code> and the extension towers <code>Fp2</code>, <code>Fp6</code>, <code>Fp12</code> (needed for pairings).</li><li>Traits <code>Field</code>, <code>PrimeField</code>, <code>FftField</code>; Legendre symbols; square roots.</li></ul>
+<h5>Open work</h5><p>Faster inversion (<code>#3112</code>). A self-contained, benchmarkable problem.</p>
+</div></details>
+
+<details class="crate"><summary><span class="nm">curves/</span><span class="sz">9.3k lines</span><span class="ds">BLS12-377 (the pairing curve for proofs) and Edwards-BLS12 (the curve for addresses, signatures and encryption).</span></summary><div class="bd">
+<h5>Owns</h5><ul><li>Short Weierstrass and twisted Edwards templates; affine and projective points; pairing.</li><li>Point (de)serialization, including compressed forms with sign flags.</li></ul>
+<div class="care"><strong>Recent hardening.</strong> Rejecting non-canonical encodings: the Edwards <code>x = 0</code> sign flag (<code>#3425</code>), the infinity encoding (<code>#3397</code>), and the Weierstrass <code>y = 0</code> sign flag (<code>#3422</code>, open). Two encodings of the same point would mean two different IDs for the same object.</div>
+</div></details>
+
+<details class="crate"><summary><span class="nm">algorithms/</span><span class="sz">21.1k lines</span><span class="ds">The proof system and its heavy machinery: Varuna, polynomial commitments, FFT, MSM, R1CS, the SRS, Poseidon.</span></summary><div class="bd">
+<h5>Map</h5><ul>
+<li><code>snark/varuna/</code>: <code>varuna.rs</code> (prove, verify, batch), <code>ahp/</code> (the algebraic protocol: indexer, prover rounds, verifier), <code>data_structures/</code> (keys, proofs), <code>mode.rs</code> (hiding / non-hiding).</li>
+<li><code>polycommit/</code>: <code>kzg10</code> and <code>sonic_pc</code>.</li>
+<li><code>fft/</code>: evaluation domains, dense and sparse polynomials. <code>msm/</code>: multi-scalar multiplication, the dominant proving cost.</li>
+<li><code>r1cs/</code>: constraint systems. <code>srs/</code>: the universal SRS. <code>crypto_hash/</code>: the Poseidon sponge (Fiat–Shamir) and SHA-256.</li>
+<li><code>algorithms/cuda</code>: GPU kernels behind the <code>cuda</code> feature.</li></ul>
+<h5>Recent</h5><p>CPU proving algorithm speed-ups (<code>#3399</code>), Varuna test vectors (<code>#3437</code>), and a Poseidon compression simplification (<code>#3351</code>, open). Open issues: faster common-instance verification (<code>#2952</code>); unbounded <code>batch_sizes</code> when deserializing a proof (<code>#3160</code>, a bug).</p>
+<div class="care"><strong>Touch with care.</strong> Soundness lives here. Any change to transcript order, challenge derivation or serialization changes which proofs verify.</div>
+</div></details>
+</section>
+
+<section class="chapter" id="a3" data-title="World 2: console and circuit" data-part="A">
+<h3><span class="n">A3</span>World 2: the twin types</h3>
+<p><code>console/</code> and <code>circuit/</code> have the same sub-crates in the same shape. Each console sub-crate has a circuit twin, except <code>console/network</code>, whose twin <code>circuit/network</code> only wraps it.</p>
+<div class="tbl"><table>
+<tr><th>Sub-crate</th><th>console/ (native)</th><th>circuit/ (constraints)</th></tr>
+<tr><td><code>types</code></td><td><code>Field</code>, <code>Group</code>, <code>Scalar</code>, <code>Boolean</code>, <code>I8…U128</code>, <code>Address</code>, <code>StringType</code></td><td>Same types over <code>E: Environment</code>, each with an <code>Inject</code> and <code>Eject</code> implementation</td></tr>
+<tr><td><code>account</code></td><td><code>PrivateKey</code>, <code>ComputeKey</code>, <code>ViewKey</code>, <code>GraphKey</code>, <code>Address</code>, <code>Signature</code></td><td>Signature verification and key derivations inside the proof</td></tr>
+<tr><td><code>algorithms</code></td><td>BHP, Pedersen, Poseidon, Keccak, SHA-3, ECDSA and more</td><td>The same hashes and checks as gadgets</td></tr>
+<tr><td><code>collections</code></td><td>Merkle trees (binary and k-ary)</td><td>Merkle path verification</td></tr>
+<tr><td><code>program</code></td><td><code>Plaintext</code>, <code>Ciphertext</code>, <code>Record</code>, <code>Value</code>, <code>Future</code>, <code>Request</code>, <code>Response</code>, <code>StatePath</code>, <code>ProgramID</code>, <code>Locator</code></td><td>Request verification, record encryption and commitments, response construction</td></tr>
+<tr><td><code>network</code></td><td><code>trait Network</code>; <code>MainnetV0</code>, <code>TestnetV0</code>, <code>CanaryV0</code>; <code>consensus_heights.rs</code></td><td><code>trait Aleo</code>; <code>AleoV0</code>, <code>AleoTestnetV0</code>, <code>AleoCanaryV0</code></td></tr>
+<tr><td><code>environment</code></td><td>(the <code>Environment</code> trait for console)</td><td>The constraint recorder: <code>Circuit</code>, <code>Mode</code>, <code>Inject</code>/<code>Eject</code>, scopes, constraint limits</td></tr>
+</table></div>
+<details class="crate"><summary><span class="nm">console/network</span><span class="sz">87 commits in 6 mo</span><span class="ds">The most-edited file set outside the synthesizer, because every consensus upgrade adds a version and activation heights here.</span></summary><div class="bd">
+<p><code>consensus_heights.rs</code> defines <code>ConsensusVersion</code> V1–V21 and the height at which each activates on mainnet, testnet and canary. Network constants such as program size limits, transaction size limits, maximum mappings and array sizes are often arrays indexed by version. Issue <code>#3378</code> proposes making that pattern uniform.</p>
+<div class="care"><strong>Known issue.</strong> <code>#3411</code>: a global <code>OnceLock</code> caches consensus heights per process, so the first network queried wins. A draft fix is in <code>#3414</code>. Worth reading as an example of the subtle bugs this layer can have.</div>
+</div></details>
+<details class="crate"><summary><span class="nm">circuit/environment</span><span class="sz">23 commits in 6 mo</span><span class="ds">The engine that records constraints while circuit types run.</span></summary><div class="bd">
+<p>A thread-local R1CS builder. Every circuit operation calls into it to allocate variables and enforce <code>a·b = c</code>. Tests use <code>assert_scope!(num_constants, num_public, num_private, num_constraints)</code> to pin the exact cost of each gadget. A regression in those numbers changes deployment costs, and it can change verifying keys.</p>
+<p>It also enforces synthesis limits (constraints and variables) during <code>CheckDeployment</code>. Robustness work continues in <code>#3344</code> (open) and <code>#3374</code> (draft).</p>
+</div></details>
+</section>
+
+<section class="chapter" id="a4" data-title="World 3: the machine" data-part="A">
+<h3><span class="n">A4</span>World 3: the machine (<code>synthesizer/</code>)</h3>
+
+<details class="crate" open><summary><span class="nm">synthesizer/program</span><span class="sz">31.7k lines · 64 commits</span><span class="ds">The Aleo instructions language: parsing, the program data model, every opcode and finalize command.</span></summary><div class="bd">
+<h5>Map</h5><ul>
+<li><code>lib.rs</code> (<code>Program</code>), <code>parse.rs</code>, <code>bytes.rs</code>, <code>serialize.rs</code>, <code>to_checksum.rs</code>.</li>
+<li><code>function/</code>, <code>closure/</code>, <code>finalize/</code>, <code>constructor/</code>, <code>view/</code>, <code>mapping/</code>, <code>import/</code>.</li>
+<li><code>logic/instruction</code> (opcodes, recently split up in <code>#3367</code>), <code>logic/command</code> (<code>get</code>, <code>set</code>, <code>branch</code>, <code>await</code>…), <code>logic/finalize_operation</code>, <code>logic/finalize_global_state</code>.</li>
+<li><code>traits/</code>: <code>StackTrait</code> and friends. They let instructions query their stack without a dependency cycle on <code>process</code>.</li>
+<li><code>resources/credits.aleo</code>: the native token, fees and staking.</li></ul>
+<h5>Language backlog (open)</h5><p>Array slicing and concatenation (<code>#3286</code>), ternary over structs and arrays (<code>#3222</code>, <code>#2984</code>), an <code>in</code> instruction (<code>#2950</code>), integer square root (<code>#3052</code>), finalize events (<code>#3028</code>), <code>branch</code> with value operands (<code>#3321</code>), views-only programs (<code>#3271</code>).</p>
+<div class="care"><strong>Touch with care.</strong> A new opcode needs a console implementation, a circuit implementation, parsing, byte and JSON encodings, cost accounting, a consensus-version gate, and matching work in Leo.</div>
+</div></details>
+
+<details class="crate" open><summary><span class="nm">synthesizer/process</span><span class="sz">30.8k lines · 160 commits</span><span class="ds">Running programs: stacks, registers, the call modes, execution, verification, finalize and cost.</span></summary><div class="bd">
+<h5>Map</h5><ul>
+<li><code>lib.rs</code>: <code>Process</code> (the universal SRS, <code>stacks</code>, <code>old_stacks</code>, an exclusive lock). <code>Process::load()</code> starts it with <code>credits.aleo</code>.</li>
+<li><code>stack/</code>: <code>Stack</code> and <code>CallStack</code>; <code>authorize.rs</code>, <code>execute.rs</code>, <code>evaluate.rs</code>, <code>deploy.rs</code>; <code>call/</code> (static and dynamic calls); <code>register_types</code>, <code>finalize_types</code>, <code>registers</code>, <code>finalize_registers</code>; <code>authorization/</code>.</li>
+<li><code>trace/</code>: <code>Trace</code>, <code>inclusion/</code> (state-path circuits), <code>translation/</code> (record translation, V18), <code>call_metrics/</code>.</li>
+<li>Top level: <code>execute.rs</code>, <code>authorize.rs</code>, <code>deploy.rs</code>, <code>verify_execution/</code>, <code>verify_deployment.rs</code>, <code>verify_fee.rs</code>, <code>finalize.rs</code>, <code>view.rs</code>, <code>cost.rs</code>.</li></ul>
+<h5>Hot spots</h5><p>Type checking (memoization <code>#3357</code>, <code>#3372</code>; V20 checks <code>#3380</code>; cyclic struct equivalence <code>#3447</code>), external structs (<code>#3336</code>, <code>#3330</code>), dynamic call resolution (<code>#3346</code>), multi-request authorization (<code>#3295</code>, <code>#3283</code>), finalize pricing (<code>#3356</code>, <code>#3332</code>).</p>
+</div></details>
+
+<details class="crate"><summary><span class="nm">synthesizer/snark</span><span class="sz">1.6k lines</span><span class="ds">Thin network-aware wrappers around Varuna: ProvingKey, VerifyingKey, Proof, Certificate, UniversalSRS.</span></summary><div class="bd"><p>Instantiates Varuna in hiding (zero-knowledge) mode over the network's pairing curve with Poseidon-based Fiat–Shamir. Batch prove and verify entry points live here.</p></div></details>
+
+<details class="crate" open><summary><span class="nm">synthesizer/src (vm)</span><span class="sz">47.9k lines · 190 commits</span><span class="ds">The VM: the top-level API snarkOS calls, and home of block-level consensus rules.</span></summary><div class="bd">
+<h5>Map</h5><ul>
+<li><code>vm/mod.rs</code>: <code>VM</code> (<code>process</code>, <code>puzzle</code>, <code>store</code>, <code>partially_verified_transactions</code>, <code>restrictions</code>, <code>pending_rejected_reasons</code>, the sequential-ops thread), <code>add_next_block</code>.</li>
+<li><code>authorize.rs</code>, <code>execute.rs</code>, <code>deploy.rs</code>: wallet-side entry points.</li>
+<li><code>verify.rs</code>: <code>check_transaction</code> and batch verification.</li>
+<li><code>finalize.rs</code>: <code>speculate</code>, <code>check_speculate</code>, <code>atomic_speculate</code>, <code>atomic_finalize</code>, plus rewards and spend limits.</li>
+<li><code>helpers/</code>: <code>committee.rs</code>, <code>rewards.rs</code>, <code>transaction.rs</code> (costs), <code>sequential_op.rs</code>, <code>program.rs</code>.</li>
+<li><code>tests/</code>: per-consensus-version suites <code>test_v8.rs</code> … <code>test_v20/</code>.</li>
+<li><code>restrictions/</code>: a registry that can block programs, functions or specific arguments at height ranges.</li></ul>
+<h5>Hot spots</h5><p>Spend limits and deployment limits (<code>#3242</code>, <code>#3272</code>, <code>#3386</code>, <code>#3443</code> open bug), speculation locking (<code>#3438</code>, <code>#3193</code>), sequential-thread occupancy (<code>#3441</code>), worker lifecycle (<code>#3444</code>).</p>
+<div class="care"><strong>Touch with care.</strong> Nearly every line here is consensus-critical, and it's also where concurrency bugs live: the process lock, store batches and the sequential thread interact.</div>
+</div></details>
+</section>
+
+<section class="chapter" id="a5" data-title="World 4: the chain" data-part="A">
+<h3><span class="n">A5</span>World 4: the chain (<code>ledger/</code>)</h3>
+<details class="crate" open><summary><span class="nm">ledger/src</span><span class="sz">32 commits</span><span class="ds">The Ledger that snarkOS holds: it wraps the VM and adds the genesis block, epoch hash and current committee.</span></summary><div class="bd">
+<p><code>check_next_block.rs</code> validates a block. <code>advance.rs</code> has <code>prepare_advance_to_next_quorum_block</code> (build a block from a subdag) and <code>advance_to_next_block</code> (apply it). <code>check_transaction_basic.rs</code> does mempool checks. <code>get.rs</code>, <code>find.rs</code>, <code>contains.rs</code> and <code>iterators.rs</code> are the read API that snarkOS's REST server exposes.</p></div></details>
+<details class="crate"><summary><span class="nm">ledger/block</span><span class="sz">43 commits</span><span class="ds">All on-chain data types: Block, Header, Transactions, Transaction, Transition, Ratify, Solutions.</span></summary><div class="bd">
+<p><code>transaction/</code> (<code>deployment</code>, <code>execution</code>, <code>fee</code>, <code>merkle.rs</code>), <code>transition/</code> (<code>input</code>, <code>output</code>, <code>merkle.rs</code>), <code>transactions/confirmed</code> (accepted, rejected, aborted), <code>header/</code> (roots and <code>metadata</code>), <code>verify.rs</code> (block-level checks). Recent: rejecting trailing bytes in sub-objects (<code>#3409</code>), <code>DynamicRecord</code> encoding v2 (<code>#3382</code> and <code>#3383</code>, open).</p></div></details>
+<details class="crate"><summary><span class="nm">ledger/store</span><span class="sz">68 commits</span><span class="ds">Persistent state behind traits, with in-memory and RocksDB backends.</span></summary><div class="bd">
+<p><code>block/</code>, <code>transaction/</code>, <code>transition/</code>, <code>program/</code> (finalize store: mappings, committee) and <code>consensus/</code> (<code>ConsensusStore</code>); <code>helpers/memory</code> and <code>helpers/rocksdb</code>. Atomic batches make a block apply all-or-nothing.</p>
+<h5>Most active open area</h5><p>History and pruning: schema versions (<code>#3408</code>, <code>#3432</code>, <code>#3449</code>), rebuilding history by replay (<code>#3417</code>), pruning (<code>#3231</code>, <code>#3329</code>, <code>#3230</code>), the bug where history misses deletions (<code>#3418</code>), RocksDB metrics (<code>#3296</code>) and key counting (<code>#3434</code>).</p></div></details>
+<details class="crate"><summary><span class="nm">ledger/narwhal/*</span><span class="sz">41 commits</span><span class="ds">Consensus data types: batch headers, batch certificates, subdags, transmissions.</span></summary><div class="bd"><p>snarkOS runs the protocol; these crates define and validate the messages. Recent: caching certificate signers (<code>#3364</code>), canonical subdag certificate order (<code>#3335</code>, V18), rejecting repeated entries (<code>#3410</code>, open), and a compact subdag draft (<code>#3000</code>).</p></div></details>
+<details class="crate"><summary><span class="nm">ledger/committee · puzzle · query · authority</span><span class="sz">≈60 commits</span><span class="ds">Staking committee, the coinbase puzzle, state queries for provers, and block authority.</span></summary><div class="bd"><ul>
+<li><code>committee</code>: members as <code>(stake, is_open, commission)</code>, lookback rules, leader selection. There's a draft for redelegation, ARC-0049 (<code>#3228</code>).</li>
+<li><code>puzzle</code> (+ <code>epoch</code>): prover solutions and targets. Open performance issue <code>#3167</code>.</li>
+<li><code>query</code>: the <code>Query</code> trait (from a VM, from REST, static). Open PR <code>#3435</code> bounds and retries <code>RestQuery</code>.</li>
+<li><code>authority</code>: <code>Beacon</code> (genesis) or <code>Quorum(subdag)</code>.</li>
+<li><code>test-helpers</code>, <code>testchain-generator</code>: build test chains.</li></ul></div></details>
+</section>
+
+<section class="chapter" id="a6" data-title="World 5: packaging" data-part="A">
+<h3><span class="n">A6</span>World 5: packaging and parameters</h3>
+<ul>
+<li><code>parameters/</code>: the universal SRS (embedded or downloaded, bounded since <code>#3436</code>), pre-computed <code>credits.aleo</code> keys and translation keys per network, and genesis blocks. The <code>no-embedded-srs</code> feature shrinks binaries.</li>
+<li><code>vm/</code>: the <code>snarkvm</code> crate that re-exports everything, plus <code>vm/file</code> helpers for program package files.</li>
+<li><code>wasm/</code>: a thin shim. The real WebAssembly SDK lives in a separate repository and depends on these crates.</li>
+<li><code>metrics/</code>: metric names shared with snarkOS.</li>
+</ul>
+</section>
+
+<!-- ======================= PART B ======================= -->
+<div class="part-head" id="partB">
+  <p class="kicker"><span>Part B · Cross-cutting systems</span><span>≈ 20 min</span></p>
+  <h2>The rules that span every crate</h2>
+  <p>Most bugs and most review comments come from these six systems, not from any single crate.</p>
+</div>
+
+<section class="chapter" id="b1" data-title="Consensus versioning" data-part="B">
+<h3><span class="n">B1</span>Consensus versioning</h3>
+<p>Every behaviour change ships behind a <code>ConsensusVersion</code> that activates at a height, testnet first and mainnet later. The pattern appears in four forms:</p>
+<ul>
+<li><strong>Branching on version</strong>: <code>if consensus_version &gt;= ConsensusVersion::V20 { … }</code> inside verification and finalize.</li>
+<li><strong>Versioned functions</strong>: <code>deployment_cost_v1</code> … <code>_v4</code> in <code>process/src/cost.rs</code>.</li>
+<li><strong>Versioned constants</strong>: limits stored per version in <code>console/network</code>.</li>
+<li><strong>Versioned encodings</strong>: record version 0/1, <code>DynamicRecord</code> v2, Varuna versions.</li>
+</ul>
+<p>Tests follow the same structure. <code>synthesizer/src/vm/tests/test_vN</code> checks behaviour before and after each activation height, and a placeholder version is added before a feature lands (<code>#3353</code>).</p>
+<div class="callout key"><b class="lab">Rule of thumb</b><p>If your change can make any historical block validate differently, it needs a version gate. If you're unsure, say so in the PR description.</p></div>
+</section>
+
+<section class="chapter" id="b2" data-title="Serialization" data-part="B">
+<h3><span class="n">B2</span>Serialization: three encodings, all consensus-relevant</h3>
+<div class="tbl"><table>
+<tr><th>Encoding</th><th>Files</th><th>Used for</th></tr>
+<tr><td>Bytes</td><td><code>bytes.rs</code> (<code>ToBytes</code>/<code>FromBytes</code>)</td><td>Network messages, storage, and the input to ID hashes</td></tr>
+<tr><td>String</td><td><code>parse.rs</code>, <code>string.rs</code> (<code>FromStr</code>/<code>Display</code>)</td><td>Program text, literals, <code>aleo1…</code> addresses, CLI and REST</td></tr>
+<tr><td>Serde / JSON</td><td><code>serialize.rs</code></td><td>REST API and SDK interchange</td></tr>
+</table></div>
+<p>Most types have all three. Invariants: round-trips are exact (<code>prop-tests</code> feature, <code>#3405</code>); decoding is canonical (one valid encoding per value); decoding is bounded (no attacker-controlled allocation sizes); decoding never panics (<code>#3352</code>, <code>#3116</code>). Recent work (<code>#3398</code>, zero-copy deserialize) shows performance matters here too, because nodes decode many blocks and transactions.</p>
+</section>
+
+<section class="chapter" id="b3" data-title="Concurrency and state" data-part="B">
+<h3><span class="n">B3</span>Concurrency and state</h3>
+<ul>
+<li><strong>Process</strong>: <code>stacks</code> behind an <code>RwLock</code>; <code>ProcessExclusiveGuard</code> ensures only one writer at a time (deadlock fix <code>#3275</code>).</li>
+<li><strong>VM</strong>: operations that must not interleave (adding a block, speculating) go through one <code>sequential_ops</code> thread. Its occupancy is a latency bottleneck being worked on (<code>#3441</code>).</li>
+<li><strong>Store</strong>: <code>atomic_speculate</code> and <code>atomic_finalize</code> apply finalize in an atomic batch that is rolled back on failure. Speculative reads versus locks: <code>#3438</code>; potential deadlock: <code>#3193</code>.</li>
+<li><strong>Caches</strong>: <code>partially_verified_transactions</code> (an LRU keyed with the consensus version since <code>#3299</code>); memoized type checks.</li>
+<li><strong>Tooling</strong>: the <code>locktick</code> feature instruments locks to find contention.</li>
+</ul>
+</section>
+
+<section class="chapter" id="b4" data-title="Feature flags" data-part="B">
+<h3><span class="n">B4</span>Feature flags you'll meet</h3>
+<div class="tbl"><table>
+<tr><th>Flag</th><th>Effect</th></tr>
+<tr><td><code>rocks</code></td><td>RocksDB storage (real nodes). Without it, in-memory stores.</td></tr>
+<tr><td><code>test</code></td><td>Test helpers in ledger and synthesizer. Many integration tests need it (and <code>dev_println</code> for output).</td></tr>
+<tr><td><code>history</code>, <code>history-staking-rewards</code></td><td>Keep historical mapping values for queries at past heights. An active redesign area.</td></tr>
+<tr><td><code>cuda</code></td><td>GPU MSM and proving acceleration.</td></tr>
+<tr><td><code>async</code></td><td>Async variants of the ledger and synthesizer APIs.</td></tr>
+<tr><td><code>locktick</code></td><td>Lock instrumentation.</td></tr>
+<tr><td><code>prop-tests</code></td><td>Property-based serialization tests.</td></tr>
+<tr><td><code>no-embedded-srs</code>, <code>parameters_no_std_out</code></td><td>Parameter loading behaviour.</td></tr>
+</table></div>
+</section>
+
+<section class="chapter" id="b5" data-title="Testing layers" data-part="B">
+<h3><span class="n">B5</span>Testing layers</h3>
+<div class="tbl"><table>
+<tr><th>Layer</th><th>Where</th><th>What it catches</th></tr>
+<tr><td>Unit tests</td><td>Every crate, <code>#[cfg(test)]</code> modules</td><td>Local logic, round-trips</td></tr>
+<tr><td>Constraint-count tests</td><td><code>circuit/**</code>, via <code>assert_scope!</code></td><td>Silent cost or verifying-key changes</td></tr>
+<tr><td>Expectation ("golden") tests</td><td><code>synthesizer/tests</code>: 75 <code>.aleo</code> programs with YAML cases and expected outputs</td><td>Parser, process and VM behaviour regressions</td></tr>
+<tr><td>Consensus-version suites</td><td><code>synthesizer/src/vm/tests/test_v8…test_v20</code></td><td>Behaviour on both sides of each activation</td></tr>
+<tr><td>Ledger tests</td><td><code>ledger/tests</code>, <code>ledger/src/tests.rs</code> (need <code>test</code> feature)</td><td>Block building and advancing. Issue <code>#3048</code>: some aren't run in CI.</td></tr>
+<tr><td>Benchmarks</td><td><code>*/benches</code>; CI benchmark alerts (<code>#3379</code>)</td><td>Performance regressions</td></tr>
+</table></div>
+<p>Synthesizer tests are slow, so run a single test: <code>cargo test -p snarkvm-synthesizer --features test,dev_println -- &lt;name&gt;</code>.</p>
+</section>
+
+<section class="chapter" id="b6" data-title="Branches and releases" data-part="B">
+<h3><span class="n">B6</span>Branches and the release train</h3>
+<figure><div class="diagram"><div class="flow">
+  <div class="step ac"><b>staging</b><span>Default branch. All PRs target it.</span></div><div class="arrow">→</div>
+  <div class="step"><b>test_net_vX</b><span>Release PR into <code>testnet</code> (e.g. <code>#3388</code>, 4.10.0)</span></div><div class="arrow">→</div>
+  <div class="step"><b>main_net_vX</b><span>Release PR into <code>mainnet</code> (e.g. <code>#3433</code>)</span></div><div class="arrow">→</div>
+  <div class="step"><b>postrelease-merge</b><span>mainnet merged back into staging</span></div>
+</div></div><figcaption>Recent cadence: 4.7.0 (late May), 4.7.3, 4.8.1 (July), 4.9.x (July–August), 4.10.0 (September). Roughly monthly.</figcaption></figure>
+<p>Validation before any PR, from <code>AGENTS.md</code>: <code>cargo check</code>, <code>cargo clippy -- -D warnings</code>, <code>cargo +nightly-2026-04-02 fmt --check</code>, then tests. Every <code>unwrap</code> needs a justifying comment, and new files, crates or dependencies need approval first.</p>
+</section>
+
+<!-- ======================= PART C ======================= -->
+<div class="part-head" id="partC">
+  <p class="kicker"><span>Part C · Recent priorities</span><span>≈ 10 min</span></p>
+  <h2>What the team is actually working on</h2>
+  <p>Measured from 643 non-merge commits on <code>staging</code> (24 March – 23 September 2026), 126 merged PRs since 1 May, and the open PR and issue lists.</p>
+</div>
+
+<section class="chapter" id="c1" data-title="Where commits land" data-part="C">
+<h3><span class="n">C1</span>Where commits land</h3>
+<div class="chart" id="chart">
+  <h5>Commits touching each area, last 6 months</h5>
+  <p class="cap">One commit can touch several areas. Lockfiles and manifests are excluded.</p>
+  <div class="bars" id="bars" role="list"></div>
+  <div class="axis"><span></span><div class="ticks"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span></div></div>
+  <div class="tip" id="tip" hidden></div>
+</div>
+<details class="tview"><summary>Show as a table</summary><div class="tbl" style="margin-top:8px"><table id="bartable"><tr><th>Area</th><th style="text-align:right">Commits</th></tr></table></div></details>
+<p>The VM and process layers dominate. <code>console/network</code> is third because every consensus version edits it. CI config is in the top ten, a sign of an active push on build and test speed.</p>
+</section>
+
+<section class="chapter" id="c2" data-title="Six themes" data-part="C">
+<h3><span class="n">C2</span>Six themes</h3>
+
+<div class="theme"><div class="hd"><b>1 · Hardening against malformed and adversarial input</b><span class="st hot">hottest · many small merged PRs</span></div>
+<p>Bounded allocations when decoding, canonical encodings, no panics while parsing, rejecting trailing bytes and repeated entries, property-based round-trip tests. This reads like the output of a systematic audit, possibly AI-assisted, being worked through.</p>
+<div class="prs"><span class="chip">#3419 bound parser prealloc</span><span class="chip">#3391 bound vec length</span><span class="chip">#3409 trailing bytes</span><span class="chip">#3397 infinity encoding</span><span class="chip">#3425 Edwards zero-x</span><span class="chip">#3405 serde proptests</span><span class="chip">#3387 request-like sign</span><span class="chip">#3352 parse no panic</span><span class="chip">#3365 deployment verification</span><span class="chip">#3436 download bounds</span><span class="chip open">#3447 cyclic structs</span><span class="chip open">#3422</span><span class="chip open">#3410</span><span class="chip open">#3413</span></div></div>
+
+<div class="theme"><div class="hd"><b>2 · Protocol upgrades V18–V21</b><span class="st hot">steady · one version per release</span></div>
+<p>Record translation for credits, program size up to 2 MB, per-component checksums, deployment synthesis limits (block-wide in V18, per-transaction in V19), stricter V20 type checks, 128 mappings in V21, program editions for views.</p>
+<div class="prs"><span class="chip">#3334 credits translation VK</span><span class="chip">#3303 2048 kB programs</span><span class="chip">#3298 function checksum</span><span class="chip">#3272 block-wide deploy limit</span><span class="chip">#3242 move spend limits</span><span class="chip">#3380 V20 type checks</span><span class="chip">#3355 plaintext size</span><span class="chip">#3428 128 mappings</span><span class="chip">#3295 authorize_requests</span><span class="chip">#3294 historic view editions</span></div></div>
+
+<div class="theme"><div class="hd"><b>3 · Node performance and latency</b><span class="st hot">active</span></div>
+<p>Faster decoding, less lock contention, caching verification work, faster CPU proving. Open issues ask for lower transaction latency variance and a larger verification cache.</p>
+<div class="prs"><span class="chip">#3398 zero-copy deserialize</span><span class="chip">#3399 CPU proving</span><span class="chip">#3369 non-blocking tree</span><span class="chip">#3349 block tree deser</span><span class="chip">#3364 signer cache</span><span class="chip">#3438 speculate lock</span><span class="chip open">#3441 sequential thread</span><span class="chip open">#3416 metrics</span><span class="chip open">#3426</span><span class="chip open">#3415</span><span class="chip open">#2952</span></div></div>
+
+<div class="theme"><div class="hd"><b>4 · Storage growth: history, pruning, schema versions</b><span class="st hot">active · several drafts</span></div>
+<p>The chain is two years old, so disk usage and historical queries now matter to node operators. There's work on a storage schema version, rebuilding history, pruning old state and authority data, and a real correctness bug (history never records deletions).</p>
+<div class="prs"><span class="chip open">#3408 schema version</span><span class="chip open">#3449 history index</span><span class="chip open">#3432</span><span class="chip open">#3417 replay rebuild</span><span class="chip open">#3231 prune rocksdb</span><span class="chip open">#3329 prune authority</span><span class="chip open">#3418 deletions bug</span><span class="chip open">#3434 key count</span><span class="chip">#3296 rocksdb metrics</span></div></div>
+
+<div class="theme"><div class="hd"><b>5 · Developer velocity and CI</b><span class="st">steady</span></div>
+<p>Faster dev builds, pinned toolchains, release automation, benchmark alerts, and a proposal to cap CI runs at about 15 minutes.</p>
+<div class="prs"><span class="chip">#3362 iteration times</span><span class="chip">#3427 dev profile</span><span class="chip">#3402 no incremental</span><span class="chip">#3395 Rust 1.96</span><span class="chip">#3379 bench alerts</span><span class="chip open">#3308 release-plz</span><span class="chip open">#3412</span><span class="chip open">#3424 Gungraun</span><span class="chip open">#2996 15-min CI</span></div></div>
+
+<div class="theme"><div class="hd"><b>6 · Language features</b><span class="st">slow · mostly stalled drafts</span></div>
+<p>Plenty of demand but little merged. Each feature needs an ARC (Aleo Request for Comments), consensus gating and Leo support, so these move slowly.</p>
+<div class="prs"><span class="chip open">#3286 array slice/concat</span><span class="chip open">#3222 ternary composites</span><span class="chip open">#2950 in</span><span class="chip open">#3052 isqrt</span><span class="chip open">#3028 events</span><span class="chip open">#3321 branch operands</span><span class="chip open">#3284 Sign V2</span><span class="chip open">#3228 ARC-0049 redelegation</span><span class="chip open">#2588 ARC-81 hashes</span></div></div>
+
+<p class="legend"><span>Solid chip = merged</span><span>Dashed chip = open PR or issue</span></p>
+<div class="callout key"><b class="lab">Reading the signal</b><p>The team is in <strong>"harden and scale mainnet"</strong> mode: correctness under hostile input, node latency and storage growth come first. New language features arrive slowly behind consensus versions. Contributions aligned with themes 1, 3 and 4 get reviewed fastest.</p></div>
+</section>
+
+<!-- ======================= PART D ======================= -->
+<div class="part-head" id="partD">
+  <p class="kicker"><span>Part D · Contributing</span><span>≈ 10 min</span></p>
+  <h2>Where to contribute for the most visibility</h2>
+  <p>"Visibility" here means work maintainers notice and merge, that users or operators feel, and that you can point to later. Each option is rated on four axes. The dots are relative judgements based on the activity data above, not measurements.</p>
+</div>
+
+<section class="chapter" id="d1" data-title="Ranked opportunities" data-part="D">
+<h3><span class="n">D1</span>Six opportunities, ranked</h3>
+
+<div class="opp"><div class="top"><div class="rank">1</div><div><h4>Adversarial-input hardening and fuzzing</h4><p class="why">The team's current top theme. Small, testable PRs that get merged quickly. Security work is easy to describe and credit.</p></div></div>
+<div class="meters"><div>Visibility<b><span class="dots">●●●●<i>●</i></span> high</b></div><div>Merge odds<b><span class="dots">●●●●<i>●</i></span> high</b></div><div>Consensus risk<b><span class="dots">●●<i>●●●</i></span> low–med</b></div><div>Effort per PR<b><span class="dots">●●<i>●●●</i></span> small</b></div></div>
+<div class="body"><ul>
+<li>Start with open bugs: <code>#3160</code> (unbounded <code>batch_sizes</code> in proof decoding), <code>#3116</code> (<code>AleoID::display</code> can panic), <code>#3126</code> (VM panics on a 0-balance record input).</li>
+<li>Bigger play: propose <code>cargo-fuzz</code> targets for <code>FromBytes</code> on <code>Transaction</code>, <code>Block</code>, <code>Program</code>, <code>Proof</code> and <code>BatchCertificate</code>, and fix what they find. This connects to <code>#2983</code> (static analysis).</li>
+<li>Only reject inputs that could never have been valid on chain. Anything else needs a version gate.</li></ul></div></div>
+
+<div class="opp"><div class="top"><div class="rank">2</div><div><h4>Performance, backed by benchmarks</h4><p class="why">A measured "verification is 18% faster" gets noticed by the core team and by validator operators. Your 64-core remote machine is well suited to repeatable benchmarks.</p></div></div>
+<div class="meters"><div>Visibility<b><span class="dots">●●●●●</span> very high</b></div><div>Merge odds<b><span class="dots">●●●<i>●●</i></span> medium</b></div><div>Consensus risk<b><span class="dots">●●<i>●●●</i></span> low–med</b></div><div>Effort per PR<b><span class="dots">●●●<i>●●</i></span> medium</b></div></div>
+<div class="body"><ul>
+<li>Candidates: <code>#2952</code> (common-instance verification), <code>#3426</code> / <code>#3236</code> (verification cache), <code>#3112</code> (field inversion), <code>#3167</code> (puzzle), <code>#3415</code> (latency variance).</li>
+<li>Show before and after with the existing <code>benches/</code>, and prove outputs are bit-for-bit identical.</li></ul></div></div>
+
+<div class="opp"><div class="top"><div class="rank">3</div><div><h4>Storage: history and pruning</h4><p class="why">Operators feel this directly, and the team is investing in it now. There's a concrete correctness bug waiting.</p></div></div>
+<div class="meters"><div>Visibility<b><span class="dots">●●●●<i>●</i></span> high</b></div><div>Merge odds<b><span class="dots">●●●<i>●●</i></span> medium</b></div><div>Consensus risk<b><span class="dots">●<i>●●●●</i></span> low</b></div><div>Effort per PR<b><span class="dots">●●●●<i>●</i></span> med–large</b></div></div>
+<div class="body"><ul>
+<li><code>#3418</code> (history never records deletions), <code>#3434</code> (RocksDB key count), <code>#3230</code> (pruning).</li>
+<li>Several drafts are in flight (<code>#3408</code>, <code>#3432</code>, <code>#3449</code>), so ask on the issue before starting to avoid colliding with them.</li></ul></div></div>
+
+<div class="opp"><div class="top"><div class="rank">4</div><div><h4>Language features</h4><p class="why">The most visible to the Aleo developer community, because every Leo developer benefits. It's also the slowest route: design review, an ARC, a consensus gate and Leo support.</p></div></div>
+<div class="meters"><div>Visibility<b><span class="dots">●●●●●</span> very high</b></div><div>Merge odds<b><span class="dots">●<i>●●●●</i></span> low</b></div><div>Consensus risk<b><span class="dots">●●●●●</span> high</b></div><div>Effort per PR<b><span class="dots">●●●●●</span> large</b></div></div>
+<div class="body"><ul>
+<li>Revive a stalled draft with maintainer blessing: <code>#3222</code> / <code>#2984</code> (ternary composites), <code>#2985</code> / <code>#3286</code> (array operations), <code>#3055</code> (<code>halt</code> reports the failing instruction index; smaller and a good first step).</li>
+<li>Build the console implementation, the circuit implementation and constraint-count tests first. That's the part reviewers check hardest.</li></ul></div></div>
+
+<div class="opp"><div class="top"><div class="rank">5</div><div><h4>Tests and CI</h4><p class="why">Less public glory, but the fastest way to earn maintainer trust and to learn the codebase.</p></div></div>
+<div class="meters"><div>Visibility<b><span class="dots">●●<i>●●●</i></span> internal</b></div><div>Merge odds<b><span class="dots">●●●●●</span> very high</b></div><div>Consensus risk<b><span class="dots"><i>●●●●●</i></span> none</b></div><div>Effort per PR<b><span class="dots">●●<i>●●●</i></span> small</b></div></div>
+<div class="body"><ul>
+<li><code>#3048</code> (ledger tests needing the <code>test</code> feature aren't run in CI), a real gap. Also <code>#2988</code> (one RNG per test), <code>#3181</code> (<code>test_log</code>), <code>#2956</code> (serialization unit tests), <code>#3424</code> (Gungraun).</li></ul></div></div>
+
+<div class="opp"><div class="top"><div class="rank">6</div><div><h4>Post-quantum research</h4><p class="why">Long-horizon thought leadership. There are no open issues on it, so it would be a write-up or prototype rather than merged code.</p></div></div>
+<div class="meters"><div>Visibility<b><span class="dots">●●●<i>●●</i></span> community</b></div><div>Merge odds<b><span class="dots"><i>●●●●●</i></span> n/a</b></div><div>Consensus risk<b><span class="dots"><i>●●●●●</i></span> none</b></div><div>Effort<b><span class="dots">●●●●●</span> large</b></div></div>
+<div class="body"><ul>
+<li>For example, benchmark hash-based serial numbers and commitments inside snarkVM circuits, or measure proof sizes of a FRI-compiled Varuna prototype. Publish it as a draft ARC or forum post.</li></ul></div></div>
+</section>
+
+<section class="chapter" id="d2" data-title="A 90-day plan" data-part="D">
+<h3><span class="n">D2</span>A 90-day plan</h3>
+<div class="plan">
+  <div><b>Weeks 1–2 · Orient</b>Read <em>Inside snarkVM</em> and this atlas. Build the workspace, run one synthesizer expectation test and one ledger test. Trace <code>VM::execute</code> end to end.</div>
+  <div><b>Weeks 3–4 · First PR</b>Pick a small bug (<code>#3116</code>, <code>#3160</code>, <code>#3048</code>). Comment first, write a failing test, then fix it. Follow <code>AGENTS.md</code> exactly.</div>
+  <div><b>Month 2 · Own a slice</b>Choose theme 1 or 2. Land two or three PRs in one area so reviewers start associating you with it: a fuzzing harness, or a benchmark plus optimization.</div>
+  <div><b>Month 3 · Lead</b>Write an issue or proposal in that area with data (fuzz findings, profiles). Offer to take on an open proposal such as <code>#3426</code> or <code>#3230</code>.</div>
+</div>
+<div class="callout"><b class="lab">How to write PRs reviewers like</b>
+<ul>
+<li>One concern per PR, with tests. Say explicitly whether it affects consensus and why or why not.</li>
+<li>Target <code>staging</code>. Run clippy with <code>-D warnings</code> and the pinned nightly <code>fmt</code>.</li>
+<li>For performance work, include benchmark numbers and proof that outputs are unchanged. For hardening, include the malformed input as a regression test.</li>
+<li>Don't add new files, crates, dependencies or traits without asking first. The team's rules require approval.</li></ul></div>
+</section>
+
+<footer>
+Numbers from <code>git log origin/staging</code> (24 Mar – 23 Sep 2026, merges excluded), <code>gh pr list</code> and <code>gh issue list</code> on ProvableHQ/snarkVM (23 Sep 2026), and line counts of <code>*.rs</code> files. Priorities and ratings are interpretations of that data. Companion guide: <em>Inside snarkVM</em>.
+</footer>
+</main>
+</div>
+
+<script>
+(function(){
+  var data = [
+    ["synthesizer/src (VM)",190],["synthesizer/process",160],["console/network",87],["ledger/store",68],
+    ["synthesizer/program",64],["algorithms",64],["CI (.circleci)",59],["ledger/block",43],["ledger/narwhal",41],
+    ["ledger/src",32],["parameters",30],["console/algorithms",29],["utilities",29],["ledger/puzzle",27],
+    ["synthesizer/tests",25],["circuit/environment",23],["console/program",23]
+  ];
+  var max = 200, bars = document.getElementById("bars"), tip = document.getElementById("tip"), chart = document.getElementById("chart"), tbl = document.getElementById("bartable");
+  data.forEach(function(d, i){
+    var lb = document.createElement("div"); lb.className = "lb"; lb.textContent = d[0]; lb.title = d[0];
+    var tr = document.createElement("div"); tr.className = "tr"; tr.tabIndex = 0; tr.setAttribute("role","listitem");
+    tr.setAttribute("aria-label", d[0] + ": " + d[1] + " commits");
+    var br = document.createElement("div"); br.className = "br" + (i > 5 ? " dim" : ""); br.style.width = (100 * d[1] / max) + "%";
+    tr.appendChild(br);
+    if (i < 3){ var vl = document.createElement("span"); vl.className = "vl"; vl.style.left = (100 * d[1] / max) + "%"; vl.textContent = d[1]; tr.appendChild(vl); }
+    function show(){ tip.hidden = false; tip.textContent = d[0] + " · " + d[1] + " commits";
+      var r = tr.getBoundingClientRect(), c = chart.getBoundingClientRect();
+      var x = r.left - c.left + r.width * d[1] / max + 8; var y = r.top - c.top - 30;
+      tip.style.left = Math.min(x, c.width - tip.offsetWidth - 8) + "px"; tip.style.top = y + "px"; }
+    function hide(){ tip.hidden = true; }
+    tr.addEventListener("mouseenter", show); tr.addEventListener("mouseleave", hide);
+    tr.addEventListener("focus", show); tr.addEventListener("blur", hide);
+    bars.appendChild(lb); bars.appendChild(tr);
+    var row = document.createElement("tr");
+    row.innerHTML = "<td><code>" + d[0] + "</code></td><td style='text-align:right;font-variant-numeric:tabular-nums'>" + d[1] + "</td>";
+    tbl.appendChild(row);
+  });
+})();
+(function(){
+  var KEY = "snarkvm-atlas-read";
+  var chapters = Array.prototype.slice.call(document.querySelectorAll("section.chapter"));
+  var read = {};
+  try { read = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch(e) { read = {}; }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+  var parts = {A:"Architecture", B:"Cross-cutting systems", C:"Recent priorities", D:"Contributing"};
+  var mins = {A:"30m", B:"20m", C:"10m", D:"10m"};
+  var list = document.getElementById("toclist"), listM = document.getElementById("toclist-m"), last = null, total = chapters.length;
+  chapters.forEach(function(s){
+    var part = s.getAttribute("data-part");
+    if (part !== last){ var ph = document.createElement("li"); ph.className = "part"; ph.innerHTML = "<span>" + part + " · " + parts[part] + "</span><span>" + mins[part] + "</span>"; list.appendChild(ph); last = part; }
+    var li = document.createElement("li"); li.className = "ch"; li.dataset.id = s.id;
+    var cb = document.createElement("input"); cb.type = "checkbox"; cb.id = "read-" + s.id;
+    cb.setAttribute("aria-label", "Mark " + s.getAttribute("data-title") + " as read"); cb.checked = !!read[s.id];
+    cb.addEventListener("change", function(){ read[s.id] = cb.checked; save(); refresh(); });
+    var a = document.createElement("a"); a.href = "#" + s.id;
+    var n = s.querySelector("h3 .n"); a.textContent = (n ? n.textContent + "  " : "") + s.getAttribute("data-title");
+    li.appendChild(cb); li.appendChild(a); list.appendChild(li);
+    var m = document.createElement("li"), ma = document.createElement("a"); ma.href = "#" + s.id; ma.textContent = s.getAttribute("data-title"); m.appendChild(ma); listM.appendChild(m);
+  });
+  function refresh(){
+    var done = 0;
+    Array.prototype.forEach.call(list.querySelectorAll("li.ch"), function(li){ var d = !!read[li.dataset.id]; li.classList.toggle("done", d); if (d) done++; });
+    document.getElementById("bar").style.width = (100 * done / total) + "%";
+    document.getElementById("barlabel").textContent = done + " of " + total + " chapters read";
+  }
+  refresh();
+  if ("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting){ Array.prototype.forEach.call(list.querySelectorAll("li.ch"), function(li){ li.classList.toggle("active", li.dataset.id === e.target.id); }); } }); }, {rootMargin:"-20% 0px -70% 0px"});
+    chapters.forEach(function(s){ io.observe(s); });
+  }
+})();
+</script>
+
+</html>
