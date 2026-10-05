@@ -4,7 +4,7 @@ Personal learning repo. Each top-level directory is a topic — notes, reference
 
 ## Topics
 
-- **[provable/](./provable/)** — The Aleo network and Provable's stack (Leo, snarkVM, snarkOS, SDK): an intro guide to snarkVM, a codebase atlas, learning notes on curves, pairings, KZG and Varuna, and explainers comparing Aleo with Ethereum and Aztec.
+- **[provable/](./provable/)** — The Aleo network and Provable's stack (Leo, snarkVM, snarkOS, SDK): an intro guide to snarkVM, a codebase atlas, learning notes on curves, pairings, KZG and Varuna, a seven-part walkthrough of the proof system from KZG and Groth16 to PLONK, Marlin and Varuna, and explainers comparing Aleo with Ethereum and Aztec.
 - **[zk-and-blockchain/](./zk-and-blockchain/)** — Zero-knowledge proofs, Ethereum rollups, L2 infrastructure (EigenLayer, NEAR, Succinct).
 - **[quantum-computing/](./quantum-computing/)** — How quantum computing works, from the qubit to Shor's algorithm, with an interactive HTML animation.
 - **[obsidian-claude-graphify/](./obsidian-claude-graphify/)** — Workflow for turning codebases, papers, and notes into a navigable knowledge graph that Claude reads before answering.

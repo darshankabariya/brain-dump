@@ -8,9 +8,10 @@ The zkVM at the heart of Aleo: it runs programs, turns them into Varuna proofs, 
 | --- | --- | --- | --- | --- |
 | 1 | [Inside snarkVM](./inside-snarkvm.html) ([online](https://claude.ai/artifact/L2Ji3rdrNNuVNGXJbg2rNY)) | Interactive HTML | ~90 min | Prerequisites, Aleo concepts, the execution pipeline, a real transaction end to end |
 | 2 | [Learning Notes 01](./learning-notes-01-curves-pairings-kzg-varuna.md) ([live doc](https://claude.ai/code/artifact/2d7e97dc-ad20-4e51-9461-36707dc6913f)) | Markdown | ~60 min | BLS12-377, Edwards-BLS12, pairings, KZG, Varuna step by step, account vs UTXO |
-| 3 | [snarkVM Codebase Atlas](./codebase-atlas.html) ([online](https://claude.ai/artifact/Wy1FjidpKnkkNd4N7DwJfG)) | Interactive HTML | ~70 min | Every crate, cross-cutting systems, team priorities, where to contribute |
+| 3 | [KZG to Varuna](./kzg-to-varuna.html) ([online](https://claude.ai/artifact/E2dEQtLFCX9KgsWYrYAG4F)) | HTML, 7 parts | ~3 h | How the proof system works: KZG, Groth16, the universal recipe, PLONK, Marlin, Varuna, side by side. Intuition first, then the mechanics with worked numbers mod 101 and snarkVM source pointers |
+| 4 | [snarkVM Codebase Atlas](./codebase-atlas.html) ([online](https://claude.ai/artifact/Wy1FjidpKnkkNd4N7DwJfG)) | Interactive HTML | ~70 min | Every crate, cross-cutting systems, team priorities, where to contribute |
 
-The HTML files open in any browser (they fetch fonts from Google Fonts when online and fall back to system fonts offline). The "online" links are the original published versions; the live doc may have newer edits than the markdown snapshot here.
+*KZG to Varuna* is one page with seven views; the top navigation switches between them, and each view ends with a link to the next. The HTML files open in any browser (they fetch fonts from Google Fonts when online and fall back to system fonts offline). The "online" links are the original published versions; the live doc may have newer edits than the markdown snapshot here.
 
 ## The one-paragraph version
 

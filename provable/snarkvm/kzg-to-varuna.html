@@ -1,0 +1,2102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KZG to Varuna</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow reading column, always black text on a white page in every viewer theme, a sticky mono nav, and one topic per view switched by #hash. */
+:root{
+  color-scheme:light;
+  --paper:#ffffff;
+  --raised:#f6f6f6;
+  --ink:#000000;
+  --ink-soft:#2e2e2e;
+  --ink-faint:#6a6a6a;
+  --rule:#d9d9d9;
+  --rule-soft:#e9e9e9;
+  --accent:#000000;
+  --accent-soft:#3a3a3a;
+  --accent-tint:#f1f1f1;
+  --accent-line:rgba(0,0,0,.28);
+  --teal:#4a4a4a;
+  --teal-tint:#f7f7f7;
+  --warn:#000000;
+  --warn-tint:#e4e4e4;
+  --nav-bg:rgba(255,255,255,.94);
+
+  --serif:"Newsreader","Iowan Old Style",ui-serif,Georgia,serif;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --col:680px;
+}
+*,*::before,*::after{box-sizing:border-box;}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--accent-tint); color:var(--accent);}
+a{color:var(--accent); text-decoration:none;}
+a:hover{color:var(--accent-soft); text-decoration:underline;}
+p a, td a, li a:not(.toc a){text-decoration:underline; text-decoration-color:var(--ink-faint); text-underline-offset:2px;}
+a:focus-visible, summary:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:2px;}
+
+/* ---------- nav ---------- */
+header.nav{
+  position:sticky; top:env(safe-area-inset-top, 0px); z-index:20;
+  background:var(--nav-bg); backdrop-filter:saturate(140%) blur(6px);
+  border-bottom:1px solid var(--rule);
+}
+.nav-inner{
+  max-width:820px; margin:0 auto; padding:13px 20px;
+  display:flex; align-items:baseline; justify-content:space-between; gap:18px;
+}
+.nav-mark{font-family:var(--serif); font-style:italic; font-size:17px; color:var(--ink); white-space:nowrap;}
+.nav-mark:hover{color:var(--accent); text-decoration:none;}
+.nav-links{
+  display:flex; gap:18px; min-width:0; overflow-x:auto; scrollbar-width:none;
+  font-family:var(--mono); font-size:12px; letter-spacing:.04em; white-space:nowrap;
+}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-links a{color:var(--ink-soft); padding-bottom:2px; border-bottom:1px solid transparent;}
+.nav-links a:hover{color:var(--ink); text-decoration:none; border-color:var(--accent-line);}
+.nav-links a.on{color:var(--accent); border-color:var(--accent);}
+
+/* ---------- page frame ---------- */
+main.wrap{max-width:calc(var(--col) + 40px); margin:0 auto; padding-inline:20px; padding-block:0 70px;}
+header.hero{padding:58px 0 34px;}
+.crumb{
+  font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--teal); margin-bottom:22px; display:flex; align-items:center; gap:10px;
+}
+.crumb a{color:var(--teal);}
+.crumb::after{content:""; flex:1; height:1px; background:var(--rule); max-width:60px;}
+h1{
+  font-family:var(--serif); font-weight:500; letter-spacing:-.02em; line-height:1.08;
+  font-size:clamp(32px,6vw,46px); margin:0 0 22px; text-wrap:balance;
+}
+h1 em{font-style:italic; font-weight:400; color:var(--accent);}
+.dek{font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); line-height:1.9; margin:0 0 20px; max-width:600px;}
+.byline{font-family:var(--mono); font-size:11px; color:var(--ink-faint); margin:0;}
+.byline .hl{color:var(--accent);}
+
+article section{padding:36px 0 20px; border-top:1px solid var(--rule);}
+h2{
+  font-family:var(--serif); font-weight:500; font-size:24px; line-height:1.25; letter-spacing:-.01em;
+  margin:0 0 16px; text-wrap:balance;
+}
+h3{font-family:var(--serif); font-weight:500; font-size:19px; line-height:1.3; margin:26px 0 8px;}
+p{margin:0 0 16px; color:var(--ink-soft);}
+strong{color:var(--ink); font-weight:600;}
+p em, li em{font-style:italic; color:var(--accent);}
+code{
+  font-family:var(--mono); font-size:.84em; color:var(--accent); background:var(--accent-tint);
+  padding:1px 6px; border-radius:3px; overflow-wrap:anywhere;
+}
+ul.plain{list-style:none; margin:0 0 16px; padding:0;}
+ul.plain li{color:var(--ink-soft); padding:0 0 8px 20px; position:relative;}
+ul.plain li::before{content:"—"; position:absolute; left:0; color:var(--teal);}
+
+/* ---------- formula box ---------- */
+.math{
+  margin:20px 0; padding:15px 18px; background:var(--accent-tint);
+  border:1px solid var(--accent-line); border-left:3px solid var(--accent); border-radius:7px;
+  overflow-x:auto;
+}
+.math .lbl{
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:6px;
+}
+.math .f{font-family:var(--mono); font-size:14px; line-height:1.85; color:var(--ink);}
+.math .f .dim{color:var(--ink-faint);}
+
+/* ---------- notes ---------- */
+.note{
+  margin:22px 0; padding:14px 18px; border-left:3px solid var(--teal); background:var(--teal-tint);
+  border-radius:0 6px 6px 0; color:var(--ink-soft); font-size:15px;
+}
+.note.warn{border-left-color:var(--warn); border-left-style:double; border-left-width:5px; background:var(--warn-tint);}
+.note code{background:var(--raised);}
+
+/* ---------- flow diagrams ---------- */
+.flow{
+  margin:22px 0; padding:16px 18px; border:1px solid var(--rule); border-left:3px solid var(--accent);
+  border-radius:7px; background:var(--raised);
+}
+.flow .row{display:flex; align-items:center; gap:8px 10px; flex-wrap:wrap; font-family:var(--mono); font-size:12px;}
+.flow .row + .row{margin-top:10px;}
+.flow .node{
+  padding:6px 10px; border:1px solid var(--accent-line); border-radius:5px;
+  background:var(--accent-tint); color:var(--accent);
+}
+.flow .node.t{background:var(--teal-tint); color:var(--teal); border-color:transparent;}
+.flow .arrow{color:var(--ink-faint);}
+.flow .cap{font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); margin-top:12px;}
+
+/* ---------- numbered steps ---------- */
+ol.steps{counter-reset:steps; list-style:none; padding:0; margin:20px 0;}
+ol.steps li{counter-increment:steps; position:relative; padding:0 0 14px 42px; color:var(--ink-soft);}
+ol.steps li::before{
+  content:counter(steps, decimal-leading-zero); position:absolute; left:0; top:3px;
+  font-family:var(--mono); font-size:11px; color:var(--accent);
+}
+
+/* ---------- cards ---------- */
+.grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:22px 0;}
+.card{padding:14px 16px; border:1px solid var(--rule); border-radius:7px; background:var(--raised); min-width:0;}
+.card .lbl{font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--teal);}
+.card h3{margin:4px 0 0; font-size:18px;}
+.card p{margin:6px 0 0; font-size:14px; line-height:1.6;}
+@media (max-width:640px){ .grid2{grid-template-columns:1fr;} }
+
+/* ---------- stats ---------- */
+.stats{
+  display:flex; gap:22px 44px; flex-wrap:wrap; margin:26px 0; padding:22px 0;
+  border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+}
+.stat .num{font-family:var(--mono); font-size:25px; font-weight:500; color:var(--accent); display:block; line-height:1;}
+.stat .label{
+  display:block; font-family:var(--mono); font-size:11px; color:var(--ink-faint); margin-top:8px;
+  text-transform:uppercase; letter-spacing:.04em;
+}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto; margin:22px 0;}
+table.t{width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums;}
+table.t th{
+  text-align:left; font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:500; padding:10px 12px; border-bottom:1px solid var(--rule); white-space:nowrap;
+}
+table.t td{padding:10px 12px; border-bottom:1px solid var(--rule-soft); color:var(--ink-soft); vertical-align:top; line-height:1.55;}
+table.t td:first-child{color:var(--ink); font-weight:500;}
+table.t.num td{font-family:var(--mono); font-size:13px;}
+table.t td.hit{color:var(--accent); font-weight:600; background:var(--accent-tint);}
+
+/* ---------- question / answer ---------- */
+details{margin:10px 0;}
+details > summary{
+  cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:16px;
+  font-size:15px; color:var(--ink); padding:13px 16px; background:var(--raised);
+  border:1px solid var(--rule); border-radius:7px;
+}
+details > summary::-webkit-details-marker{display:none;}
+details > summary::after{content:"+"; font-family:var(--mono); color:var(--accent); font-size:14px;}
+details[open] > summary::after{content:"−";}
+details > summary:hover{border-color:var(--accent-line);}
+details > .ans{padding:12px 16px 4px; color:var(--ink-soft); font-size:15px;}
+
+/* ---------- takeaway, pager, toc ---------- */
+.takeaway{margin:34px 0 0; padding:22px 24px; background:var(--raised); border:1px solid var(--accent-line);}
+.takeaway .lbl{
+  display:block; font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.16em;
+  color:var(--accent); margin-bottom:10px;
+}
+.takeaway p{color:var(--ink); font-size:15px; margin:0 0 10px;}
+.takeaway p:last-child{margin-bottom:0;}
+.pager{
+  display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-top:40px; padding-top:22px;
+  border-top:1px solid var(--rule); font-family:var(--mono); font-size:12px;
+}
+ol.toc{list-style:none; margin:8px 0 0; padding:0;}
+ol.toc li{border-bottom:1px dashed var(--rule);}
+ol.toc li:last-child{border-bottom:none;}
+ol.toc a{
+  display:grid; grid-template-columns:44px minmax(0,1fr); gap:4px 6px; padding:16px 10px; margin:0 -10px;
+  color:inherit; border-radius:5px;
+}
+ol.toc a:hover{background:var(--accent-tint); text-decoration:none;}
+ol.toc .n{font-family:var(--serif); font-style:italic; font-size:19px; color:var(--accent); line-height:1.35;}
+ol.toc .ttl{font-family:var(--serif); font-size:20px; font-weight:500; color:var(--ink); line-height:1.3;}
+ol.toc .d{grid-column:2; font-size:14.5px; color:var(--ink-soft); line-height:1.55;}
+ol.timeline{list-style:none; margin:20px 0 0; padding:0; border-top:1px solid var(--rule);}
+ol.timeline li{display:grid; grid-template-columns:56px minmax(0,1fr); gap:4px 14px; padding:14px 0; border-bottom:1px solid var(--rule-soft);}
+ol.timeline .yr{font-family:var(--mono); font-size:12px; color:var(--accent); padding-top:5px;}
+ol.timeline .body{min-width:0;}
+ol.timeline .head{display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 12px;}
+ol.timeline .name{font-family:var(--serif); font-size:20px; font-weight:500; color:var(--ink);}
+ol.timeline .kind{font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--teal);}
+ol.timeline p{margin:4px 0 0; font-size:14.5px; line-height:1.6;}
+footer.foot{
+  border-top:1px solid var(--rule); margin-top:60px; padding:26px 0 0;
+  font-family:var(--mono); font-size:11px; color:var(--ink-faint); line-height:1.8;
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="nav-mark" href="#home">kzg to varuna</a>
+    <nav class="nav-links" aria-label="Topics">
+      <a href="#home" data-nav>map</a>
+      <a href="#kzg" data-nav>kzg</a>
+      <a href="#groth16" data-nav>groth16</a>
+      <a href="#bridge" data-nav>bridge</a>
+      <a href="#plonk" data-nav>plonk</a>
+      <a href="#marlin" data-nav>marlin</a>
+      <a href="#varuna" data-nav>varuna</a>
+      <a href="#compare" data-nav>compare</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+<div class="view" id="home" data-view="home">
+<header class="hero">
+  <div class="crumb">Zero knowledge · study notes</div>
+  <h1>KZG, Groth16, PLONK, Marlin, <em>Varuna</em></h1>
+  <p class="dek">the evolution from one commitment scheme to the proof system inside snarkVM: the intuition first, then how each one actually works</p>
+  <p class="byline"><span class="hl">Seven parts</span> · worked numbers mod 101 · Varuna checked against the snarkVM source</p>
+</header>
+
+<article>
+<section>
+  <h2>What are these five names, and which came when?</h2>
+  <p>Before any mechanics, get the kinds of thing straight. One of these names is a <strong>tool</strong>: a way to make a promise about a polynomial. The other four are <strong>proof systems</strong>: complete recipes for convincing someone that a computation was done correctly. Three of the four are built on the tool.</p>
+  <ol class="timeline">
+    <li>
+      <span class="yr">2010</span>
+      <div class="body">
+        <div class="head"><span class="name">KZG</span><span class="kind">a commitment scheme</span></div>
+        <p>A way to hand someone a single curve point that stands for a whole polynomial, and later to prove "my polynomial has value v at point z" with one more curve point. It proves facts about a polynomial, and nothing else. It is the tool every system below uses.</p>
+      </div>
+    </li>
+    <li>
+      <span class="yr">2016</span>
+      <div class="body">
+        <div class="head"><span class="name">Groth16</span><span class="kind">a proof system · setup per circuit</span></div>
+        <p>A proof system for R1CS, the constraint format snarkVM also uses. It checks the entire circuit at the secret point of its setup. The proof is three group elements, the smallest known. The price is that the setup must be redone for every new circuit.</p>
+      </div>
+    </li>
+    <li>
+      <span class="yr">2019</span>
+      <div class="body">
+        <div class="head"><span class="name">PLONK</span><span class="kind">a proof system · universal setup</span></div>
+        <p>A proof system where one ceremony serves every circuit forever. It describes a circuit as gates connected by wires, and proves the wiring with a new idea, the permutation argument. Most recent proof systems descend from it.</p>
+      </div>
+    </li>
+    <li>
+      <span class="yr">2019</span>
+      <div class="body">
+        <div class="head"><span class="name">Marlin</span><span class="kind">a proof system · universal setup</span></div>
+        <p>The same goal as PLONK, published one month later, but for R1CS. Existing circuits and gadget libraries carry over unchanged. Its tools are the univariate sumcheck and holography, both explained in full in part 05.</p>
+      </div>
+    </li>
+    <li>
+      <span class="yr">2023</span>
+      <div class="body">
+        <div class="head"><span class="name">Varuna</span><span class="kind">Marlin re-engineered by Aleo</span></div>
+        <p>Marlin with its bookkeeping rearranged so that one proof covers many circuits and many runs of each. That is exactly the shape of an Aleo transaction. This is the system running inside snarkVM today.</p>
+      </div>
+    </li>
+  </ol>
+  <div class="note">
+    <strong>How to hold them in your head:</strong> KZG is a way to <em>promise</em> a polynomial. Groth16, PLONK, Marlin and Varuna are ways to <em>prove a computation</em>. The proof systems need promises about polynomials, and KZG supplies them.
+  </div>
+</section>
+
+<section>
+  <h2>What does a proof system actually have to do?</h2>
+  <p>Start with the situation, not the math. A <strong>prover</strong> knows a secret, say a number x with x³ + x + 5 = 35. A <strong>verifier</strong> wants to be sure such an x exists and that the prover knows it, without learning x and, ideally, without doing much work.</p>
+  <p>Three things are required at once, and the whole field is about getting all three.</p>
+  <ol class="steps">
+    <li><strong>Soundness.</strong> A prover who does not have a valid x cannot produce a proof that passes. Not even a very clever one, and not even with a little luck.</li>
+    <li><strong>Succinctness.</strong> The proof is short and the verifier's work is small. Crucially, much smaller than redoing the computation. For a blockchain this is the entire point: thousands of nodes check, one party computes.</li>
+    <li><strong>Zero knowledge.</strong> The proof reveals nothing about x beyond the fact that it exists.</li>
+  </ol>
+  <p>The second requirement is the strange one. Normally the only way to check a computation is to redo it. How can you check something in less time than it takes to do it?</p>
+  <div class="note">
+    <strong>The one-sentence answer:</strong> turn the computation into polynomials. Polynomials have a property ordinary lists of numbers do not have: a claim about all of them can be checked at a single random point. The next section shows what that means.
+  </div>
+</section>
+
+<section>
+  <h2>What recipe do the proof systems share?</h2>
+  <p>You already know the ingredients: polynomials, finite fields, elliptic curves, pairings. What follows is how they are assembled, in four moves. Every proof system in these notes is these four moves, and the differences between the systems are choices inside the moves.</p>
+
+  <h3>Move 1: turn the computation into a table with a simple rule</h3>
+  <p>A computation is a sequence of small steps. Write every step as one row of a table. Here is the running example, computing x³ + x + 5 with x = 3:</p>
+  <div class="tw"><table class="t num">
+    <tr><th>Row</th><th>What this step does</th><th>Left</th><th>Right</th><th>Result</th></tr>
+    <tr><td>1</td><td>x · x = v1</td><td>3</td><td>3</td><td>9</td></tr>
+    <tr><td>2</td><td>v1 · x = v2</td><td>9</td><td>3</td><td>27</td></tr>
+    <tr><td>3</td><td>(v2 + x + 5) · 1 = out</td><td>35</td><td>1</td><td>35</td></tr>
+  </table></div>
+  <p>Every row obeys the same simple rule: <em>left times right equals result</em>. The claim "I computed x³ + x + 5 = 35 correctly" has become "every row of this table obeys the rule, and the output is 35".</p>
+  <p>This step is called <strong>arithmetization</strong>. Groth16, Marlin and Varuna use the R1CS format you see above. PLONK uses a slightly different table, with gates and wires, which part 04 explains.</p>
+  <div class="note">
+    <strong>Why this helps:</strong> a verifier no longer has to understand your program. It has to check one rule, the same rule, on every row. The problem is that a real program has millions of rows, and checking millions of rows is not succinct.
+  </div>
+
+  <h3>Move 2: turn each column into a polynomial</h3>
+  <p>A column is a list of numbers. Now recall a fact from school: through any two points there is exactly one straight line. Through any three points there is exactly one parabola. In general, through any n points there is exactly one polynomial of degree below n.</p>
+  <p>So a column of n numbers can be replaced by the one polynomial that passes through those n values. That polynomial is called the <strong>interpolation</strong> of the column. Nothing is lost: from the polynomial you can read every entry back.</p>
+  <div class="math">
+    <div class="lbl">one polynomial per column</div>
+    <div class="f">Left column &nbsp;→&nbsp; a(X) &nbsp;&nbsp;&nbsp; Right column &nbsp;→&nbsp; b(X) &nbsp;&nbsp;&nbsp; Result column &nbsp;→&nbsp; c(X)</div>
+    <div class="f">with a(row i) = the left value in row i, and so on</div>
+  </div>
+  <p>Now the rule "left times right equals result, on every row" becomes a statement about three polynomials:</p>
+  <div class="math">
+    <div class="f">a(X)·b(X) − c(X) &nbsp;is zero at every row</div>
+  </div>
+  <div class="note">
+    <strong>Do not confuse:</strong> the program x³ + x + 5 = 35 happens to look like a polynomial, but it is not the polynomial that gets committed. The committed polynomials are the curves through the <em>columns</em> of the table, and a program made of if-statements and comparisons produces them the same way. Part 03 builds them from a small program, end to end, with every coefficient shown.
+  </div>
+  <p>Why do this? Because a polynomial that is zero at n known points has a special form: it is divisible by a fixed, known polynomial, the one whose roots are exactly those n points. The result of that division is the quotient t, and part 03 computes it for this very table. For now the point is that "the rule holds on every row" has become a <strong>single algebraic identity</strong> between polynomials.</p>
+
+  <h3>Move 3: check the identity at one random point</h3>
+  <p>Here is the move that makes everything else possible. Two different straight lines cross at most once. Two different parabolas cross at most twice. Two different polynomials of degree d agree at most d times.</p>
+  <p>Our field has about 2²⁵³ elements. Our polynomials have degree around a million. So if two polynomials agree at a point chosen at random, the chance that they are actually different is about a million in 2²⁵³, which is zero for every practical purpose.</p>
+  <div class="math">
+    <div class="lbl">the whole idea in one line</div>
+    <div class="f">identity holds at one random point &nbsp;⟹&nbsp; identity holds everywhere &nbsp;⟹&nbsp; rule holds on every row</div>
+  </div>
+  <p>So the verifier does not check a million rows. It picks one random point ζ, asks for the values of the polynomials there, and checks the identity once, between a handful of numbers.</p>
+  <div class="note">
+    <strong>Compare with a hash:</strong> a hash also compresses a big object to a small fingerprint. But evaluation at a random point is a fingerprint that <em>respects arithmetic</em>: the fingerprint of a + b is the sum of the fingerprints, and the fingerprint of a·b is the product. That is why you can check an equation between the fingerprints and learn something about the equation between the originals. A hash cannot do that.
+  </div>
+
+  <h3>Move 4: lock the polynomials in before ζ exists</h3>
+  <p>After move 3 the plan is: the prover has polynomials a, b, c and a quotient t, and the verifier checks one equation at a random point ζ. Two practical problems remain, and one tool solves both.</p>
+
+  <p><strong>Problem 1: the prover must not know ζ before its polynomials are fixed.</strong> Suppose the prover cheats in the table and changes the result of row 1 from 9 to 10. Row 1 no longer obeys the rule, so a·b − c is not divisible by X⁴ − 1 and no honest quotient t exists. But watch what happens if the prover already knows that ζ will be 7:</p>
+  <div class="math">
+    <div class="lbl">the cheat, with the table's result in row 1 changed to 10, mod 101</div>
+    <div class="f">a(7)·b(7) − c(7) = 2 &nbsp;&nbsp;&nbsp; 7⁴ − 1 = 77</div>
+    <div class="f">so the prover picks t to be the constant 42, because 42 × 77 = 2</div>
+    <div class="f">check at ζ = 7: &nbsp;2 = 42 × 77 &nbsp;✓ &nbsp;&nbsp;the verifier accepts a false statement</div>
+  </div>
+  <p>The cheat works only because t was chosen <em>after</em> ζ was known. If t had to be fixed first, the constant 42 satisfies the equation at only 4 of the 101 points, and ζ is drawn afterwards. In the real field the odds are about 2⁻²³³. So the random point protects the verifier only if the polynomials were locked in before ζ existed.</p>
+
+  <p><strong>Problem 2: the verifier cannot receive the polynomials to lock them.</strong> The obvious fix is "send me your polynomials first, then I pick ζ". But each polynomial has about a million coefficients. Sending and reading them would cost as much as redoing the computation, and the proof would not be succinct.</p>
+
+  <p><strong>The solution is a commitment.</strong> For each polynomial the prover sends a short stand-in that does four things at once:</p>
+  <ol class="steps">
+    <li><strong>Fixes</strong> the polynomial. Once the stand-in is sent, the prover cannot change its mind.</li>
+    <li>Is <strong>tiny</strong>: one curve point, 48 bytes, whatever the degree.</li>
+    <li><strong>Reveals nothing</strong> about the polynomial.</li>
+    <li>Can later be <strong>checked against a claimed value</strong>: when the verifier asks "what is p(ζ)?", the prover must answer with a value the stand-in agrees with.</li>
+  </ol>
+  <p>Think of a sealed envelope that is also a tamper-proof fingerprint. KZG is one way to build it, and the idea is this. A one-time setup picked a secret number τ, published the curve points G, τ·G, τ²·G, … and destroyed τ. Note that τ·G is a point, not the number τ: a curve point is an element of an elliptic-curve group, and you can add points and multiply them by known numbers, but given the point x·G you cannot recover the number x. So the published points let everyone use τ without anyone knowing it. The prover combines the published points with its coefficients and gets the single point p(τ)·G. That is the commitment: the polynomial's value at the secret point, wrapped in a curve point. The prover computed it without knowing τ, and nobody can unwrap it.</p>
+  <p>Why it fixes the polynomial: by move 3, two different polynomials have different values at a random point, so they wrap to different curve points. The prover cannot later pretend it had committed to something else.</p>
+
+  <p><strong>The opening, and why a proof travels with the value.</strong> When the verifier asks for p(ζ), the prover could just lie and say "42". So it must also send a proof that 42 is consistent with the committed point. KZG's proof is one more curve point, built from the quotient (p(X) − 42)/(X − ζ), which exists only if p(ζ) really is 42. The verifier checks it with a pairing. Part 01 walks through this with numbers.</p>
+  <div class="flow">
+    <div class="row">
+      <span class="node">1 · prover commits to a, b, c, t</span><span class="arrow">→</span>
+      <span class="node t">2 · ζ is chosen</span><span class="arrow">→</span>
+      <span class="node">3 · prover sends a(ζ), b(ζ), c(ζ), t(ζ) with opening proofs</span><span class="arrow">→</span>
+      <span class="node">4 · verifier checks the openings, then the one equation</span>
+    </div>
+    <div class="cap">Nothing can change after step 1. That is the whole point of the move.</div>
+  </div>
+
+  <div class="flow">
+    <div class="row">
+      <span class="node t">program</span><span class="arrow">move 1 →</span>
+      <span class="node">table with a rule</span><span class="arrow">move 2 →</span>
+      <span class="node">polynomial identity</span><span class="arrow">move 3 →</span>
+      <span class="node">one check at a random point</span><span class="arrow">move 4 →</span>
+      <span class="node t">a few curve points</span>
+    </div>
+    <div class="cap">The systems differ in the shape of the table (move 1), and in where the random point comes from (move 3).</div>
+  </div>
+
+  <h3>Move 5, for the universal systems: remove the conversation</h3>
+  <p>Moves 3 and 4 describe a conversation: the prover commits, the verifier picks a random point, the prover answers. A real proof is one message with no verifier present. The fix is to let a hash function play the verifier: the random point is computed as the hash of everything the prover has sent so far. This is the <strong>Fiat-Shamir transform</strong>, and part 03 explains why it keeps the order of events honest.</p>
+</section>
+
+<section>
+  <h2>Where do the systems differ?</h2>
+  <p>The random point of move 3 is the hinge of the whole story. There are two places it can come from, and the choice decides what the trusted setup has to know.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">Groth16</div>
+      <p>The random point is the <strong>secret</strong> τ chosen by the setup, and there is no other randomness at all. The setup evaluates the circuit's own polynomials at τ and publishes the results inside curve points. The proof is tiny and there is no conversation to remove. But the setup had to know the circuit, so every circuit needs its own setup.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">PLONK, Marlin, Varuna</div>
+      <p>The secret τ is used only to <strong>commit</strong> to polynomials with KZG. The identities are checked at fresh <strong>public</strong> random points, one per proof, produced by Fiat-Shamir. The setup never sees a circuit, so one setup serves all circuits. The price is a longer proof and more prover work.</p>
+    </div>
+  </div>
+  <p>The second difference is the table of move 1. PLONK uses gates connected by wires. Groth16, Marlin and Varuna use R1CS. The two formats need different tools to prove that values in different rows are consistent, and those tools are the signature of each system.</p>
+</section>
+
+<section>
+  <h2>Why were they invented in this order?</h2>
+  <p>KZG came first, in 2010, as a way to commit to a polynomial with one curve point. Its central move is to evaluate a polynomial at a secret point hidden inside the setup, so that nobody learns the point and nobody can cheat about the polynomial.</p>
+  <p>Groth16, in 2016, applied that move to an entire circuit at once and reached the smallest proofs known: three curve points. But to do it, the setup has to evaluate the circuit's own polynomials at the secret point. So the setup is tied to one circuit, and every new circuit needs a new multi-party ceremony.</p>
+  <p>That is fatal for a platform like Aleo, where any developer can deploy a new program at any time. You cannot run a ceremony per deployment, and users cannot be asked to trust a ceremony run by the deployer.</p>
+  <p>The fix is to put only the powers of the secret point in the setup, as plain KZG always did, and let anyone commit to a circuit's polynomials in public afterwards. Sonic, in early 2019, was the first SNARK to do this, but its prover was slow. PLONK and Marlin, published a month apart later that year, made the idea practical in two different ways. Varuna is Aleo's production descendant of Marlin.</p>
+  <div class="flow">
+    <div class="row">
+      <span class="node">KZG · 2010</span><span class="arrow">secret point in the exponent →</span>
+      <span class="node">Groth16 · 2016</span><span class="arrow">tiny proofs, but a ceremony per circuit →</span>
+      <span class="node t">the problem</span>
+    </div>
+    <div class="row">
+      <span class="node t">the problem</span><span class="arrow">universal setup →</span>
+      <span class="node">Sonic · 2019</span><span class="arrow">made practical →</span>
+      <span class="node">PLONK · 2019</span><span class="arrow">and</span>
+      <span class="node">Marlin · 2019</span>
+    </div>
+    <div class="row">
+      <span class="node">Marlin</span><span class="arrow">batched for transactions →</span>
+      <span class="node t">Varuna · 2023</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Read in this order</h2>
+  <p>The order is chronological, and it is also the logical order: the tool, the first system built on its secret point, the recipe that makes the setup universal, the two universal systems, then Aleo's version.</p>
+  <p>Each part starts with why the thing exists, then the intuition, then the mechanics with real numbers. All numbers are in the field of integers mod 101, small enough to check by hand. The statement x³ + x + 5 = 35 runs through Groth16, PLONK, Marlin and Varuna so you can compare them directly.</p>
+  <ol class="toc">
+    <li><a href="#kzg"><span class="n">01</span><span class="ttl">KZG commitments</span><span class="d">A whole polynomial in one curve point: what a commitment is, why one random point identifies a polynomial, how a pairing checks a division, and why cheating needs the secret.</span></a></li>
+    <li><a href="#groth16"><span class="n">02</span><span class="ttl">Groth16</span><span class="d">The KZG move applied to a whole circuit: how matrices become polynomials, what the setup contains, the three-element proof, and the per-circuit ceremony that is its price.</span></a></li>
+    <li><a href="#bridge"><span class="n">03</span><span class="ttl">From commitments to proofs</span><span class="d">Roots of unity, the quotient trick, public random points, and Fiat-Shamir. How the circuit moves out of the setup.</span></a></li>
+    <li><a href="#plonk"><span class="n">04</span><span class="ttl">PLONK</span><span class="d">Gates, selectors, copy constraints, and the permutation argument built up in three steps and worked through with numbers.</span></a></li>
+    <li><a href="#marlin"><span class="n">05</span><span class="ttl">Marlin</span><span class="d">R1CS, the lincheck, the univariate sumcheck, and holography: a verifier that never reads the circuit.</span></a></li>
+    <li><a href="#varuna"><span class="n">06</span><span class="ttl">Varuna</span><span class="d">What Aleo changed and why, round by round, with pointers into the snarkVM source.</span></a></li>
+    <li><a href="#compare"><span class="n">07</span><span class="ttl">Side by side</span><span class="d">All systems in one table, the misreadings to avoid, questions to test yourself, and a reading list.</span></a></li>
+  </ol>
+</section>
+</article>
+</div>
+<div class="view" id="kzg" data-view="kzg">
+<header class="hero">
+  <div class="crumb"><a href="#home">← all topics</a></div>
+  <h1><em>KZG commitments</em></h1>
+  <p class="dek">a whole polynomial in one curve point: what a commitment is, the three ideas that make KZG work, and the protocol worked through with real numbers</p>
+  <p class="byline"><span class="hl">Part 01 of 07</span> · Kate, Zaverucha, Goldberg · 2010</p>
+</header>
+
+<article>
+<section>
+  <h2>What is a commitment, in everyday terms?</h2>
+  <p>Imagine you want to prove you predicted something before it happened. You write your prediction on paper, seal it in an envelope, and hand the envelope to a friend. Later you open it. The friend knows two things: you could not have changed the paper after sealing it, and they learned nothing about the prediction until you opened it.</p>
+  <p>A <strong>commitment scheme</strong> is this envelope, built from math. It has two phases:</p>
+  <ol class="steps">
+    <li><strong>Commit.</strong> From a value, produce a short string C and hand it over. Nothing about the value is revealed.</li>
+    <li><strong>Open.</strong> Later, reveal information that lets the other side check that C really was made from that value.</li>
+  </ol>
+  <p>Two properties make it useful, and they are different properties.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">binding</div>
+      <p>After committing, you cannot open the same C as two different values. The envelope cannot be swapped.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">hiding</div>
+      <p>C reveals nothing about the value until you open it. The envelope is opaque.</p>
+    </div>
+  </div>
+  <p>Binding is the one that matters for soundness. Hiding is what gives zero knowledge. KZG is binding by construction; hiding is added on top when needed.</p>
+</section>
+
+<section>
+  <h2>Why do we need a commitment to a polynomial?</h2>
+  <p>Recall move 3 and move 4 of the recipe on the map page. The verifier wants to check a polynomial identity at a random point ζ. For that to prove anything, the prover must have fixed its polynomials <em>before</em> ζ was chosen. Otherwise it could pick polynomials that pass at ζ and fail everywhere else.</p>
+  <p>So the prover must commit to each polynomial first. But a polynomial here has about a million coefficients, and the verifier cannot receive a million numbers per polynomial. Three things are needed at once.</p>
+  <ol class="steps">
+    <li><strong>Binding.</strong> Once committed, the polynomial is fixed.</li>
+    <li><strong>Shortness.</strong> The commitment is tiny, whatever the degree.</li>
+    <li><strong>Checkable openings.</strong> When the prover later says "my polynomial has value 42 at ζ", the verifier can check that claim against the commitment, again with a tiny proof.</li>
+  </ol>
+  <p>The third requirement is the hard one. Compare the options.</p>
+  <div class="tw"><table class="t">
+    <tr><th>Approach</th><th>Binding</th><th>Short</th><th>Checkable openings</th></tr>
+    <tr><td>Hash of the coefficients</td><td>Yes</td><td>Yes</td><td>No. To check a value you need the whole polynomial back.</td></tr>
+    <tr><td>Merkle tree of evaluations</td><td>Yes</td><td>Yes</td><td>Yes, with proofs of logarithmic size. This is the road STARKs take.</td></tr>
+    <tr><td>KZG</td><td>Yes</td><td>Yes</td><td>Yes, with proofs of <strong>constant</strong> size: one curve point.</td></tr>
+  </table></div>
+  <p>KZG's price for constant size is a trusted setup and a pairing-friendly curve. The rest of this part explains how it earns that constant.</p>
+  <div class="flow">
+    <div class="row">
+      <span class="node">polynomial p</span><span class="arrow">→ commit →</span><span class="node t">one point C</span>
+    </div>
+    <div class="row">
+      <span class="node t">C</span><span class="arrow">+</span><span class="node">point z, claimed value v</span><span class="arrow">+</span><span class="node t">one point π</span><span class="arrow">→ verify →</span><span class="node">accept / reject</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Idea 1: why does one random point pin down a polynomial?</h2>
+  <p>Start with pictures. Two different straight lines meet at most once. Two different parabolas meet at most twice. The pattern continues: two different polynomials of degree at most d can agree at most d times.</p>
+  <p>Why: if p and p′ agree at a point, that point is a root of the difference p − p′. The difference is a nonzero polynomial of degree at most d, and a nonzero polynomial of degree d has at most d roots.</p>
+  <div class="math">
+    <div class="f">p ≠ p′, both of degree ≤ d &nbsp;⟹&nbsp; p and p′ agree on at most d points</div>
+  </div>
+  <p>Now put in the sizes we actually use. The field has about 2²⁵³ elements. A big circuit gives polynomials of degree about 2²⁰.</p>
+  <div class="math">
+    <div class="lbl">chance that two different polynomials agree at a random point</div>
+    <div class="f">at most d / |F| ≈ 2²⁰ / 2²⁵³ = 2⁻²³³</div>
+  </div>
+  <p>That number is so small that we can treat it as zero. So the value p(τ) at one random point τ works as a <strong>fingerprint</strong> of the whole polynomial. Two polynomials with the same fingerprint are the same polynomial.</p>
+  <div class="note">
+    <strong>Why this is better than a hash:</strong> this fingerprint respects arithmetic. The fingerprint of p + q is p(τ) + q(τ), and the fingerprint of p·q is p(τ)·q(τ). So an equation between polynomials can be checked as an equation between fingerprints. Every proof system in these notes relies on that.
+  </div>
+  <div class="note">
+    <strong>Keep two uses apart.</strong> This fact is used twice in every SNARK. Once with a <em>secret</em> point τ, fixed forever at setup, to commit. Once with a <em>public</em> point ζ, fresh for every proof, to check identities. Same fact, two very different points.
+  </div>
+</section>
+
+<section>
+  <h2>Idea 2: how can everyone use a point that nobody knows?</h2>
+  <p>The fingerprint p(τ) is only safe if nobody knows τ. Someone who knew τ could take a committed polynomial, change it, and adjust the change so that the new polynomial has the same value at τ. Binding would be gone.</p>
+  <p>The trick is to put τ inside curve points. Recall three facts about an elliptic curve group with a generator point G:</p>
+  <ul class="plain">
+    <li>You can add two points, and you can multiply a point by a known number: 5·G means G added to itself five times. Write [x]₁ for the point x·G.</li>
+    <li>From the point [x]₁ you cannot recover the number x. That is the discrete log problem, and it is believed to be hard.</li>
+    <li>These operations respect arithmetic: [a]₁ + [b]₁ = [a + b]₁, and c·[a]₁ = [c·a]₁ for a known number c.</li>
+  </ul>
+  <p>Now the setup. A one-time ceremony picks τ, publishes these points, and destroys τ:</p>
+  <div class="math">
+    <div class="lbl">the structured reference string (SRS)</div>
+    <div class="f">[1]₁, &nbsp;[τ]₁, &nbsp;[τ²]₁, &nbsp;[τ³]₁, &nbsp;…, &nbsp;[τᴰ]₁</div>
+  </div>
+  <div class="note warn">
+    <strong>Is τ itself in the SRS? No.</strong> [τ]₁ is the curve point τ·G, not the number τ. Going from the number to the point is easy; going back is the discrete logarithm problem, which is believed infeasible on these curves, with about 2²⁵³ candidates and no shortcut. You can use the point (add it, scale it by known numbers) but you cannot read the number inside it.
+  </div>
+  <p>A toy version with ordinary numbers makes this concrete. Replace "multiply G by x" with "raise 2 to the power x, mod 101", and write ⟨x⟩ for 2ˣ mod 101. With the secret τ = 5 the setup publishes:</p>
+  <div class="math">
+    <div class="lbl">toy SRS, base 2 mod 101, secret τ = 5</div>
+    <div class="f">⟨1⟩ = 2¹ = 2 &nbsp;&nbsp;&nbsp; ⟨τ⟩ = 2⁵ = 32 &nbsp;&nbsp;&nbsp; ⟨τ²⟩ = 2²⁵ mod 101 = 10</div>
+  </div>
+  <p>Everyone sees 2, 32, 10. Nobody sees 5. In this toy group you could recover 5 by trying all 100 exponents, which is exactly why real systems use groups with about 2²⁵³ elements, where trying is hopeless. Keep this toy in mind for the commitment formula below: "add points and scale by known numbers" becomes "multiply values and raise to known powers".</p>
+  <p>Take a polynomial whose coefficients you know:</p>
+  <div class="math">
+    <div class="f">p(X) = c₀ + c₁X + c₂X² + … + c_dX^d</div>
+  </div>
+  <p>You can combine the published points with those coefficients, using only addition and multiplication by known numbers:</p>
+  <div class="math">
+    <div class="lbl">the commitment</div>
+    <div class="f">C = c₀·[1]₁ + c₁·[τ]₁ + c₂·[τ²]₁ + … + c_d·[τ^d]₁</div>
+    <div class="f">&nbsp; = [ c₀ + c₁τ + c₂τ² + … + c_dτ^d ]₁</div>
+    <div class="f">&nbsp; = [ p(τ) ]₁</div>
+  </div>
+  <p>Read that last line slowly. C is the fingerprint p(τ), wrapped in a curve point. You computed it without ever knowing τ, and nobody can unwrap it to learn τ or p(τ).</p>
+  <p>A tiny instance, with the polynomial used throughout this part:</p>
+  <div class="math">
+    <div class="f">p(X) = X² + 2X + 3</div>
+    <div class="f">C = 3·[1]₁ + 2·[τ]₁ + 1·[τ²]₁ = [ 3 + 2τ + τ² ]₁ = [ p(τ) ]₁</div>
+  </div>
+  <p>In the toy group, the same computation with the published values 2, 32, 10:</p>
+  <div class="math">
+    <div class="f">⟨p(τ)⟩ = ⟨1⟩³ · ⟨τ⟩² · ⟨τ²⟩¹ = 2³ · 32² · 10 = 9 &nbsp;(mod 101)</div>
+    <div class="f">check: p(5) = 38, and 2³⁸ mod 101 = 9 &nbsp;✓</div>
+  </div>
+  <p>The commitment came out right, and at no point did anyone use the number 5. That is the whole trick: the setup publishes τ only in the one form that lets people use it without reading it.</p>
+  <div class="note">
+    <strong>The important trick:</strong> you can evaluate a polynomial at a point you do not know, as long as the answer stays wrapped inside a curve point. The setup did the only step that needs τ, computing the powers, once and for everyone.
+  </div>
+</section>
+
+<section>
+  <h2>Idea 3: how is an evaluation claim a divisibility claim?</h2>
+  <p>Now the prover wants to prove a fact about the committed polynomial: "p(z) = v" for a point z the verifier chose. The tool is the factor theorem from school algebra.</p>
+  <p>A small reminder of what it says. Take X² − 4. At X = 2 it is zero. And indeed X² − 4 = (X − 2)(X + 2): the factor (X − 2) divides it with no remainder. That is not a coincidence. A polynomial is zero at z exactly when (X − z) divides it.</p>
+  <p>Apply it to p(X) − v. If p(z) = v, then p(X) − v is zero at z, so (X − z) divides it:</p>
+  <div class="math"><div class="f">p(z) = v &nbsp;⟺&nbsp; (X − z) divides p(X) − v</div></div>
+  <p>So a true claim comes with a quotient polynomial, and a false claim has none:</p>
+  <div class="math">
+    <div class="lbl">the quotient polynomial</div>
+    <div class="f">q(X) = ( p(X) − v ) / ( X − z )</div>
+    <div class="f">equivalently: &nbsp;p(X) − v = q(X)·(X − z)</div>
+  </div>
+  <p>The prover computes q by ordinary polynomial division, then commits to it exactly as in Idea 2. That commitment is the entire opening proof:</p>
+  <div class="math"><div class="f">π = [ q(τ) ]₁</div></div>
+  <div class="note">
+    <strong>Why a false claim is stuck:</strong> if p(z) ≠ v, dividing p(X) − v by (X − z) leaves a nonzero remainder. There is no polynomial q with p(X) − v = q(X)(X − z). The prover has nothing honest to commit to.
+  </div>
+</section>
+
+<section>
+  <h2>What is a pairing, and why do we need one here?</h2>
+  <p>The verifier now holds two curve points: C, which wraps p(τ), and π, which wraps q(τ). It wants to check the quotient equation at the hidden point:</p>
+  <div class="math"><div class="f">p(τ) − v = q(τ)·(τ − z)</div></div>
+  <p>The left side is easy. C − [v]₁ = [p(τ) − v]₁ needs only point subtraction, since v is a known number. The right side is the problem. It multiplies two hidden numbers: q(τ) is hidden inside π, and (τ − z) is hidden because τ is secret. With curve points alone you can add points and multiply a point by a <em>known</em> number. You could compute z·π or 3·π, but never "q(τ) times the hidden τ".</p>
+  <h3>What a pairing is</h3>
+  <p>On a pairing-friendly curve (Aleo uses BLS12-377) there are two groups, G1 with generator G and G2 with generator H, and a computable function e. It takes one point from each group and returns an element of a third group G<sub>T</sub>. Its one defining property is <strong>bilinearity</strong>:</p>
+  <div class="math">
+    <div class="lbl">bilinearity</div>
+    <div class="f">e( a·G , b·H ) = e(G, H)^(a·b)</div>
+  </div>
+  <p>Read it as a multiplication detector. Feed it two points that hide a and b, and it outputs something that depends only on the product a·b. You still cannot read a·b, because it sits in the exponent of the fixed base e(G, H). But two such outputs are equal exactly when the products are equal. That is all KZG uses.</p>
+  <p>Why two groups: on these curves the pairing is only defined between G1 and G2, two different groups. So the setup publishes τ in both: [τ]₁ = τ·G for making commitments, and [τ]₂ = τ·H for the verification step. G2 points are twice as large, 96 bytes against 48, so protocols keep everything in G1 and use G2 only where a pairing demands it.</p>
+  <h3>The check, one side at a time</h3>
+  <p>The verifier holds C and π from the prover, the numbers z and v, and [1]₂ = H and [τ]₂ = τ·H from the setup. It checks:</p>
+  <div class="math">
+    <div class="lbl">the KZG verification equation</div>
+    <div class="f">e( C − [v]₁ , [1]₂ ) = e( π , [τ]₂ − [z]₂ )</div>
+  </div>
+  <ol class="steps">
+    <li><strong>Left side.</strong> Compute C − v·G = (p(τ) − v)·G with point arithmetic. Pair it with H: e((p(τ) − v)·G, H) = e(G, H)^(p(τ) − v). In the worked example below, p(τ) − v = 38 − 11 = 27, so this is e(G, H)²⁷.</li>
+    <li><strong>Right side.</strong> Compute [τ]₂ − z·H = (τ − z)·H, again plain point arithmetic: τ·H is published and z is known. Pair π with it: e(q(τ)·G, (τ − z)·H) = e(G, H)^(q(τ)·(τ − z)). In the example q(τ)·(τ − z) = 9·3 = 27, so this is also e(G, H)²⁷.</li>
+    <li><strong>Compare.</strong> The two outputs are equal exactly when the exponents are equal, which is the quotient equation at τ. By Idea 1, if it holds at the random secret τ, it holds as polynomials, so the opening is correct.</li>
+  </ol>
+  <p>Why (τ − z) sits on the G2 side: the pairing takes exactly one G1 point and one G2 point. π is in G1, so its partner must be in G2, so the setup must provide τ in G2. The roles could be swapped, but G2 is expensive, so commitments and proofs stay in G1.</p>
+  <div class="note">
+    <strong>One more connection:</strong> the exponents live in the integers mod r, where r is the order of the groups. That r is exactly the scalar field in which all polynomials, coefficients and challenges are written. "The field" in these notes is the set of exponents the pairing compares.
+  </div>
+  <div class="note">
+    <strong>Deep idea:</strong> KZG reduces "this evaluation is correct" to "this division has no remainder", and then uses a pairing to check the division at a point nobody knows. The pairing is the one operation that multiplies two hidden values, and it does so only in the exponent, so nothing leaks. It is also the most expensive operation a verifier does, roughly a millisecond, which is why every system batches all its openings into one equation with two pairings.
+  </div>
+</section>
+
+<section>
+  <h2>What is the whole protocol?</h2>
+  <div class="tw"><table class="t">
+    <tr><th>Step</th><th>Who</th><th>What happens</th></tr>
+    <tr><td>Setup</td><td>A ceremony, once</td><td>Pick τ. Publish [1]₁, [τ]₁, …, [τᴰ]₁ and [1]₂, [τ]₂. Destroy τ.</td></tr>
+    <tr><td>Commit</td><td>Prover</td><td>C = [p(τ)]₁, a weighted sum of the published points with p's coefficients as weights.</td></tr>
+    <tr><td>Open at z</td><td>Prover</td><td>Compute v = p(z) and q = (p − v)/(X − z). Send v and π = [q(τ)]₁.</td></tr>
+    <tr><td>Verify</td><td>Verifier</td><td>Accept if e(C − [v]₁, [1]₂) = e(π, [τ]₂ − [z]₂).</td></tr>
+  </table></div>
+  <div class="stats">
+    <div class="stat"><span class="num">1</span><span class="label">curve point per commitment</span></div>
+    <div class="stat"><span class="num">1</span><span class="label">curve point per opening</span></div>
+    <div class="stat"><span class="num">2</span><span class="label">pairings to verify</span></div>
+  </div>
+  <p>None of these numbers depend on the degree of the polynomial. A polynomial with a million coefficients costs the verifier exactly as much as a polynomial with three.</p>
+</section>
+
+<section>
+  <h2>Can I see it with real numbers?</h2>
+  <p>Work with integers mod 101. Take the polynomial from before, and pretend the secret is τ = 5 so we can watch the hidden values. In reality nobody would know 5.</p>
+  <div class="math"><div class="f">p(X) = X² + 2X + 3 &nbsp;&nbsp;&nbsp; τ = 5</div></div>
+  <p>The commitment wraps the fingerprint:</p>
+  <div class="math"><div class="f">p(τ) = 25 + 10 + 3 = 38 &nbsp;&nbsp;&nbsp; C = [38]₁</div></div>
+  <p>The verifier asks for the value at z = 2. The prover computes it:</p>
+  <div class="math"><div class="f">v = p(2) = 4 + 4 + 3 = 11</div></div>
+  <p>Then it divides p(X) − 11 by (X − 2):</p>
+  <div class="math">
+    <div class="f">p(X) − 11 = X² + 2X − 8 = (X + 4)(X − 2)</div>
+    <div class="f">q(X) = X + 4 &nbsp;&nbsp;&nbsp; q(τ) = 9 &nbsp;&nbsp;&nbsp; π = [9]₁</div>
+  </div>
+  <p>The verifier's pairing compares these two products in the exponent:</p>
+  <div class="math">
+    <div class="f">left: &nbsp;p(τ) − v = 38 − 11 = 27</div>
+    <div class="f">right: q(τ)·(τ − z) = 9 × (5 − 2) = 27 &nbsp;✓</div>
+  </div>
+  <p>The opening verifies. In the real protocol the verifier never sees 38 or 9. It sees [38]₁ and [9]₁, and the pairing compares the products for it.</p>
+</section>
+
+<section>
+  <h2>What happens if the prover lies?</h2>
+  <p>Suppose the prover claims p(2) = 12 instead of 11. First, the honest route is closed:</p>
+  <div class="math">
+    <div class="f">p(X) − 12 = X² + 2X − 9</div>
+    <div class="f">divided by (X − 2): quotient X + 4, remainder −1. &nbsp;Not divisible, so no q exists.</div>
+  </div>
+  <p>Could the liar still produce some point π′ that passes the pairing check? The check needs a number q′ with:</p>
+  <div class="math">
+    <div class="f">q′ × (τ − z) = p(τ) − 12</div>
+    <div class="f">q′ × 3 = 26 &nbsp;⟹&nbsp; q′ = 26 / 3 = 76 &nbsp;(mod 101)</div>
+  </div>
+  <p>Such a number exists. The question is whether the liar can build the point [76]₁.</p>
+  <div class="note warn">
+    <strong>This is why τ is called toxic waste.</strong> Someone who knows τ = 5 computes 76 directly and forges [76]₁. Someone who does not know τ would have to divide by (τ − 2) inside the exponent: produce [1/(τ − 2)]₁ from the published powers of τ. That is believed to be infeasible, and the assumption has a name, q-SDH. The security of every KZG opening rests on τ having been destroyed.
+  </div>
+</section>
+
+<section>
+  <h2>Why is it secure, and who do we trust?</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">binding</div>
+      <p>If two different polynomials had the same commitment, τ would be a root of their difference. Finding the roots of a known polynomial is easy, so the collision would reveal τ and break the discrete log problem. Collisions are therefore as hard as discrete log.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">sound openings</div>
+      <p>A false claim has no quotient polynomial. Passing the check then means dividing by (τ − z) in the exponent, as in the example above, which is the q-SDH assumption.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">universal</div>
+      <p>The setup depends only on the maximum degree D. It knows nothing about any circuit, so every circuit can share it. This is the property the whole story turns on.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">updatable</div>
+      <p>The ceremony builds τ as a product τ₁·τ₂·…·τₙ. Each participant multiplies in a secret of their own and deletes it. If even one participant was honest, nobody knows τ.</p>
+    </div>
+  </div>
+  <div class="note">
+    <strong>Do not confuse:</strong> universal does not mean trustless. Someone still had to destroy τ. Universal means that only had to happen once, for all circuits, instead of once per circuit.
+  </div>
+</section>
+
+<section>
+  <h2>Which properties do the proof systems lean on?</h2>
+  <p>PLONK, Marlin and Varuna are built on five facts about KZG. Each is listed with the place you will meet it again.</p>
+  <ol class="steps">
+    <li><strong>Commitments add.</strong> commit(a·p + b·q) = a·C<sub>p</sub> + b·C<sub>q</sub>, because curve points add and scale. So the verifier can build the commitment to any linear combination of committed polynomials by itself, without the prover. You will meet this as PLONK's linearization and as Varuna's virtual commitments.</li>
+    <li><strong>Commitments do not multiply.</strong> There is no way to get commit(p·q) from C<sub>p</sub> and C<sub>q</sub>. Protocols work around it by opening one factor to a number: once p(ζ) is a known number, p(ζ)·q is a linear combination again. You will meet this everywhere a product appears.</li>
+    <li><strong>Openings batch.</strong> Many polynomials opened at one point need only one proof: open a random linear combination of them. And several pairing checks fold into one check of two pairings. This is why every system's verifier ends with two pairings.</li>
+    <li><strong>Degree bounds can be enforced.</strong> Plain KZG only proves degree ≤ D. To prove degree ≤ d, commit also to the polynomial shifted up by X^(D−d): if the degree were too large, the shifted polynomial would need powers the setup does not have. Marlin's sumcheck needs exactly this.</li>
+    <li><strong>Hiding can be added.</strong> A plain commitment is deterministic, so a guess at the polynomial can be tested against it. For zero knowledge, add a random blinding polynomial committed under a second generator. snarkVM's commitments do this.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>What does it cost?</h2>
+  <div class="tw"><table class="t">
+    <tr><th>Operation</th><th>Cost</th></tr>
+    <tr><td>Commit</td><td>One multi-scalar multiplication (MSM) of size degree + 1: every coefficient scales one setup point.</td></tr>
+    <tr><td>Open</td><td>One polynomial division plus one MSM for the quotient.</td></tr>
+    <tr><td>Verify</td><td>2 pairings and a few scalar multiplications.</td></tr>
+    <tr><td>Commitment size</td><td>1 point of G1: 48 bytes on BLS12-377.</td></tr>
+    <tr><td>Proof size</td><td>1 point of G1.</td></tr>
+  </table></div>
+  <p>MSMs dominate proving time in every system that follows. That is why designers count committed polynomials so carefully, and it is the main thing Varuna improves.</p>
+</section>
+
+<section>
+  <h2>Where does it live in snarkVM?</h2>
+  <div class="tw"><table class="t">
+    <tr><th>File</th><th>What is there</th></tr>
+    <tr><td><code>algorithms/src/polycommit/kzg10/mod.rs</code></td><td><code>commit</code>, <code>open</code>, <code>check</code>, <code>batch_check</code>. The code calls the secret β instead of τ, and the hiding generator <code>gamma_g</code>.</td></tr>
+    <tr><td><code>algorithms/src/polycommit/sonic_pc/mod.rs</code></td><td>The layer Varuna actually calls. It adds degree bounds through shifted powers, batching, and opening of linear combinations.</td></tr>
+    <tr><td><code>parameters/src/mainnet/powers.rs</code></td><td>The universal setup, loaded in chunks by degree.</td></tr>
+  </table></div>
+
+  <div class="takeaway">
+    <span class="lbl">Where we are</span>
+    <p>A commitment is the polynomial's value at a secret point, wrapped in a curve point. An opening proof is a commitment to the quotient (p − v)/(X − z). A pairing checks the division at the secret point. Nobody knows the point, so nobody can cheat about the polynomial.</p>
+    <p>KZG proves facts about one polynomial and nothing else. The next part shows the first system that turned this exact move into a proof about a whole computation: Groth16.</p>
+  </div>
+  <div class="pager"><a href="#home">← all topics</a><a href="#groth16">next: Groth16 →</a></div>
+</section>
+</article>
+</div>
+<div class="view" id="groth16" data-view="groth16">
+<header class="hero">
+  <div class="crumb"><a href="#home">← all topics</a></div>
+  <h1><em>Groth16</em></h1>
+  <p class="dek">the KZG move applied to a whole circuit: how matrices become polynomials, what the setup contains, the three-element proof, and the per-circuit ceremony that is its price</p>
+  <p class="byline"><span class="hl">Part 02 of 07</span> · Jens Groth · 2016</p>
+</header>
+
+<article>
+<section>
+  <h2>Why does Groth16 come next?</h2>
+  <p>The previous part ended with one move: evaluate a polynomial at a secret point hidden in the setup, and check an equation about it with a pairing. Groth16 is what you get when you apply that move to an <em>entire circuit</em> at once, instead of to one polynomial.</p>
+  <p>The result is the smallest proof known. Three curve points, checked with three pairings. Groth also proved that no pairing-based proof of this kind can be a single group element, so the record is close to a floor.</p>
+  <p>Its weakness is just as important as its record. To apply the move to the whole circuit, the setup has to know the circuit. So the trusted setup is tied to one circuit, and every new circuit needs a new ceremony. That weakness defines the problem KZG-based universal systems exist to solve, and it is why Aleo moved away from Groth16.</p>
+  <div class="note">
+    <strong>In snarkVM's history:</strong> Groth16 shipped in snarkVM's early versions alongside Marlin. It was removed on 3 April 2022, in a commit titled "Groth16 is (finally) dead", once the Marlin line had fully replaced it. The Varuna README still benchmarks against it.
+  </div>
+</section>
+
+<section>
+  <h2>What is R1CS, slowly?</h2>
+  <p>R1CS is the table format from move 1 on the map page, written with matrices. All the variables of the computation sit in one vector z, with a constant 1 in the first slot:</p>
+  <div class="math">
+    <div class="f">z = ( one, x, v1, v2, out ) = ( 1, 3, 9, 27, 35 )</div>
+  </div>
+  <p>One constraint is one multiplication of the shape (weighted sum of variables) × (weighted sum of variables) = (weighted sum of variables). Three matrices A, B and C hold the weights. Row i of A says which variables, with which weights, form the left factor of constraint i. Row i of B gives the right factor, and row i of C the result.</p>
+  <p>The running example x³ + x + 5 = 35 needs three constraints. Here are its three matrices, with one column per variable:</p>
+  <div class="tw"><table class="t num">
+    <tr><th>A (left factor)</th><th>one</th><th>x</th><th>v1</th><th>v2</th><th>out</th><th>meaning</th></tr>
+    <tr><td>row 1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>x</td></tr>
+    <tr><td>row 2</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>v1</td></tr>
+    <tr><td>row 3</td><td>5</td><td>1</td><td>0</td><td>1</td><td>0</td><td>5 + x + v2</td></tr>
+  </table></div>
+  <div class="tw"><table class="t num">
+    <tr><th>B (right factor)</th><th>one</th><th>x</th><th>v1</th><th>v2</th><th>out</th><th>meaning</th></tr>
+    <tr><td>row 1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>x</td></tr>
+    <tr><td>row 2</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>x</td></tr>
+    <tr><td>row 3</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+  </table></div>
+  <div class="tw"><table class="t num">
+    <tr><th>C (result)</th><th>one</th><th>x</th><th>v1</th><th>v2</th><th>out</th><th>meaning</th></tr>
+    <tr><td>row 1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>v1</td></tr>
+    <tr><td>row 2</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>v2</td></tr>
+    <tr><td>row 3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>out</td></tr>
+  </table></div>
+  <p>Multiplying each matrix by z gives the left factors, right factors and results of all constraints at once:</p>
+  <div class="math">
+    <div class="f">A·z = ( 3, 9, 35 ) &nbsp;&nbsp;&nbsp; B·z = ( 3, 3, 1 ) &nbsp;&nbsp;&nbsp; C·z = ( 9, 27, 35 )</div>
+    <div class="lbl" style="margin-top:8px">the R1CS rule: entry by entry, left × right = result</div>
+    <div class="f">3·3 = 9 &nbsp;&nbsp;&nbsp; 9·3 = 27 &nbsp;&nbsp;&nbsp; 35·1 = 35 &nbsp;✓</div>
+  </div>
+  <div class="note">
+    <strong>Where the wiring is:</strong> notice that x appears in four places across the three matrices, but it is <em>one</em> variable, one slot of z. The fact that row 1 and row 2 use the same x is not a separate rule. It is built into the matrices. This will matter a great deal when we compare with PLONK.
+  </div>
+</section>
+
+<section>
+  <h2>How does an R1CS become one polynomial equation?</h2>
+  <p>Now apply move 2 of the recipe, but column by column of the matrices rather than of the witness table. Fix a variable j. Column j of A is a list with one number per constraint. Interpolate it over the rows into a polynomial u<sub>j</sub>(X). Do the same for B and C:</p>
+  <div class="math">
+    <div class="lbl">one triple of polynomials per variable</div>
+    <div class="f">u<sub>j</sub>(X): how much variable j participates in the left factor of each constraint</div>
+    <div class="f">v<sub>j</sub>(X): the same for the right factor</div>
+    <div class="f">w<sub>j</sub>(X): the same for the result</div>
+  </div>
+  <p>These polynomials depend only on the circuit, not on the witness. For the example, u<sub>x</sub>(X) is the curve through the values 1, 0, 1 at rows 1, 2, 3 (reading column x of A), and u<sub>one</sub>(X) is the curve through 0, 0, 5.</p>
+  <p>Now bring in the witness. Add up the u polynomials, each weighted by its variable's value:</p>
+  <div class="math">
+    <div class="f">Σ<sub>j</sub> z<sub>j</sub>·u<sub>j</sub>(X) = 1·u<sub>one</sub>(X) + 3·u<sub>x</sub>(X) + 9·u<sub>v1</sub>(X) + 27·u<sub>v2</sub>(X) + 35·u<sub>out</sub>(X)</div>
+  </div>
+  <p>What curve is that? Evaluate it at row 1: the u's at row 1 are the entries of row 1 of A, so the sum is row 1 of A dotted with z, which is 3. At row 2 it gives 9, at row 3 it gives 35. So the weighted sum of the u curves is exactly the curve through A·z. Interpolation is linear: the curve through a sum of columns is the sum of the curves.</p>
+  <div class="math">
+    <div class="f">Σ z<sub>j</sub>u<sub>j</sub>(X) = the interpolation of A·z &nbsp;&nbsp;(the Marlin part calls this z<sub>A</sub>(X))</div>
+    <div class="f">Σ z<sub>j</sub>v<sub>j</sub>(X) = the interpolation of B·z</div>
+    <div class="f">Σ z<sub>j</sub>w<sub>j</sub>(X) = the interpolation of C·z</div>
+  </div>
+  <p>The R1CS rule says left × right = result at every row. In polynomial language, the following polynomial is zero at every row, so it is divisible by t(X), the polynomial whose roots are exactly the rows:</p>
+  <div class="math">
+    <div class="lbl">the QAP identity (quadratic arithmetic program)</div>
+    <div class="f">( Σ z<sub>j</sub>u<sub>j</sub>(X) )·( Σ z<sub>j</sub>v<sub>j</sub>(X) ) − Σ z<sub>j</sub>w<sub>j</sub>(X) = h(X)·t(X)</div>
+    <div class="f">t(X) = X⁴ − 1 for our 4-point row domain H = {1, 10, 100, 91}, with row 4 a zero padding row</div>
+  </div>
+  <p>With numbers, at the point X = 5, which will be our secret point in a moment:</p>
+  <div class="math">
+    <div class="f">Σ z<sub>j</sub>u<sub>j</sub>(5) = 35 &nbsp;&nbsp; Σ z<sub>j</sub>v<sub>j</sub>(5) = 64 &nbsp;&nbsp; Σ z<sub>j</sub>w<sub>j</sub>(5) = 6</div>
+    <div class="f">35·64 − 6 = 12 &nbsp;(mod 101)</div>
+    <div class="f">t(5) = 5⁴ − 1 = 18 &nbsp;⟹&nbsp; h(5) = 12 / 18 = 68 &nbsp;(mod 101)</div>
+  </div>
+  <div class="note">
+    <strong>Why one line is enough:</strong> the same z<sub>j</sub> multiplies u<sub>j</sub>, v<sub>j</sub> and w<sub>j</sub>. A variable cannot take one value on the left and another on the right, because there is only one z<sub>j</sub>. The wiring is inside the u, v, w polynomials, and they came from the circuit. Marlin will have to prove this consistency separately; Groth16 gets it for free from the shape of the equation. Where the cost went is the rest of this page.
+  </div>
+</section>
+
+<section>
+  <h2>Where does the circuit go?</h2>
+  <p>Into the setup. This is the one decision everything else follows from.</p>
+  <p>A trusted party picks a secret point τ and five more secret numbers. It then evaluates the circuit's own polynomials u<sub>j</sub>, v<sub>j</sub>, w<sub>j</sub> at τ, bundles them in a particular way, and publishes the results inside curve points. The paper calls the secret point x; these notes call it τ to match the KZG part.</p>
+  <div class="tw"><table class="t">
+    <tr><th>Published</th><th>What it is for</th></tr>
+    <tr><td>[α]₁, [β]₁, [β]₂, [γ]₂, [δ]₁, [δ]₂</td><td>Five extra secrets, each hidden in a curve point. Their jobs are explained below.</td></tr>
+    <tr><td>[τⁱ]₁ for i up to the number of constraints</td><td>Powers of the secret point, exactly as in a KZG setup.</td></tr>
+    <tr><td>[ (β·u<sub>j</sub>(τ) + α·v<sub>j</sub>(τ) + w<sub>j</sub>(τ)) / δ ]₁ for each private variable j</td><td>The circuit's three polynomials for variable j, evaluated at the secret point and glued into one bundle. This is where the circuit lives.</td></tr>
+    <tr><td>The same bundle with γ in place of δ, for each public variable</td><td>The public-input half of the circuit, which the verifier will use.</td></tr>
+    <tr><td>[ τⁱ·t(τ) / δ ]₁</td><td>What the prover needs to encode h(τ)·t(τ) without knowing τ.</td></tr>
+  </table></div>
+  <p>Compare this with the KZG setup. KZG publishes powers of τ and nothing else. Groth16 publishes powers of τ <em>and</em> the circuit's polynomials evaluated at τ. The second kind of entry is what makes the proof so short, and also what ties the setup to one circuit.</p>
+  <div class="note warn">
+    <strong>This is the per-circuit setup.</strong> Change one constraint and the u, v, w polynomials change, so every bundled point changes. A new circuit means a new ceremony, with new toxic waste, and everyone who verifies proofs for that circuit must trust that ceremony.
+  </div>
+</section>
+
+<section>
+  <h2>What is the proof?</h2>
+  <p>Three group elements. The prover also picks two random numbers r and s, whose only job is zero knowledge.</p>
+  <div class="math">
+    <div class="lbl">A, in G1: the left factor at the secret point</div>
+    <div class="f">A = [ α + Σ<sub>j</sub> z<sub>j</sub>u<sub>j</sub>(τ) + r·δ ]₁</div>
+    <div class="lbl" style="margin-top:10px">B, in G2: the right factor at the secret point</div>
+    <div class="f">B = [ β + Σ<sub>j</sub> z<sub>j</sub>v<sub>j</sub>(τ) + s·δ ]₂</div>
+    <div class="lbl" style="margin-top:10px">C, in G1: everything needed to balance the equation</div>
+    <div class="f">C = [ ( Σ<sub>private j</sub> z<sub>j</sub>(β·u<sub>j</sub> + α·v<sub>j</sub> + w<sub>j</sub>)(τ) + h(τ)·t(τ) ) / δ &nbsp;+&nbsp; s·A + r·B − r·s·δ ]₁</div>
+  </div>
+  <p>Look at how each is computed. A is a weighted sum of the published powers [τⁱ]₁, plus [α]₁ and r·[δ]₁. B is the same in G2. C is a weighted sum of the bundled circuit points, plus the h·t points, plus blinding terms. The prover never needs τ, α, β, γ or δ themselves, only the published points.</p>
+  <p>Notice what A and B are: they are KZG-style commitments to the two factors of the QAP identity, evaluated at τ. C carries the result polynomial, the quotient h, and the glue terms.</p>
+  <div class="stats">
+    <div class="stat"><span class="num">3</span><span class="label">group elements in a proof</span></div>
+    <div class="stat"><span class="num">3</span><span class="label">pairings to verify</span></div>
+    <div class="stat"><span class="num">1</span><span class="label">ceremony per circuit</span></div>
+  </div>
+  <p>That is 192 bytes on BLS12-381: two G1 points of 48 bytes and one G2 point of 96 bytes.</p>
+</section>
+
+<section>
+  <h2>How does the verifier check it?</h2>
+  <p>The verifier knows the public inputs. It combines them into one point using the γ-side bundles from the setup, one scalar multiplication per public input:</p>
+  <div class="math">
+    <div class="f">P = Σ<sub>public j</sub> z<sub>j</sub>·[ (β·u<sub>j</sub> + α·v<sub>j</sub> + w<sub>j</sub>)(τ) / γ ]₁</div>
+  </div>
+  <p>Then it checks one equation with three pairings:</p>
+  <div class="math">
+    <div class="lbl">the Groth16 verification equation</div>
+    <div class="f">e(A, B) = e([α]₁, [β]₂) · e(P, [γ]₂) · e(C, [δ]₂)</div>
+  </div>
+  <p>Why this works, in words. Multiply out the exponent of e(A, B): it is (α + left + rδ)·(β + right + sδ), where left and right are the two QAP factors at τ. Expanding gives α·β, plus α·right + β·left, plus left·right, plus the blinding terms.</p>
+  <ul class="plain">
+    <li>The α·β term is matched by the first pairing on the right.</li>
+    <li>The α·right + β·left terms, together with the result polynomial, are exactly what the bundles β·u + α·v + w were designed to supply. The public share comes through P and the second pairing; the private share is inside C and the third pairing.</li>
+    <li>What is left of left·right, after the result polynomial is subtracted, is h(τ)·t(τ), which C also carries. The δ in C's denominator cancels the [δ]₂ of the third pairing.</li>
+    <li>The blinding terms cancel against the s·A + r·B − r·s·δ part of C.</li>
+  </ul>
+  <p>Strip away the glue and the blinding and what remains is the QAP identity, evaluated at the secret point:</p>
+  <div class="math">
+    <div class="f">( Σ z<sub>j</sub>u<sub>j</sub>(τ) )·( Σ z<sub>j</sub>v<sub>j</sub>(τ) ) − Σ z<sub>j</sub>w<sub>j</sub>(τ) = h(τ)·t(τ)</div>
+  </div>
+  <div class="note">
+    <strong>Deep idea:</strong> this is the KZG move, "check a polynomial identity at a secret point inside a pairing", applied to the entire circuit at once. In Groth16 there is no other randomness. The secret τ is the only random point the proof is ever checked at, and that is enough, by Idea 1 of the KZG part.
+  </div>
+</section>
+
+<section>
+  <h2>Why are there so many Greek letters?</h2>
+  <p>Each secret stops one specific cheat. Without them, the pairing equation alone would not be sound.</p>
+  <div class="tw"><table class="t">
+    <tr><th>Secret</th><th>What it does</th></tr>
+    <tr><td>τ</td><td>The point where the QAP identity is checked. Same role as τ in KZG.</td></tr>
+    <tr><td>α, β</td><td>Glue. A cheating prover might try to use one vector z in A, a different one in B, and a third in C. The bundle β·u<sub>j</sub> + α·v<sub>j</sub> + w<sub>j</sub> appears only as a single published point per variable, so the prover cannot take u, v and w with different weights. The same z<sub>j</sub> is forced everywhere.</td></tr>
+    <tr><td>γ</td><td>Separates the public-input bundles, which the verifier assembles into P, from everything else. The prover cannot smuggle public-input terms into C.</td></tr>
+    <tr><td>δ</td><td>Separates the private-witness bundles and the h·t terms, which the prover assembles into C, from everything else.</td></tr>
+    <tr><td>r, s</td><td>Chosen fresh by the prover for every proof. They randomize A, B and C so that two proofs of the same statement look unrelated, and the proof reveals nothing about the witness.</td></tr>
+  </table></div>
+  <p>Soundness is proved in the generic group model: a prover who can only add published points, scale them, and pair them cannot produce A, B, C that verify unless it knows a valid witness.</p>
+</section>
+
+<section>
+  <h2>Why is the proof so small?</h2>
+  <p>Look at what the prover does <em>not</em> send, compared with the universal systems in the later parts.</p>
+  <ul class="plain">
+    <li>No separate commitments to the left and right factors, and no running product. The wiring was handled by the setup when it bundled u, v, w for each variable.</li>
+    <li>No sumcheck polynomials and no quotient in several pieces. One quotient h is folded into C.</li>
+    <li>No evaluations and no opening proofs. Nothing is ever opened at a public point.</li>
+    <li>No challenges and no Fiat-Shamir. The proof is one message by construction, because the only random point is the setup's own secret.</li>
+  </ul>
+  <div class="note">
+    <strong>Mental model:</strong> Groth16 moves the verifier's work on the circuit into the trusted setup, once and in secret. The universal systems do that work in public, through an indexer, and pay for it with a bigger proof and more prover work. Both are the same idea; they differ in who does the circuit-specific work and when.
+  </div>
+</section>
+
+<section>
+  <h2>What is the price, and why does it matter for Aleo?</h2>
+  <p>The circuit lives inside the setup, so the setup is per circuit, and so is the toxic waste.</p>
+  <p>For one fixed application that is a one-time cost, and Groth16 remains the right tool there. For a platform where any developer can deploy a new program at any time, it is fatal. You cannot run a ceremony per deployment, and you cannot ask users to trust a ceremony run by the deployer, who is exactly the party that might want to cheat.</p>
+  <p>The fix is a setup that knows nothing about any circuit. That is the plain KZG setup from the previous part: powers of τ and nothing else. The circuit's polynomials are then committed in public, by anyone, after the ceremony is over. The next part shows how a proof system is built on top of that.</p>
+</section>
+
+<section>
+  <h2>What carries over, and what is dropped?</h2>
+  <div class="tw"><table class="t">
+    <tr><th>&nbsp;</th><th>Groth16</th><th>PLONK, Marlin, Varuna</th></tr>
+    <tr><td>Setup</td><td>One ceremony per circuit</td><td>One ceremony for all circuits</td></tr>
+    <tr><td>Where the circuit is encoded</td><td>Inside the secret setup</td><td>Public commitments, made by an indexer anyone can run</td></tr>
+    <tr><td>The random point</td><td>Only the secret τ, fixed forever</td><td>τ for commitments, plus fresh public points per proof</td></tr>
+    <tr><td>Who handles the wiring</td><td>The setup, by bundling u, v, w</td><td>The prover, with a permutation or a sumcheck</td></tr>
+    <tr><td>Interaction</td><td>None</td><td>Several rounds, collapsed by Fiat-Shamir</td></tr>
+    <tr><td>Proof size</td><td>3 group elements</td><td>9 to 13 group elements plus field elements</td></tr>
+    <tr><td>Verifier</td><td>3 pairings, plus one scalar multiplication per public input</td><td>2 pairings, plus about 20 scalar multiplications</td></tr>
+  </table></div>
+
+  <div class="takeaway">
+    <span class="lbl">Where we are</span>
+    <p>Groth16 checks the whole R1CS as one polynomial identity at the secret point τ, inside three pairings. The circuit's polynomials are evaluated at τ by the setup, which is why the proof is tiny and why the setup is per circuit.</p>
+    <p>Every system that follows keeps the pairing check and the idea of a secret point, and moves the circuit out of the setup. The next part shows how: commit to polynomials in public, and check identities at fresh public points.</p>
+  </div>
+  <div class="pager"><a href="#kzg">← KZG commitments</a><a href="#bridge">next: from commitments to proofs →</a></div>
+</section>
+</article>
+</div>
+<div class="view" id="bridge" data-view="bridge">
+<header class="hero">
+  <div class="crumb"><a href="#home">← all topics</a></div>
+  <h1><em>From commitments to proofs</em></h1>
+  <p class="dek">roots of unity, the quotient trick, public random points, and Fiat-Shamir: how the circuit moves out of the setup, and the skeleton PLONK, Marlin and Varuna all reuse</p>
+  <p class="byline"><span class="hl">Part 03 of 07</span> · the universal recipe</p>
+</header>
+
+<article>
+<section>
+  <h2>What is still missing after KZG and Groth16?</h2>
+  <p>KZG proves one kind of statement: "this committed polynomial takes this value at this point". Groth16 proves a whole computation, but only by baking the circuit into the trusted setup.</p>
+  <p>The universal systems need a third way: prove a computation while the setup knows nothing about the circuit. The setup provides only KZG commitments. Everything about the circuit has to be handled in public, by the prover and verifier, at proof time.</p>
+  <p>This part builds that bridge in four steps. Every system in the later parts is these four steps, applied several times with different polynomials.</p>
+  <div class="flow">
+    <div class="row">
+      <span class="node">columns of numbers</span><span class="arrow">step 1 →</span>
+      <span class="node">polynomials over roots of unity</span><span class="arrow">step 2 →</span>
+      <span class="node">one divisibility claim</span><span class="arrow">step 3 →</span>
+      <span class="node">one check at a public random point</span><span class="arrow">step 4 →</span>
+      <span class="node t">no live verifier</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Where do the polynomials come from? A program, end to end</h2>
+  <p>One confusion to clear up before the steps. The statement x³ + x + 5 = 35 happens to look like a polynomial, but it is the <em>program</em>, not the polynomial that gets committed. The committed polynomials are built from the program's execution table, column by column, and a program full of if-statements and comparisons produces them the same way. Here is the whole pipeline on a program that does not look like a polynomial at all.</p>
+  <div class="math">
+    <div class="lbl">the program, run with private input x = 3</div>
+    <div class="f">y = x · x &nbsp;&nbsp;&nbsp;&nbsp;→ 9</div>
+    <div class="f">z = y + 7 &nbsp;&nbsp;&nbsp;→ 16</div>
+    <div class="f">w = z · x &nbsp;&nbsp;&nbsp;&nbsp;→ 48 &nbsp;&nbsp;(public output)</div>
+  </div>
+  <h3>A: compile the program to rows</h3>
+  <p>A compiler turns every operation into one row of the form left × right = result, inventing a variable for every intermediate value. Additions and constants are folded into the left factor for free; that is what R1CS allows.</p>
+  <div class="tw"><table class="t num">
+    <tr><th>Row</th><th>Program step</th><th>Left</th><th>Right</th><th>Result</th></tr>
+    <tr><td>1</td><td>y = x · x</td><td>x = 3</td><td>x = 3</td><td>y = 9</td></tr>
+    <tr><td>2</td><td>z = y + 7</td><td>y + 7 = 16</td><td>1</td><td>z = 16</td></tr>
+    <tr><td>3</td><td>w = z · x</td><td>z = 16</td><td>x = 3</td><td>w = 48</td></tr>
+    <tr><td>4</td><td>padding</td><td>0</td><td>0</td><td>0</td></tr>
+  </table></div>
+  <p>Two different things live in this table. <em>Which variable</em> goes into which cell is fixed by the program; that is the circuit, and it is the same for every run. <em>Which number</em> is in each cell comes from this particular run with x = 3; that is the witness.</p>
+  <h3>B: each column becomes a polynomial</h3>
+  <p>Use the 4-point domain H = {1, 10, 100, 91}, one point per row. The Left column is the list (3, 16, 16, 0). The unique polynomial of degree below 4 that takes those values at those four points is:</p>
+  <div class="math">
+    <div class="f">a(X) = 34 + 83X + 26X² + 62X³ &nbsp;&nbsp;&nbsp; a(1) = 3, a(10) = 16, a(100) = 16, a(91) = 0</div>
+    <div class="f">b(X) = 27 + 48X + 77X² + 53X³ &nbsp;&nbsp;&nbsp; from the Right column (3, 1, 3, 0)</div>
+    <div class="f">c(X) = 94 + 26X + 86X² + 5X³ &nbsp;&nbsp;&nbsp;&nbsp; from the Result column (9, 16, 48, 0)</div>
+  </div>
+  <p>Look at those coefficients. They have nothing to do with "x·x, +7, ·x". They are simply the curves through the column values. A different input x would give different columns and different curves for the same program.</p>
+  <h3>C: the rule becomes one divisibility</h3>
+  <div class="math">
+    <div class="f">F(X) = a(X)·b(X) − c(X) = 16 + 9X + 47X² + 85X⁴ + 92X⁵ + 54X⁶</div>
+    <div class="f">F is zero at 1, 10, 100, 91, so X⁴ − 1 divides it: &nbsp;t(X) = 85 + 92X + 54X²</div>
+  </div>
+  <h3>D: these are the polynomials KZG commits to</h3>
+  <p>The prover commits to a, b, c and t: four curve points. Suppose the challenge comes out as ζ = 7. The prover opens all four there, with one KZG proof each:</p>
+  <div class="math">
+    <div class="f">a(7) = 26 &nbsp;&nbsp; b(7) = 95 &nbsp;&nbsp; c(7) = 44 &nbsp;&nbsp; t(7) = 42</div>
+    <div class="f">left: 26·95 − 44 = 2 &nbsp;&nbsp;&nbsp; right: 42·(7⁴ − 1) = 42·77 = 2 &nbsp;(mod 101) &nbsp;✓</div>
+  </div>
+  <p>Equal, so every row obeyed the rule, so the program was run correctly on some input that produced 48. The real systems also commit to polynomials that describe the circuit itself, the matrices or the selectors, so the verifier knows the rows belong to <em>this</em> program and not another. That is the holography of part 05.</p>
+  <div class="note">
+    <strong>What about if, comparisons and loops?</strong> Everything is forced into multiplication rows. A boolean b gets a row b·(1 − b) = 0, so it must be 0 or 1. "if b then x else y" becomes out = b·x + (1 − b)·y: both branches are computed and a multiplication selects one. A comparison or range check writes the number as bits, one boolean row per bit, plus a row saying the bits add up to the number. Loops are unrolled and calls are inlined. In Aleo, Leo compiles to Aleo instructions, and snarkVM's <code>circuit</code> crate has a gadget per instruction that emits exactly these rows. A hundred-line program becomes tens of thousands of rows, which is why the polynomials need commitments at all.
+  </div>
+</section>
+
+<section>
+  <h2>Step 1: how does a column of numbers become a polynomial?</h2>
+  <p>Pick n points of the field, call the set H. Any list of n numbers is the list of values of exactly one polynomial of degree below n at those points. Through 2 points there is one line, through 3 points one parabola, through n points one polynomial of degree below n. Finding that polynomial is <strong>interpolation</strong>.</p>
+  <div class="math">
+    <div class="f">list (a₁, a₂, …, aₙ) &nbsp;⟷&nbsp; polynomial a(X) with a(h<sub>i</sub>) = a<sub>i</sub> for every point h<sub>i</sub> of H</div>
+  </div>
+  <p>Which n points? In principle any. In practice always the same special set: the <strong>n-th roots of unity</strong>. These are the numbers whose n-th power is 1:</p>
+  <div class="math">
+    <div class="f">H = { 1, ω, ω², …, ωⁿ⁻¹ } &nbsp;&nbsp;&nbsp; where ωⁿ = 1</div>
+  </div>
+  <p>Think of them as the hours on a clock face with n hours. Multiplying by ω moves one hour forward. After n steps you are back at 1. So "the next row" is "multiply by ω", and after the last row you wrap around to the first.</p>
+  <p>In the toy field mod 101, take n = 4 and ω = 10. Check that 10 really has order 4:</p>
+  <div class="math">
+    <div class="lbl">the domain used in every example</div>
+    <div class="f">10¹ = 10 &nbsp;&nbsp; 10² = 100 &nbsp;&nbsp; 10³ = 1000 = 91 &nbsp;&nbsp; 10⁴ = 910 = 1 &nbsp;(mod 101)</div>
+    <div class="f">H = { 1, 10, 100, 91 } &nbsp;&nbsp;&nbsp; note 100 = −1 and 91 = −10</div>
+  </div>
+  <p>Two reasons this set is used everywhere.</p>
+  <ul class="plain">
+    <li>Converting between a list of values and the coefficients of its polynomial normally costs n² steps. Over roots of unity it costs n·log n, using the FFT. For a million rows that is the difference between hours and seconds.</li>
+    <li>The polynomial that is zero on all of H has an unusually simple form, which the next step needs.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Step 2: how does "true on every row" become one divisibility?</h2>
+  <p>First the simple form promised above. Every point h of H satisfies hⁿ = 1, so hⁿ − 1 = 0. That means every h is a root of the polynomial Xⁿ − 1. There are n of them, and Xⁿ − 1 has degree n, so these are all its roots:</p>
+  <div class="math">
+    <div class="lbl">the vanishing polynomial of H</div>
+    <div class="f">Z<sub>H</sub>(X) = (X − 1)(X − ω)(X − ω²)…(X − ωⁿ⁻¹) = Xⁿ − 1</div>
+  </div>
+  <p>For our toy domain: (X − 1)(X − 10)(X − 100)(X − 91) = X⁴ − 1. A verifier can evaluate X⁴ − 1 at any point in two multiplications. For a million-row domain it is twenty multiplications, not a million.</p>
+  <p>Now the rule. Suppose every row i must satisfy a<sub>i</sub> · b<sub>i</sub> = c<sub>i</sub>. Interpolate the three columns into a(X), b(X), c(X), and form one polynomial:</p>
+  <div class="math"><div class="f">F(X) = a(X)·b(X) − c(X)</div></div>
+  <p>The rule holds on every row exactly when F is zero at every point of H. Now extend the factor theorem from the KZG part. One root z gives one factor (X − z). Roots at every point of H give the whole product of factors, which is Z<sub>H</sub>:</p>
+  <div class="math">
+    <div class="lbl">the quotient trick</div>
+    <div class="f">F is zero on all of H &nbsp;⟺&nbsp; Z<sub>H</sub>(X) divides F(X) &nbsp;⟺&nbsp; there is a polynomial t with</div>
+    <div class="f">a(X)·b(X) − c(X) = t(X)·Z<sub>H</sub>(X)</div>
+  </div>
+  <p>A tiny instance: a polynomial that is zero at both 1 and 100 (which is −1) is divisible by (X − 1)(X + 1) = X² − 1. For example X³ − X = X·(X² − 1).</p>
+  <div class="note">
+    <strong>You have seen this before:</strong> a KZG opening uses one point z and the divisor (X − z). Here n points give the divisor Xⁿ − 1. It is the same idea at a larger scale. The quotient t plays the role of q.
+  </div>
+  <p>The prover computes t by polynomial division and commits to it. "Every row obeys the rule" has now become "these four committed polynomials satisfy one equation".</p>
+
+  <h3>What exactly is the quotient t?</h3>
+  <p>A quotient is the result of a division. 12 ÷ 3 has quotient 4 and remainder 0, so 3 divides 12. 13 ÷ 3 has quotient 4 and remainder 1, so it does not. Polynomials divide the same way: (X² + 2X − 8) ÷ (X − 2) has quotient X + 4 and remainder 0.</p>
+  <p>Here the thing being divided is F(X) = a(X)·b(X) − c(X), and the divisor is Z<sub>H</sub>(X) = X⁴ − 1. For the honest running-example table over H = {1, 10, 100, 91}, interpolating the three columns and multiplying out gives:</p>
+  <div class="math">
+    <div class="f">F(X) = 47 + 52X + 86X² + 54X⁴ + 49X⁵ + 15X⁶ &nbsp;(mod 101)</div>
+    <div class="f">F(1) = F(10) = F(100) = F(91) = 0 &nbsp;&nbsp;the rule holds on every row</div>
+  </div>
+  <p>Divide by X⁴ − 1. The remainder is 0, and the quotient is a small polynomial:</p>
+  <div class="math">
+    <div class="lbl">the quotient</div>
+    <div class="f">t(X) = 54 + 49X + 15X²</div>
+    <div class="f">check: (54 + 49X + 15X²)·(X⁴ − 1) = 54X⁴ + 49X⁵ + 15X⁶ − 54 − 49X − 15X², and −54 = 47, −49 = 52, −15 = 86</div>
+  </div>
+  <p>Why the verifier needs t at all: at a random point ζ, F(ζ) is <em>not</em> zero even for an honest prover, because ζ is not one of the four rows. For example F(7) = 1. So "check F(ζ) = 0" would reject honest proofs. The equation that holds at every point is F = t·Z<sub>H</sub>, and at ζ = 7 it reads 1 = 21 × 77 mod 101, with t(7) = 21 and Z<sub>H</sub>(7) = 77. The quotient turns "zero at four special points" into an identity that holds everywhere, which is what a random spot-check can test.</p>
+  <div class="note warn">
+    <strong>Why it catches cheating:</strong> change row 1's result from 9 to 10. Now F(1) = 100 ≠ 0, and dividing by X⁴ − 1 leaves the remainder 25 + 25X + 25X² + 25X³. No polynomial t satisfies F = t·Z<sub>H</sub>. The prover has nothing honest to commit to, and whatever it commits to instead fails at ζ except with negligible probability.
+  </div>
+  <p>So t is a certificate: its existence as a polynomial is the same fact as "the rule holds on every row". The prover computes it, commits to it, and the verifier checks the division at one random point.</p>
+</section>
+
+<section>
+  <h2>Step 3: why is one random point enough?</h2>
+  <p>The prover has committed to a, b, c and the quotient t. The verifier now picks a random point ζ and asks for the value of each polynomial at ζ. The prover answers with four numbers and four KZG opening proofs. The verifier checks one equation between the numbers:</p>
+  <div class="math"><div class="f">a(ζ)·b(ζ) − c(ζ) = t(ζ)·(ζⁿ − 1)</div></div>
+  <p>Why this is convincing. Suppose the identity were false as polynomials: the left side and the right side are different polynomials. Both have degree about 2n. Two different polynomials of degree 2n agree at most 2n times. The verifier picked ζ from about 2²⁵³ possibilities, so the chance of landing on one of those 2n points is 2n / 2²⁵³, which is zero for every practical purpose.</p>
+  <div class="math">
+    <div class="lbl">what just happened</div>
+    <div class="f">n row checks &nbsp;→&nbsp; 1 equation between 4 numbers</div>
+  </div>
+  <p>This is where succinctness comes from. The verifier's work no longer depends on how many rows the computation has. It depends on how many polynomials there are, which is a small constant for a given proof system.</p>
+</section>
+
+<section>
+  <h2>Why must the prover commit first?</h2>
+  <p>The order of events is the whole security argument, so it deserves its own section.</p>
+  <div class="flow">
+    <div class="row">
+      <span class="node">prover commits to a, b, c, t</span><span class="arrow">→ then →</span>
+      <span class="node t">verifier picks ζ</span><span class="arrow">→ then →</span>
+      <span class="node">prover opens at ζ</span>
+    </div>
+  </div>
+  <p>Imagine the order reversed. The prover learns ζ, then chooses its polynomials. It can now pick any a, b, c it likes, and a t that makes the equation true at the single point ζ. The equation holds at ζ and nowhere else, and the verifier cannot tell, because it only looks at ζ.</p>
+  <div class="note warn">
+    <strong>The rule in one line:</strong> the random point only protects you if the polynomials were locked before it existed. KZG commitments are the lock. This same rule explains the Varuna V1 to V2 change in part 06.
+  </div>
+</section>
+
+<section>
+  <h2>Step 4: how does the verifier disappear?</h2>
+  <p>Steps 1 to 3 describe a conversation. The prover sends commitments, the verifier replies with ζ, the prover sends openings. A real proof is one message. There is no verifier online to pick ζ.</p>
+  <p>The fix is to let a hash function pick ζ. The prover computes it as the hash of everything it has sent so far:</p>
+  <div class="math">
+    <div class="lbl">the Fiat-Shamir transform</div>
+    <div class="f">ζ = Hash( the statement, the commitments to a, b, c, t )</div>
+  </div>
+  <p>Why this keeps the order honest. The hash output looks random and nobody can steer it. To learn ζ the prover must first fix the commitments, because they are the input to the hash. Changing a commitment afterwards changes ζ, so the prover would have to start over. The commit-first order is enforced without any interaction.</p>
+  <p>The verifier does the same: it recomputes ζ from the commitments in the proof, and checks that the openings are at that ζ. If the prover had used any other point, the recomputed ζ would not match.</p>
+  <p>In snarkVM the hash is a Poseidon sponge: <code>FiatShamir&lt;N&gt; = PoseidonSponge&lt;Fq&lt;N&gt;, 2, 1&gt;</code> in <code>console/network/src/lib.rs</code>. "Sponge" means messages are absorbed one after another and challenges are squeezed out when needed, so a protocol with several rounds gets several challenges from one running hash.</p>
+  <div class="note warn">
+    <strong>A classic bug class:</strong> forgetting to absorb some prover message into the sponge. The challenge then does not depend on that message, so the prover can choose that message after seeing the challenge. Every message that the challenge is supposed to lock must go into the hash.
+  </div>
+</section>
+
+<section>
+  <h2>What is a polynomial IOP?</h2>
+  <p>You now know enough for the vocabulary. The conversation of steps 1 to 3, viewed abstractly, is a game in which the prover "sends polynomials" and the verifier "sends random challenges and asks for evaluations". That game is called a <strong>polynomial IOP</strong> (interactive oracle proof). Marlin calls its version an <strong>AHP</strong>, algebraic holographic proof, where "holographic" is explained in part 05.</p>
+  <p>A polynomial IOP is a pure protocol design. It says nothing about how to send a polynomial. Turning it into a real proof is always the same two substitutions:</p>
+  <div class="math">
+    <div class="f">SNARK = polynomial IOP &nbsp;+&nbsp; polynomial commitment (KZG) &nbsp;+&nbsp; Fiat-Shamir</div>
+  </div>
+  <p>This is why KZG is a tool and PLONK is a proof system. PLONK is a polynomial IOP. KZG is what makes "send a polynomial" cost one curve point, and Fiat-Shamir is what removes the verifier.</p>
+</section>
+
+<section>
+  <h2>How is this different from Groth16?</h2>
+  <p>Both approaches check a polynomial identity at a random point, so put them side by side.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">Groth16</div>
+      <p>The random point is the setup's secret τ. The circuit's polynomials are evaluated at τ by the setup. Nothing is sent at proof time except the three balancing points. No commitments, no openings, no hash.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">the universal recipe</div>
+      <p>The random point is a public ζ, fresh for every proof. The circuit's polynomials are committed in public; τ only hides them. The prover sends commitments and openings, and a hash plays the verifier.</p>
+    </div>
+  </div>
+  <p>The second approach costs more per proof. What it buys is that the setup never needs to know the circuit, so one setup serves every circuit, forever.</p>
+</section>
+
+<section>
+  <h2>What can a row-by-row check not say?</h2>
+  <p>The quotient trick handles any rule that looks at one row at a time: "left times right equals result" is such a rule. But a real computation also needs values in <em>different</em> rows to agree. Look at the running example again:</p>
+  <div class="tw"><table class="t num">
+    <tr><th>Row</th><th>Left</th><th>Right</th><th>Result</th></tr>
+    <tr><td>1</td><td>3</td><td>3</td><td>9</td></tr>
+    <tr><td>2</td><td>9</td><td>3</td><td>27</td></tr>
+    <tr><td>3</td><td>35</td><td>1</td><td>35</td></tr>
+  </table></div>
+  <p>The 9 in row 2's left column must be the same number as the 9 in row 1's result column. Nothing in a row-by-row rule says so. A prover could write 9 in row 1 and 8 in row 2, satisfy both rows separately, and compute nonsense.</p>
+  <p>Each proof system needs one extra idea for this, and that idea is its signature.</p>
+  <div class="tw"><table class="t">
+    <tr><th>System</th><th>How the cross-row problem shows up</th><th>Its signature tool</th></tr>
+    <tr><td>Groth16</td><td>Hidden: the matrices are bundled in the setup, so one z<sub>j</sub> serves every row</td><td>The α, β glue in the setup</td></tr>
+    <tr><td>PLONK</td><td>The output wire of one gate must equal the input wire of another</td><td>The permutation argument, a grand product</td></tr>
+    <tr><td>Marlin, Varuna</td><td>Each entry of A·z is a sum over the entire vector z</td><td>The univariate sumcheck, plus holography</td></tr>
+  </table></div>
+
+  <div class="takeaway">
+    <span class="lbl">Where we are</span>
+    <p>Columns become polynomials over the roots of unity, where "next row" means "multiply by ω". A rule that holds on every row becomes a division by Xⁿ − 1. The division is checked at one random point, after the polynomials were committed, and the random point is a hash of the transcript.</p>
+    <p>Everything in PLONK, Marlin and Varuna is this pattern plus one tool for relating different rows. Groth16 skipped the pattern: it checked everything at the secret τ and let the setup do the wiring, which is exactly why its setup is per circuit.</p>
+  </div>
+  <div class="pager"><a href="#groth16">← Groth16</a><a href="#plonk">next: PLONK →</a></div>
+</section>
+</article>
+</div>
+<div class="view" id="plonk" data-view="plonk">
+<header class="hero">
+  <div class="crumb"><a href="#home">← all topics</a></div>
+  <h1><em>PLONK</em></h1>
+  <p class="dek">gates, selectors, copy constraints, and the permutation argument built up in three steps on one small circuit, then the full protocol round by round</p>
+  <p class="byline"><span class="hl">Part 04 of 07</span> · Gabizon, Williamson, Ciobotaru · August 2019</p>
+</header>
+
+<article>
+<section>
+  <h2>Why do we need PLONK?</h2>
+  <p>Groth16 needs a ceremony per circuit. Sonic removed that in early 2019 by building on KZG, but its prover was heavy. PLONK was the first universal-setup SNARK that was practical on both sides: a prover within a small factor of Groth16, and a verifier of two pairings.</p>
+  <p>PLONK follows the universal recipe from the previous part exactly, and splits "the circuit was computed correctly" into two questions.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">question 1</div>
+      <p><strong>Is every gate satisfied?</strong> This looks at one row at a time, so it is the quotient trick from part 03, with a slightly richer rule than "left times right".</p>
+    </div>
+    <div class="card">
+      <div class="lbl">question 2</div>
+      <p><strong>Are the gates wired together correctly?</strong> This relates different rows. It needs PLONK's own invention, the permutation argument, which this part builds up slowly.</p>
+    </div>
+  </div>
+  <div class="note">
+    <strong>Why study it if Aleo uses Varuna:</strong> the permutation argument and the linearization trick reappear in many systems, and PLONK shows most clearly what Marlin and Varuna chose to do differently about wiring.
+  </div>
+</section>
+
+<section>
+  <h2>What statement are we proving?</h2>
+  <p>The same statement as in every part:</p>
+  <div class="math">
+    <div class="lbl">the running example</div>
+    <div class="f">"I know x such that x³ + x + 5 = 35"</div>
+    <div class="f">witness: x = 3 &nbsp;&nbsp;&nbsp; check: 27 + 3 + 5 = 35</div>
+  </div>
+  <p>All arithmetic is mod 101, over the domain H = {1, 10, 100, 91} from part 03. One point of H per row.</p>
+</section>
+
+<section>
+  <h2>What is a gate, and why one equation for every gate?</h2>
+  <p>In PLONK a row is a <strong>gate</strong>: a tiny operation with three wires. A left input <code>a</code>, a right input <code>b</code>, and an output <code>c</code>. Different gates do different things, a multiplication here, an addition there. To use the quotient trick we need <em>one</em> rule for every row. PLONK's answer is one equation with switches in it:</p>
+  <div class="math">
+    <div class="lbl">the PLONK gate equation</div>
+    <div class="f">q<sub>L</sub>·a + q<sub>R</sub>·b + q<sub>O</sub>·c + q<sub>M</sub>·a·b + q<sub>C</sub> + PI = 0</div>
+  </div>
+  <p>The q values are called <strong>selectors</strong>. They are fixed by the circuit, one set per row, and they switch terms on and off. Set a selector to 0 and its term disappears. The wires a, b, c are the witness, chosen by the prover. PI carries public inputs.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">multiplication gate</div>
+      <p>q<sub>M</sub> = 1, q<sub>O</sub> = −1, all others 0. The equation reads a·b − c = 0, that is, c = a·b.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">addition gate</div>
+      <p>q<sub>L</sub> = q<sub>R</sub> = 1, q<sub>O</sub> = −1, all others 0. The equation reads a + b − c = 0, that is, c = a + b.</p>
+    </div>
+  </div>
+  <p>The example needs four gates. Here is the full table, with the equation written out for each row:</p>
+  <div class="tw"><table class="t num">
+    <tr><th>Row</th><th>Point of H</th><th>Meaning</th><th>a</th><th>b</th><th>c</th><th>The equation becomes</th></tr>
+    <tr><td>1</td><td>1</td><td>x · x = v1</td><td>3</td><td>3</td><td>9</td><td>3·3 − 9 = 0</td></tr>
+    <tr><td>2</td><td>10</td><td>v1 · x = v2</td><td>9</td><td>3</td><td>27</td><td>9·3 − 27 = 0</td></tr>
+    <tr><td>3</td><td>100</td><td>v2 + x = v3</td><td>27</td><td>3</td><td>30</td><td>27 + 3 − 30 = 0</td></tr>
+    <tr><td>4</td><td>91</td><td>v3 + 5 = 35</td><td>30</td><td>0</td><td>0</td><td>30 + 5 − 35 = 0</td></tr>
+  </table></div>
+  <p>Row 4 shows the two remaining switches. q<sub>C</sub> = 5 adds the constant 5. PI = −35 brings in the public output: the verifier knows 35 and will plug it in itself, so this row says "whatever v3 is, v3 + 5 must equal the public 35".</p>
+  <div class="note">
+    <strong>Compare with R1CS:</strong> the same statement needed three R1CS constraints, because an R1CS constraint can add any number of variables for free. PLONK's gate adds at most two wires, so the two additions cost a gate each. That is the first trade-off between the two formats.
+  </div>
+</section>
+
+<section>
+  <h2>How do the columns become polynomials?</h2>
+  <p>Apply step 1 of part 03 to every column. The three witness columns become a(X), b(X), c(X), and the prover commits to them. The selector columns become q<sub>L</sub>(X), q<sub>R</sub>(X), q<sub>O</sub>(X), q<sub>M</sub>(X), q<sub>C</sub>(X). Those depend only on the circuit, so they are committed once, when the circuit is preprocessed, and the commitments become part of the verifying key.</p>
+  <p>"Every gate holds" is then one divisibility, by step 2 of part 03:</p>
+  <div class="math">
+    <div class="lbl">the gate identity</div>
+    <div class="f">q<sub>L</sub>(X)a(X) + q<sub>R</sub>(X)b(X) + q<sub>O</sub>(X)c(X) + q<sub>M</sub>(X)a(X)b(X) + q<sub>C</sub>(X) + PI(X) = (some quotient)·Z<sub>H</sub>(X)</div>
+  </div>
+  <p>This answers question 1. Question 2 is where the real work is.</p>
+</section>
+
+<section>
+  <h2>What can the gate table not see?</h2>
+  <p>Look at the table again. The value 9 appears twice: as the output c of row 1, and as the input a of row 2. In the circuit these are the <em>same wire</em>: v1 comes out of the first multiplication and goes into the second. But in the table they are two separate cells, and the gate equation checks each row on its own.</p>
+  <p>So a cheating prover could write c₁ = 9 and then a₂ = 8. Row 1 passes: 3·3 − 9 = 0. Row 2 passes with c₂ = 24: 8·3 − 24 = 0. Every gate is satisfied, and the circuit has computed nonsense.</p>
+  <p>The wiring is therefore a separate list of facts: which cells must hold equal values. These are the <strong>copy constraints</strong>:</p>
+  <div class="math">
+    <div class="lbl">copy constraints of the example</div>
+    <div class="f">x &nbsp;: a₁ = b₁ = b₂ = b₃ &nbsp;&nbsp;(x is used four times)</div>
+    <div class="f">v1 : c₁ = a₂</div>
+    <div class="f">v2 : c₂ = a₃</div>
+    <div class="f">v3 : c₃ = a₄</div>
+  </div>
+  <p>Each one relates two different rows, so the quotient trick cannot check it directly. The permutation argument proves all of them at once. It is built in three steps, and each step is a small idea on its own.</p>
+</section>
+
+<section>
+  <h2>Step A: how do you compare two bags of numbers with one product?</h2>
+  <p>Forget positions for a moment and think of the values as a bag: the same numbers, in any order. How can you check that two bags are the same?</p>
+  <p>Attach a random number γ to every entry and multiply everything together:</p>
+  <div class="math">
+    <div class="f">(f₁ + γ)(f₂ + γ)…(fₙ + γ) &nbsp;versus&nbsp; (g₁ + γ)(g₂ + γ)…(gₙ + γ)</div>
+  </div>
+  <p>Each side is a polynomial in γ whose roots are the negated entries of its bag. Reordering a bag does not change its polynomial, because multiplication does not care about order. Two bags with the same contents give the same polynomial. Two bags with different contents give different polynomials, which, by the familiar fact, agree at a random γ only with negligible probability.</p>
+  <p>A tiny check mod 101, with γ = 5:</p>
+  <div class="math">
+    <div class="f">bag {3, 9}: (3 + 5)(9 + 5) = 8·14 = 112 = 11</div>
+    <div class="f">bag {9, 3}: (9 + 5)(3 + 5) = 14·8 = 112 = 11 &nbsp;&nbsp;same bag, same product</div>
+    <div class="f">bag {3, 8}: (3 + 5)(8 + 5) = 8·13 = 104 = 3 &nbsp;&nbsp;different bag, different product</div>
+  </div>
+  <div class="note">
+    <strong>Why γ must be random:</strong> for a fixed, known γ a cheater could search for a different bag with the same product. For a γ chosen after the bags are committed, the only way to match is to have the same bag.
+  </div>
+</section>
+
+<section>
+  <h2>Step B: how do you attach a position to a value?</h2>
+  <p>Step A compares bags, but a copy constraint is about specific cells: c₁ must equal a₂. So we need to bring positions back in.</p>
+  <p>First, give each of the 12 cells a unique label. Cell aᵢ gets the row's point ωⁱ, cell bᵢ gets 2·ωⁱ, cell cᵢ gets 3·ωⁱ. The factors 2 and 3 keep the three columns' labels distinct:</p>
+  <div class="tw"><table class="t num">
+    <tr><th>Labels</th><th>row 1</th><th>row 2</th><th>row 3</th><th>row 4</th></tr>
+    <tr><td>a cells</td><td>1</td><td>10</td><td>100</td><td>91</td></tr>
+    <tr><td>b cells</td><td>2</td><td>20</td><td>99</td><td>81</td></tr>
+    <tr><td>c cells</td><td>3</td><td>30</td><td>98</td><td>71</td></tr>
+  </table></div>
+  <p>Second, encode the wiring as a <strong>permutation</strong> σ of the labels. Take each group of cells that must be equal and arrange them in a cycle: each cell points to the next cell in its group, and the last points back to the first.</p>
+  <div class="flow">
+    <div class="row"><span class="node">a₁</span><span class="arrow">→</span><span class="node">b₁</span><span class="arrow">→</span><span class="node">b₂</span><span class="arrow">→</span><span class="node">b₃</span><span class="arrow">→ back to</span><span class="node">a₁</span></div>
+    <div class="row"><span class="node t">c₁</span><span class="arrow">⇄</span><span class="node t">a₂</span><span class="arrow">&nbsp;</span><span class="node t">c₂</span><span class="arrow">⇄</span><span class="node t">a₃</span><span class="arrow">&nbsp;</span><span class="node t">c₃</span><span class="arrow">⇄</span><span class="node t">a₄</span></div>
+    <div class="cap">The unused cells b₄ and c₄ point to themselves. σ is fixed by the circuit, like the selectors.</div>
+  </div>
+  <p>Now the key claim. Form two bags of <em>pairs</em>. In the first, pair every cell's value with its own label. In the second, pair every cell's value with the label of the cell it points to:</p>
+  <div class="math">
+    <div class="f">bag 1: { (value<sub>i</sub> , label<sub>i</sub>) } &nbsp;&nbsp;&nbsp; bag 2: { (value<sub>i</sub> , σ(label<sub>i</sub>)) }</div>
+    <div class="f">claim: the wiring is respected &nbsp;⟺&nbsp; bag 1 = bag 2</div>
+  </div>
+  <p>Why. Take any pair in bag 2, say (value<sub>i</sub>, σ(label<sub>i</sub>)). If the bags are equal, this pair also appears in bag 1. But labels are unique, so the only pair in bag 1 with label σ(label<sub>i</sub>) is the one belonging to that cell. So that cell's value equals value<sub>i</sub>. In words: every cell holds the same value as the cell it points to. Follow the pointers around a cycle and every cell in the group is forced to be equal.</p>
+  <p>Conversely, if the wiring is respected, each cell and the cell it points to hold the same value, so bag 2 is just bag 1 with the labels shuffled around each cycle, and the bags are equal.</p>
+  <p>To use Step A we need bags of numbers, not pairs. Pack a pair into one number with a second random value β:</p>
+  <div class="math"><div class="f">pair (value, label) &nbsp;→&nbsp; value + β·label</div></div>
+  <p>With β random, two different pairs pack to the same number only with negligible probability. Now Step A applies, and the wiring holds exactly when:</p>
+  <div class="math">
+    <div class="lbl">the grand product</div>
+    <div class="f">∏ over all 12 cells of &nbsp;(value<sub>i</sub> + β·label<sub>i</sub> + γ) / (value<sub>i</sub> + β·σ(label<sub>i</sub>) + γ) &nbsp;= 1</div>
+  </div>
+  <p>Numerators are bag 1 with Step A's γ attached, denominators are bag 2. Equal bags give equal products, and the ratio is 1.</p>
+</section>
+
+<section>
+  <h2>Step C: how does a product over all rows become a row-by-row rule?</h2>
+  <p>We can only check rules that look at one row at a time, and the grand product looks at every row at once. The fix is a running tally.</p>
+  <p>The prover adds a new column z. It starts at 1 on row 1. Each row multiplies in that row's three fractions (one per wire column): z on the next row is z on this row times the row's numerators divided by its denominators. After the last row the tally should equal the full grand product, which is 1 if the wiring is honest.</p>
+  <p>Two rules pin z down, and both look at one row at a time:</p>
+  <div class="math">
+    <div class="lbl">row rule, on every point of H</div>
+    <div class="f">z(ωX)·den(X) = z(X)·num(X)</div>
+    <div class="lbl" style="margin-top:10px">start rule</div>
+    <div class="f">L₁(X)·(z(X) − 1) = 0</div>
+  </div>
+  <p>Read z(ωX) as "the value of z on the next row": multiplying by ω steps to the next point of H, as in part 03. L₁ is the polynomial that is 1 on the first row and 0 on the others, so the start rule only bites on row 1.</p>
+  <div class="note">
+    <strong>Why two rules are enough:</strong> the row rule on the last row relates z there to z on "the next row", which after wrapping around is row 1 again. The start rule says z is 1 on row 1. So the product of all the fractions, accumulated around the whole circle, must come back to 1. That is exactly the grand product being 1.
+  </div>
+</section>
+
+<section>
+  <h2>Can I see the permutation argument with real numbers?</h2>
+  <p>Take β = 2 and γ = 5. Start with row 1, where a₁ = 3, b₁ = 3, c₁ = 9, with labels 1, 2, 3.</p>
+  <p>The numerator uses each cell's own label:</p>
+  <div class="math">
+    <div class="f">(3 + 2·1 + 5)(3 + 2·2 + 5)(9 + 2·3 + 5) = 10 · 12 · 20 = 2400 = 77 &nbsp;(mod 101)</div>
+  </div>
+  <p>The denominator uses the labels the cells point to. a₁ points to b₁ (label 2), b₁ points to b₂ (label 20), c₁ points to a₂ (label 10):</p>
+  <div class="math">
+    <div class="f">(3 + 2·2 + 5)(3 + 2·20 + 5)(9 + 2·10 + 5) = 12 · 48 · 34 = 19584 = 91 &nbsp;(mod 101)</div>
+  </div>
+  <p>Do the same for every row and keep the tally:</p>
+  <div class="tw"><table class="t num">
+    <tr><th>Row</th><th>Numerator</th><th>Denominator</th><th>z entering</th><th>z leaving</th></tr>
+    <tr><td>1</td><td>77</td><td>91</td><td>1</td><td>63</td></tr>
+    <tr><td>2</td><td>58</td><td>77</td><td>63</td><td>75</td></tr>
+    <tr><td>3</td><td>46</td><td>64</td><td>75</td><td>76</td></tr>
+    <tr><td>4</td><td>90</td><td>73</td><td>76</td><td class="hit">1</td></tr>
+  </table></div>
+  <p>The tally returns to 1, so the wiring checks out. Notice that the numbers along the way, 63, 75, 76, mean nothing on their own. Only the return to 1 matters.</p>
+  <div class="note warn">
+    <strong>Now break one wire.</strong> Set a₂ = 8 while c₁ stays 9, the cheat from before. Row 2's numerator changes, nothing cancels it, and the tally ends at 67 instead of 1. The proof fails. The gate table alone would never have noticed.
+  </div>
+</section>
+
+<section>
+  <h2>What is the full protocol, round by round?</h2>
+  <p>Preprocessing happens once per circuit and involves no secrets. It commits to the 5 selector polynomials and to 3 polynomials S<sub>σ1</sub>, S<sub>σ2</sub>, S<sub>σ3</sub> that encode the permutation σ, one per wire column. Those 8 commitments are the verifying key. Then, for each proof:</p>
+  <div class="tw"><table class="t">
+    <tr><th>Round</th><th>Prover sends</th><th>Challenge</th><th>Purpose</th></tr>
+    <tr><td>1</td><td>Commitments to a, b, c</td><td>β, γ</td><td>Lock the witness before the permutation randomness exists.</td></tr>
+    <tr><td>2</td><td>Commitment to z</td><td>α</td><td>Lock the running tally, which depends on β and γ.</td></tr>
+    <tr><td>3</td><td>Commitments to the quotient t, in 3 pieces</td><td>ζ</td><td>Lock the quotient of (gate identity + α·row rule + α²·start rule) by Z<sub>H</sub>.</td></tr>
+    <tr><td>4</td><td>Six numbers: a, b, c, S<sub>σ1</sub>, S<sub>σ2</sub> at ζ, and z at ζω</td><td>v</td><td>The evaluations the check needs.</td></tr>
+    <tr><td>5</td><td>Two KZG opening proofs, at ζ and at ζω</td><td>none</td><td>Prove the six numbers are honest.</td></tr>
+  </table></div>
+  <p>Every challenge is produced by Fiat-Shamir from everything sent before it. Three choices in that table deserve a sentence each.</p>
+  <ol class="steps">
+    <li><strong>Why α.</strong> Three identities must vanish on H: the gate identity, the row rule, the start rule. Combine them as identity₁ + α·identity₂ + α²·identity₃ with a random α. The combination vanishes on H only if all three do, so one quotient t covers all of them, and the prover commits to one polynomial instead of three.</li>
+    <li><strong>Why t comes in three pieces.</strong> The combined identity has degree about 3n, so t does too. The setup only has about n powers of τ. So t is cut into three polynomials of degree about n, committed separately, and reassembled at ζ with powers of ζⁿ.</li>
+    <li><strong>Why z is opened at ζω.</strong> The row rule mentions z on the next row. At the random point ζ, "the next row" is ζω. So z is needed at a second point, which costs one extra evaluation and one extra opening proof.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>What is the linearization trick?</h2>
+  <p>Checking the combined identity at ζ seems to need the value of every polynomial at ζ: a, b, c, z, the five selectors, the three S<sub>σ</sub>, the three pieces of t. That would be about 15 field elements in the proof. PLONK sends only six.</p>
+  <p>Here is the idea. Once a(ζ) and b(ζ) are known numbers, a term like this is a known number times one committed polynomial:</p>
+  <div class="math">
+    <div class="f">q<sub>M</sub>(X)·a(ζ)·b(ζ) &nbsp;=&nbsp; (known number)·q<sub>M</sub>(X)</div>
+  </div>
+  <p>Do this to every term. After substituting the six opened values, the whole identity becomes a <em>linear</em> combination of committed polynomials with known coefficients. By KZG property 1, commitments add, so the verifier can build the commitment to that linear combination by itself, from the commitments it already has. Then one KZG opening at ζ proves that the combination evaluates to the right value, and no further evaluations need to be sent.</p>
+  <div class="note">
+    <strong>Deep idea:</strong> commitments add but do not multiply. Open just enough factors to turn every product into something linear, and let the verifier assemble the rest from commitments. Varuna pushes this same trick to its limit, opening almost nothing.
+  </div>
+</section>
+
+<section>
+  <h2>What does the verifier do, and what does it cost?</h2>
+  <ol class="steps">
+    <li>Recompute β, γ, α, ζ, v by hashing the transcript, exactly as the prover did.</li>
+    <li>Evaluate Z<sub>H</sub>(ζ) = ζⁿ − 1, L₁(ζ), and the public-input polynomial PI(ζ) by itself. All three are cheap.</li>
+    <li>Assemble the linearized commitment from the verifying key and the proof: under 20 scalar multiplications in G1.</li>
+    <li>Run one batched pairing check covering both opening proofs.</li>
+  </ol>
+  <div class="stats">
+    <div class="stat"><span class="num">9</span><span class="label">G1 points in a proof</span></div>
+    <div class="stat"><span class="num">6</span><span class="label">field elements</span></div>
+    <div class="stat"><span class="num">2</span><span class="label">pairings to verify</span></div>
+  </div>
+  <p>That is 624 bytes on BLS12-381, for a circuit of any size. On the prover side, the nine group elements are nine MSMs of size about n: seven commitments and two opening proofs. And every addition costs a gate: our example needed 4 gates for 2 multiplications.</p>
+</section>
+
+<section>
+  <h2>How is zero knowledge added?</h2>
+  <p>The six opened numbers are values of witness polynomials at ζ, and could leak information about the witness. So the prover blinds each witness polynomial with a random small multiple of Z<sub>H</sub>:</p>
+  <div class="math"><div class="f">a(X) &nbsp;→&nbsp; a(X) + (r₁X + r₂)·Z<sub>H</sub>(X)</div></div>
+  <p>Z<sub>H</sub> is zero on every row, so this changes nothing on H, where the constraints live. Away from H it adds randomness, and ζ is away from H. So the opened values are random-looking numbers that satisfy the identity, and nothing more.</p>
+</section>
+
+<section>
+  <h2>Why did PLONK become a whole family?</h2>
+  <p>The gate equation is a design choice, not a law. Add a term and you have a new kind of gate. Later systems added terms that do a whole hash round in one row, lookup tables that check a value against a fixed list, and wider rows with more wires. The permutation argument works unchanged for all of them. That family is called "PLONKish" and includes Halo2 and most recent proof systems.</p>
+
+  <div class="takeaway">
+    <span class="lbl">Where we are</span>
+    <p>Gates are checked row by row with the quotient trick, using selectors to turn one equation into every kind of gate. Wiring is checked by a permutation: pair every value with its position, show the bag of pairs survives the shuffle, and do it with a running tally that must return to 1.</p>
+    <p>PLONK keeps the wiring in a permutation. The next part keeps it somewhere else, inside matrices, and needs a different tool to check it.</p>
+  </div>
+  <div class="pager"><a href="#bridge">← from commitments to proofs</a><a href="#marlin">next: Marlin →</a></div>
+</section>
+</article>
+</div>
+<div class="view" id="marlin" data-view="marlin">
+<header class="hero">
+  <div class="crumb"><a href="#home">← all topics</a></div>
+  <h1><em>Marlin</em></h1>
+  <p class="dek">R1CS with a universal setup: the lincheck, the univariate sumcheck, and holography, a verifier that never reads the circuit</p>
+  <p class="byline"><span class="hl">Part 05 of 07</span> · Chiesa, Hu, Maller, Mishra, Vesely, Ward · September 2019</p>
+</header>
+
+<article>
+<section>
+  <h2>Why do we need Marlin?</h2>
+  <p>R1CS was already the standard format when universal setups arrived. Compilers and gadget libraries (libsnark, Zexe, and what became snarkVM's <code>circuit</code> crates) all produce R1CS, and Groth16 consumes it. PLONK asks you to re-express every circuit as gates. Marlin keeps R1CS and swaps only the proof system underneath.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">what it keeps</div>
+      <p>The R1CS constraint format, and every circuit already written in it. Additions stay free: a constraint can add any number of variables.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">what it changes</div>
+      <p>The setup. One universal KZG ceremony replaces the per-circuit ceremony of Groth16. The circuit's polynomials are committed in public instead of being baked into the setup.</p>
+    </div>
+  </div>
+  <p>Marlin also gave the field its clean modular recipe, AHP + polynomial commitment = SNARK. snarkVM's <code>polycommit</code> module began as the library written for that paper.</p>
+</section>
+
+<section>
+  <h2>What does the running example look like in R1CS?</h2>
+  <p>The same statement as always, in the same R1CS as the Groth16 part, which shows the three matrices in full. All variables sit in one vector:</p>
+  <div class="math">
+    <div class="f">z = ( one, x, v1, v2, out ) = ( 1, 3, 9, 27, 35 )</div>
+  </div>
+  <div class="tw"><table class="t">
+    <tr><th>Constraint</th><th>Meaning</th><th>Left factor (row of A)</th><th>Right factor (row of B)</th><th>Result (row of C)</th></tr>
+    <tr><td>1</td><td>x · x = v1</td><td>x</td><td>x</td><td>v1</td></tr>
+    <tr><td>2</td><td>v1 · x = v2</td><td>v1</td><td>x</td><td>v2</td></tr>
+    <tr><td>3</td><td>(v2 + x + 5) · 1 = out</td><td>5·one + x + v2</td><td>one</td><td>out</td></tr>
+  </table></div>
+  <div class="math">
+    <div class="f">A·z = ( 3, 9, 35 ) &nbsp;&nbsp;&nbsp; B·z = ( 3, 3, 1 ) &nbsp;&nbsp;&nbsp; C·z = ( 9, 27, 35 )</div>
+    <div class="f">3·3 = 9 &nbsp;&nbsp;&nbsp; 9·3 = 27 &nbsp;&nbsp;&nbsp; 35·1 = 35 &nbsp;✓</div>
+  </div>
+  <p>Two things to notice against PLONK. There are 3 constraints instead of 4 gates, because the additions were absorbed into constraint 3. And there are no copy constraints: every constraint reads from the same vector z, so x being used in four places is automatic. The wiring lives inside the matrices.</p>
+  <div class="note">
+    <strong>Mental model:</strong> PLONK stores the wiring in a permutation. R1CS stores it in the matrices A, B, C. In Groth16 the setup "pre-digested" the matrices in secret. Marlin's setup knows nothing, so the hard part of Marlin is proving things about matrices, in public, at proof time.
+  </div>
+</section>
+
+<section>
+  <h2>What exactly has to be proved?</h2>
+  <p>The prover computes the three vectors A·z, B·z, C·z and interpolates them over a domain H of rows into three polynomials z<sub>A</sub>(X), z<sub>B</sub>(X), z<sub>C</sub>(X). It also commits to the witness. Two things then have to be shown.</p>
+  <ol class="steps">
+    <li><strong>Rowcheck.</strong> z<sub>A</sub> · z<sub>B</sub> = z<sub>C</sub> on every row. This is a rule about one row at a time, so it is the quotient trick from part 03.</li>
+    <li><strong>Lincheck.</strong> z<sub>A</sub> really is A times the committed z, and likewise for B and C.</li>
+  </ol>
+  <div class="math">
+    <div class="lbl">rowcheck</div>
+    <div class="f">z<sub>A</sub>(X)·z<sub>B</sub>(X) − z<sub>C</sub>(X) = h₀(X)·v<sub>H</sub>(X)</div>
+  </div>
+  <div class="note warn">
+    <strong>The rowcheck alone proves nothing.</strong> Three all-zero vectors pass it. So would any three vectors the prover invents, as long as they multiply correctly entry by entry. The lincheck is what ties the vectors to the witness and to the circuit. And it is not a one-row-at-a-time rule: entry i of A·z is a sum over <em>all</em> of z. That is the problem this part solves.
+  </div>
+</section>
+
+<section>
+  <h2>Lincheck, idea 1: how do n equations become one?</h2>
+  <p>"z<sub>A</sub> = A·z" is one equation per row, n equations in total. Here is a way to check n equations with one.</p>
+  <p>Imagine two invoices with a thousand lines each, and you want to know whether they list the same amounts line by line. Pick a random multiplier for each line, the same multipliers for both invoices, and compare the two weighted totals. If a single line differs, the totals differ, unless the random multipliers happen to hide it, which is a one-in-2²⁵³ coincidence.</p>
+  <p>Apply that to the n equations, with a random weight w<sub>r</sub> for row r:</p>
+  <div class="math">
+    <div class="f">Σ<sub>r</sub> w<sub>r</sub>·(z<sub>A</sub>)<sub>r</sub> &nbsp;=&nbsp; Σ<sub>r</sub> w<sub>r</sub> · Σ<sub>c</sub> A<sub>r,c</sub>·z<sub>c</sub></div>
+  </div>
+  <p>Now the key rearrangement. On the right, swap the order of the two sums. Instead of weighting the rows of A·z, collect everything that multiplies each z<sub>c</sub>:</p>
+  <div class="math">
+    <div class="lbl">swap the sums</div>
+    <div class="f">Σ<sub>r</sub> w<sub>r</sub>·(z<sub>A</sub>)<sub>r</sub> &nbsp;=&nbsp; Σ<sub>c</sub> m<sub>c</sub>·z<sub>c</sub></div>
+    <div class="f">where &nbsp;m<sub>c</sub> = Σ<sub>r</sub> w<sub>r</sub>·A<sub>r,c</sub> &nbsp;&nbsp;is the weighted sum of column c of A</div>
+  </div>
+  <p>The left side is a weighted sum of the vector z<sub>A</sub>. The right side is a weighted sum of the witness z, with weights m<sub>c</sub> that depend only on the matrix and on the random w's. So the lincheck has become: two weighted sums must agree.</p>
+  <p>Where do the weights come from? From a single random number α, through the <strong>Lagrange polynomials</strong> of the row domain. L<sub>r</sub>(X) is the polynomial that equals 1 at row r and 0 at every other row. Any interpolated polynomial can be written with them:</p>
+  <div class="math">
+    <div class="f">z<sub>A</sub>(X) = Σ<sub>r</sub> (z<sub>A</sub>)<sub>r</sub>·L<sub>r</sub>(X)</div>
+    <div class="f">so with w<sub>r</sub> = L<sub>r</sub>(α): &nbsp;&nbsp;Σ<sub>r</sub> w<sub>r</sub>·(z<sub>A</sub>)<sub>r</sub> = z<sub>A</sub>(α)</div>
+  </div>
+  <p>So the left side is simply the polynomial z<sub>A</sub> evaluated at α, which the verifier can ask for as an opening. The randomness of α is what makes the weights random. (The Marlin paper uses a closely related weight polynomial; Varuna uses exactly these Lagrange weights.)</p>
+</section>
+
+<section>
+  <h2>Can I see the lincheck with real numbers?</h2>
+  <p>Take α = 7. The row domain has 4 points, so a zero row is added as padding after the 3 constraints.</p>
+  <div class="tw"><table class="t num">
+    <tr><th>&nbsp;</th><th>row 1</th><th>row 2</th><th>row 3</th><th>row 4</th></tr>
+    <tr><td>weight L<sub>r</sub>(7)</td><td>100</td><td>20</td><td>26</td><td>57</td></tr>
+    <tr><td>entry of A·z</td><td>3</td><td>9</td><td>35</td><td>0</td></tr>
+  </table></div>
+  <div class="math">
+    <div class="lbl">left side: weight the rows</div>
+    <div class="f">100·3 + 20·9 + 26·35 + 57·0 = 1390 = 77 &nbsp;(mod 101) &nbsp;&nbsp;this is z<sub>A</sub>(7)</div>
+  </div>
+  <p>Now the column weights m<sub>c</sub>. Column x of A has a 1 in rows 1 and 3, so its weight is 100 + 26 = 25 mod 101. Column "one" has a 5 in row 3, so its weight is 5·26 = 29 mod 101. Column v1 has a 1 in row 2: weight 20. Column v2 has a 1 in row 3: weight 26. Column out never appears in A: weight 0.</p>
+  <div class="tw"><table class="t num">
+    <tr><th>&nbsp;</th><th>one</th><th>x</th><th>v1</th><th>v2</th><th>out</th></tr>
+    <tr><td>column weight m<sub>c</sub></td><td>29</td><td>25</td><td>20</td><td>26</td><td>0</td></tr>
+    <tr><td>entry of z</td><td>1</td><td>3</td><td>9</td><td>27</td><td>35</td></tr>
+  </table></div>
+  <div class="math">
+    <div class="lbl">right side: weight the columns</div>
+    <div class="f">29·1 + 25·3 + 20·9 + 26·27 + 0·35 = 986 = 77 &nbsp;(mod 101) &nbsp;✓</div>
+  </div>
+  <p>Both sides agree. Now look at the right side as a polynomial statement. Interpolate the column weights into a polynomial m(X) over the variable domain, and z into z(X). Then the right side is the sum of the product m(X)·z(X) over all points of the domain. So the lincheck has become a claim of a new shape:</p>
+  <div class="math"><div class="f">"the sum of m(X)·z(X) over the whole domain equals 77"</div></div>
+  <p>Proving a sum over a domain needs one more tool.</p>
+</section>
+
+<section>
+  <h2>Lincheck, idea 2: what is the univariate sumcheck?</h2>
+  <p>The tool rests on one fact about roots of unity. Look at what happens when you raise every point of H = {1, 10, 100, 91} to a power and add up:</p>
+  <div class="tw"><table class="t num">
+    <tr><th>power k</th><th>1ᵏ</th><th>10ᵏ</th><th>100ᵏ</th><th>91ᵏ</th><th>sum mod 101</th></tr>
+    <tr><td>k = 0</td><td>1</td><td>1</td><td>1</td><td>1</td><td class="hit">4</td></tr>
+    <tr><td>k = 1</td><td>1</td><td>10</td><td>100</td><td>91</td><td>0</td></tr>
+    <tr><td>k = 2</td><td>1</td><td>100</td><td>1</td><td>100</td><td>0</td></tr>
+    <tr><td>k = 3</td><td>1</td><td>91</td><td>100</td><td>10</td><td>0</td></tr>
+    <tr><td>k = 4</td><td>1</td><td>1</td><td>1</td><td>1</td><td class="hit">4</td></tr>
+  </table></div>
+  <p>The points are spread evenly around a circle, so for every power from 1 to n − 1 they cancel to zero. Only the constant term, power 0, survives, and it is counted n times. Apply this term by term to a polynomial of degree below n:</p>
+  <div class="math">
+    <div class="lbl">the sumcheck fact</div>
+    <div class="f">Σ<sub>h ∈ H</sub> f(h) = n · f(0) &nbsp;&nbsp;&nbsp; when deg f &lt; n</div>
+  </div>
+  <p>Check it: f(X) = 3X³ + 2X² + X + 7 summed over H gives 28 = 4 × 7. The sum of a polynomial over H is just its constant term, times n.</p>
+  <p>Our product m(X)·z(X) has degree about 2n, too high for the fact to apply directly. So divide it by v<sub>H</sub> first: f = h·v<sub>H</sub> + remainder, where the remainder has degree below n. On H, v<sub>H</sub> is zero, so the first part contributes nothing to the sum. Only the remainder counts, and the fact applies to it. Write the remainder as X·g(X) + c₀, splitting off its constant term. Then the sum over H is n·c₀, and the claim "the sum is σ" says c₀ = σ/n:</p>
+  <div class="math">
+    <div class="lbl">the sumcheck identity</div>
+    <div class="f">f(X) = h(X)·v<sub>H</sub>(X) + X·g(X) + σ/n</div>
+    <div class="f">with deg g ≤ n − 2</div>
+  </div>
+  <p>Read it as: "f, minus a multiple of the vanishing polynomial, minus the number σ/n, is divisible by X". The prover commits to g and h. The verifier checks the identity at a random point β, with openings of f (really of m and z), g and h. It is the quotient trick again, with one twist: the remainder is forced into the shape X·g(X) + constant, which pins its constant term.</p>
+  <div class="note warn">
+    <strong>The degree bound is essential.</strong> If g could have any degree, the prover could claim any σ: write the remainder as X·g′(X) + σ/n for a g′ that absorbs the difference. The bound deg g ≤ n − 2 is what makes the constant term unique. This is why Marlin needs KZG with enforced degree bounds, property 4 in part 01.
+  </div>
+</section>
+
+<section>
+  <h2>Why can the verifier not finish on its own?</h2>
+  <p>At the random point β the verifier needs the value of f(β) = m(β)·z(β). The value z(β) comes from the committed witness, by an opening. The value m(β) is the problem.</p>
+  <p>Remember what m is: the column weights of A under the weights L<sub>r</sub>(α), interpolated. In other words, m(β) is the matrix A viewed as a two-variable polynomial, evaluated at the random pair (α, β). To compute it directly the verifier would have to touch every nonzero entry of A:</p>
+  <div class="math">
+    <div class="f">cost of computing Â(α, β) directly = number of nonzero entries ≈ the size of the circuit</div>
+  </div>
+  <p>A verifier that reads the whole circuit is not succinct. Groth16 hid this cost inside its per-circuit setup, which evaluated the matrix polynomials at τ once. A universal setup cannot do that. Something else has to.</p>
+</section>
+
+<section>
+  <h2>What is holography?</h2>
+  <p>It is Marlin's answer, and the reason the H in AHP stands for holographic. The verifier works from a short encoding of the circuit and never touches the circuit itself. Think of reading a book's index instead of the book. There are two parts.</p>
+  <h3>Part 1: an indexer, run once per circuit</h3>
+  <p>List the nonzero entries of each matrix in some fixed order. Entry number k sits in row row(k), column col(k), and has value val(k). Those are three lists of numbers. Interpolate each over a third domain K, whose size is the number of nonzero entries, and commit to the three polynomials.</p>
+  <div class="flow">
+    <div class="row">
+      <span class="node">matrix A</span><span class="arrow">→ list the nonzeros →</span>
+      <span class="node">row(k), col(k), val(k)</span><span class="arrow">→ interpolate over K, commit →</span>
+      <span class="node t">verifying key</span>
+    </div>
+    <div class="cap">The indexer is deterministic and public. Anyone can rerun it and get the same commitments. It has no secrets and needs no ceremony.</div>
+  </div>
+  <p>This is the moment the circuit moves out of the setup. In Groth16 the setup held u<sub>j</sub>(τ) in secret. Here the circuit is three committed polynomials that anyone can recompute.</p>
+  <h3>Part 2: one more sumcheck, this time over K</h3>
+  <p>The prover now simply states the number Â(α, β), and proves it against those commitments. This works because Lagrange polynomials over roots of unity have a closed form:</p>
+  <div class="math">
+    <div class="f">L<sub>r</sub>(α) = v<sub>H</sub>(α)·r / ( n·(α − r) )</div>
+  </div>
+  <p>Writing Â(α, β) as a sum over the nonzero entries, each entry contributes its value times a Lagrange weight for its row times a Lagrange weight for its column:</p>
+  <div class="math">
+    <div class="lbl">the matrix at a random point, as a sum over its nonzero entries</div>
+    <div class="f">Â(α, β) = Σ<sub>k ∈ K</sub> val(k)·L<sub>row(k)</sub>(α)·L<sub>col(k)</sub>(β)</div>
+    <div class="f">&nbsp; = Σ<sub>k ∈ K</sub> &nbsp;v<sub>H</sub>(α)·v<sub>H</sub>(β)·val(k)·row(k)·col(k) / ( n²·(α − row(k))·(β − col(k)) )</div>
+  </div>
+  <p>Every term is a fraction. The numerator and the denominator are built from row(k), col(k), val(k), which are committed, and from α, β, n, which the verifier knows. So this is again "a sum over a domain", which is a sumcheck, over K instead of H.</p>
+  <p>One obstacle: the summand is a fraction, not a polynomial. The fix is to let the prover define a polynomial f that takes the value of the fraction at every point of K. Such an f exists, because any list of values on K is some polynomial by interpolation. The prover sumchecks f over K as before, and separately proves that f really equals the fraction on K, by one more divisibility:</p>
+  <div class="math">
+    <div class="lbl">the rational sumcheck</div>
+    <div class="f">numerator(X) − denominator(X)·f(X) = h₂(X)·v<sub>K</sub>(X)</div>
+  </div>
+  <p>If f equals the fraction at every point of K, the left side is zero on all of K, so it is divisible by v<sub>K</sub>, and a quotient h₂ exists. The verifier checks this at a random point γ using openings of the committed row, col and val polynomials, of f (through its sumcheck pieces), and of h₂.</p>
+  <div class="note">
+    <strong>Deep idea:</strong> the verifier's expensive computation is turned into one more claim for the prover to prove. The claim bottoms out in commitments that were made once, in public, when the circuit was indexed. "Holographic" names this: the verifier sees only a short encoding of the circuit, never the circuit.
+  </div>
+</section>
+
+<section>
+  <h2>How do the pieces fit together?</h2>
+  <p>The whole protocol is three checks. Each one hands a claim to the next, and the last one bottoms out in the verifying key.</p>
+  <div class="tw"><table class="t">
+    <tr><th>Check</th><th>What it establishes</th><th>Over</th><th>Tool</th></tr>
+    <tr><td>Rowcheck</td><td>z<sub>A</sub> · z<sub>B</sub> = z<sub>C</sub> on every row</td><td>Rows, H</td><td>Quotient by v<sub>H</sub></td></tr>
+    <tr><td>Lincheck</td><td>z<sub>A</sub>, z<sub>B</sub>, z<sub>C</sub> equal A·z, B·z, C·z</td><td>Variables, H</td><td>Univariate sumcheck</td></tr>
+    <tr><td>Matrix check</td><td>The column weights used in the lincheck really come from the committed matrices</td><td>Nonzero entries, K</td><td>Rational sumcheck</td></tr>
+  </table></div>
+  <div class="flow">
+    <div class="row">
+      <span class="node">rowcheck</span><span class="arrow">trusts z<sub>A</sub>, z<sub>B</sub>, z<sub>C</sub>, so needs →</span>
+      <span class="node">lincheck</span><span class="arrow">trusts Â(α,β), so needs →</span>
+      <span class="node">matrix check</span><span class="arrow">ends in →</span>
+      <span class="node t">verifying key</span>
+    </div>
+  </div>
+  <p>The three matrices are folded together with random coefficients η<sub>B</sub> and η<sub>C</sub>, so one lincheck covers all of them. Random coefficients again: if any one of the three is wrong, the combination is wrong.</p>
+  <p>The table shows the logical structure. The paper itself checks the rowcheck at the same point as the lincheck, and reaches the matrix check through one extra intermediate sumcheck. Varuna simplifies both, as the next part shows.</p>
+</section>
+
+<section>
+  <h2>How do public inputs and zero knowledge fit in?</h2>
+  <h3>Public inputs</h3>
+  <p>The verifier must be sure the proof is about <em>its</em> public inputs, not ones the prover invented. So z is split into a public part and a private part:</p>
+  <div class="math"><div class="f">z(X) = w(X)·v<sub>X</sub>(X) + x(X)</div></div>
+  <p>Here x interpolates the public inputs and v<sub>X</sub> vanishes on their positions, so the first term contributes nothing there. The prover commits only to w. The verifier computes x(β) itself from the public inputs it knows, and assembles z(β). A prover who used different public inputs would fail the check.</p>
+  <h3>Zero knowledge</h3>
+  <p>Commitments are hiding, with the blinding of property 5 in part 01. In addition, a random mask polynomial that sums to zero over H is added inside the sumcheck, so that the opened values of g and h leak nothing about z.</p>
+  <div class="note">
+    <strong>Remember this for the next part:</strong> in the published Marlin protocol the prover commits to w and also to z<sub>A</sub> and z<sub>B</sub>, all three of full witness size. That is the first thing Varuna changes.
+  </div>
+</section>
+
+<section>
+  <h2>What does it cost?</h2>
+  <div class="stats">
+    <div class="stat"><span class="num">13</span><span class="label">G1 points in a proof</span></div>
+    <div class="stat"><span class="num">8</span><span class="label">field elements</span></div>
+    <div class="stat"><span class="num">2</span><span class="label">pairings to verify</span></div>
+  </div>
+  <p>That is 880 bytes on BLS12-381. The prover commits to polynomials over the rows domain and over the nonzero-entries domain K, and K is usually the larger of the two.</p>
+  <div class="note">
+    <strong>Do not confuse:</strong> additions are free in constraint count, but not in prover cost. A long linear combination adds nonzero matrix entries, and K grows with it.
+  </div>
+
+  <div class="takeaway">
+    <span class="lbl">Where we are</span>
+    <p>R1CS keeps the wiring inside matrices. Proving z<sub>A</sub> = A·z takes two ideas: random weights collapse n equations into one weighted sum, and the univariate sumcheck proves a weighted sum with one division and a degree bound.</p>
+    <p>Holography then removes the last linear-time step from the verifier: the matrices' nonzero entries are committed once by a public indexer, and their evaluation at a random point is proved with a second sumcheck. The circuit has left the setup for good.</p>
+  </div>
+  <div class="pager"><a href="#plonk">← PLONK</a><a href="#varuna">next: Varuna →</a></div>
+</section>
+</article>
+</div>
+<div class="view" id="varuna" data-view="varuna">
+<header class="hero">
+  <div class="crumb"><a href="#home">← all topics</a></div>
+  <h1><em>Varuna</em></h1>
+  <p class="dek">Marlin rebuilt for Aleo's workload: what changed, why each change is still sound, round by round, and where every piece lives in the snarkVM source</p>
+  <p class="byline"><span class="hl">Part 06 of 07</span> · read from <code>algorithms/src/snark/varuna/</code> at commit 638c8145d</p>
+</header>
+
+<article>
+<section>
+  <h2>Why did Aleo need Varuna?</h2>
+  <p>Start with what an Aleo transaction actually is. An execution contains several <strong>transitions</strong>: function calls, including calls from one program into another. Each function has its own circuit. On top of those come inclusion proofs for the records being spent, and a fee transition. So one transaction means several circuits, and often several runs of the same circuit.</p>
+  <div class="flow">
+    <div class="row">
+      <span class="node">transition 1 · circuit P</span><span class="arrow">+</span>
+      <span class="node">transition 2 · circuit Q</span><span class="arrow">+</span>
+      <span class="node">transition 3 · circuit P again</span><span class="arrow">+</span>
+      <span class="node">inclusion proofs</span><span class="arrow">→</span>
+      <span class="node t">one proof</span>
+    </div>
+  </div>
+  <p>With plain Marlin that is one proof per circuit run. The transaction would carry a list of proofs, and the verifier would check each one. Proof size and verification time would grow with every call. Aleo wants one proof per transaction, whatever the transaction contains.</p>
+  <p>There is a second, quieter need. When the same circuit runs several times in one transaction, those runs share the same matrices. All the work that depends only on the matrices should be paid once, not once per run.</p>
+  <p>In the code this is <code>Trace::prove_batch</code> in <code>synthesizer/process/src/trace/mod.rs</code>. It gathers every function, translation and inclusion assignment of the transaction and hands them to Varuna in a single call.</p>
+  <div class="note">
+    <strong>History:</strong> the module was named Marlin until 24 August 2023, when the namespace was renamed to Varuna. Everything on this page describes the code, not a paper. The three checks of Marlin are all still here; what changed is how they are arranged and shared.
+  </div>
+</section>
+
+<section>
+  <h2>Change 1: why commit only to the witness?</h2>
+  <p>Recall where Marlin's prover spends its effort. It commits to w, z<sub>A</sub> and z<sub>B</sub> for each run. All three are polynomials of full witness size, and each commitment is a full-size MSM, the most expensive operation in the prover. Varuna commits to w alone.</p>
+  <p>But the rowcheck needs z<sub>A</sub>, z<sub>B</sub>, z<sub>C</sub>. How can the verifier check z<sub>A</sub>·z<sub>B</sub> = z<sub>C</sub> without commitments to them? By asking for their values at one random point instead. The prover sends three numbers per run:</p>
+  <div class="math">
+    <div class="f">σ<sub>A</sub> = z<sub>A</sub>(α) &nbsp;&nbsp;&nbsp; σ<sub>B</sub> = z<sub>B</sub>(α) &nbsp;&nbsp;&nbsp; σ<sub>C</sub> = z<sub>C</sub>(α)</div>
+  </div>
+  <p>The protocol then runs in two steps.</p>
+  <ol class="steps">
+    <li><strong>Rowcheck at α.</strong> The quotient h₀ of the rowcheck was committed in round 2, before α existed. The verifier checks the rowcheck identity at α using the three claimed numbers and an opening of h₀.</li>
+    <li><strong>Lineval.</strong> The prover proves that each σ really is the matrix-times-witness polynomial evaluated at α. This is exactly idea 1 of the Marlin part: z<sub>A</sub>(α) must equal the weighted sum of the witness with the column weights of A at α. In the worked example both sides came to 77.</li>
+  </ol>
+  <div class="math">
+    <div class="lbl">rowcheck, as three numbers</div>
+    <div class="f">σ<sub>A</sub>·σ<sub>B</sub> − σ<sub>C</sub> = h₀(α)·v<sub>R</sub>(α)</div>
+  </div>
+  <p>In the toy example at α = 7, with the row domain R = {1, 10, 100, 91}:</p>
+  <div class="math">
+    <div class="f">σ<sub>A</sub> = 77 &nbsp;&nbsp; σ<sub>B</sub> = 83 &nbsp;&nbsp; σ<sub>C</sub> = 27</div>
+    <div class="f">77·83 − 27 = 1 &nbsp;(mod 101)</div>
+    <div class="f">v<sub>R</sub>(7) = 7⁴ − 1 = 77 &nbsp;⟹&nbsp; h₀(7) must be 1/77 = 21 &nbsp;(mod 101)</div>
+  </div>
+  <p>Why is this still sound, if the prover simply states the numbers? Because z<sub>A</sub> is not a free choice. It is <em>defined</em> as the polynomial that sends X to the sum over columns of A(X, c)·z(c). That definition involves only w, which was committed in round 1, and the circuit, which is committed in the verifying key. The lineval sumcheck proves the stated number matches that definition. A prover who states a wrong σ fails the lineval; a prover who states the right σ but has a wrong witness fails the rowcheck.</p>
+  <div class="note">
+    <strong>What was saved:</strong> per run, two full-size commitments became three field elements. The polynomials z<sub>A</sub>, z<sub>B</sub>, z<sub>C</sub> still exist inside the prover, which needs them to compute h₀, but they are never committed.
+  </div>
+</section>
+
+<section>
+  <h2>Change 2: how does batching work?</h2>
+  <p>Say the proof covers several circuits, with several runs of each. Every run has its own rowcheck, its own lineval, and every circuit has its own matrix check. Varuna adds all of them up, with random weights, so that each kind of check is proved once for the whole batch.</p>
+  <p>The verifier draws one random <strong>combiner</strong> per circuit and one per run. Then, for example, instead of one rowcheck quotient per run there is a single h₀:</p>
+  <div class="math">
+    <div class="f">Σ<sub>circuits i</sub> Σ<sub>runs j</sub> (combiner<sub>i,j</sub>)·( z<sub>A,ij</sub>·z<sub>B,ij</sub> − z<sub>C,ij</sub> ) = h₀·v<sub>R</sub></div>
+  </div>
+  <p>This is the same random-weights idea as the lincheck, one level up. If any single run's rowcheck fails, the weighted sum is not divisible by v<sub>R</sub>, except with negligible probability. The verifier recomputes the left side at α from the σ values and the combiners, and checks it against the single opening of h₀.</p>
+  <div class="tw"><table class="t">
+    <tr><th>Polynomial committed</th><th>How many</th><th>Round</th></tr>
+    <tr><td>Witness w</td><td>One per run</td><td>1</td></tr>
+    <tr><td>Mask polynomial</td><td>1, in zero-knowledge mode</td><td>1</td></tr>
+    <tr><td>Rowcheck quotient h₀</td><td>1 for the whole batch</td><td>2</td></tr>
+    <tr><td>Lineval sumcheck g₁, h₁</td><td>1 each for the whole batch</td><td>3</td></tr>
+    <tr><td>Matrix sumcheck g<sub>A</sub>, g<sub>B</sub>, g<sub>C</sub></td><td>One triple per circuit</td><td>4</td></tr>
+    <tr><td>Matrix quotient h₂</td><td>1 for the whole batch</td><td>5</td></tr>
+  </table></div>
+  <p>Read the "how many" column carefully. The matrix sumcheck polynomials are per <em>circuit</em>, not per run, because every run of a circuit shares the same matrices and the matrix check depends only on the matrices and the random points. So the second need from the first section is met: matrix work is paid once per circuit.</p>
+  <div class="stats">
+    <div class="stat"><span class="num">1</span><span class="label">G1 point per extra run</span></div>
+    <div class="stat"><span class="num">3</span><span class="label">field elements per extra run</span></div>
+  </div>
+  <p>One detail makes the sums possible. Circuits in a batch have different sizes, so their row and variable domains differ. Varuna works over the largest domain and multiplies each circuit's terms by a <strong>selector</strong> polynomial that is 1 on that circuit's smaller domain and 0 on the rest of the large one (<code>ahp/selectors.rs</code>). That way a small circuit's check does not pick up garbage from the padding points.</p>
+</section>
+
+<section>
+  <h2>Change 3: why does the index store products?</h2>
+  <p>Varuna keeps separate, right-sized domains per circuit: R for constraints, C for variables, and K<sub>A</sub>, K<sub>B</sub>, K<sub>C</sub> for the nonzero entries of each matrix. Nothing is padded further than its own next power of two.</p>
+  <p>The indexer commits to four polynomials per matrix, not three:</p>
+  <div class="math">
+    <div class="lbl">the index, per matrix</div>
+    <div class="f">row &nbsp;&nbsp; col &nbsp;&nbsp; row_col = row·col &nbsp;&nbsp; row_col_val = val·row·col</div>
+  </div>
+  <p>That is 12 commitments per circuit, and they are the circuit's verifying key (<code>CircuitVerifyingKey.circuit_commitments</code>).</p>
+  <p>Why store products? Because commitments do not multiply, KZG property 2. Look at the fraction from the Marlin part. Its numerator needs val·row·col, which is exactly <code>row_col_val</code>. Its denominator expands to:</p>
+  <div class="math">
+    <div class="f">(α − row)(β − col) = αβ − α·col − β·row + row_col</div>
+  </div>
+  <p>With <code>row_col</code> committed in advance, this is a sum of known numbers times committed polynomials: α·β times the constant 1, minus α times col, minus β times row, plus row_col. That is a <em>linear</em> combination, which the verifier can assemble from the verifying key by itself, using KZG property 1. Without the precomputed products it would need row(γ) and col(γ) opened separately and then multiplied, costing more openings.</p>
+  <p>You can see exactly this expansion in <code>construct_matrix_linear_combinations</code> in <code>ahp/ahp.rs</code>.</p>
+</section>
+
+<section>
+  <h2>Change 4: why is almost nothing opened?</h2>
+  <p>Count what the proof actually carries as evaluations: g₁ at β, and g<sub>A</sub>, g<sub>B</sub>, g<sub>C</sub> at γ for each circuit. That is all. The witness w is never opened. Neither are h₀, h₁, h₂, nor any of the index polynomials.</p>
+  <p>How can the verifier check identities involving polynomials it never sees the value of? With PLONK's linearization trick, taken to its limit. Each identity, after the few opened values are substituted, is a linear combination of committed polynomials with coefficients the verifier knows. The verifier builds that combination's commitment itself, a <strong>virtual commitment</strong>, and the prover proves it opens to zero at the relevant point.</p>
+  <div class="tw"><table class="t">
+    <tr><th>Virtual commitment</th><th>Zero at</th><th>What it encodes</th></tr>
+    <tr><td><code>rowcheck_zerocheck</code></td><td>α</td><td>The weighted sum of (σ<sub>A</sub>·σ<sub>B</sub> − σ<sub>C</sub>) over the batch, minus h₀·v<sub>R</sub>(α). Only h₀ is a polynomial here; the σ's are numbers.</td></tr>
+    <tr><td><code>lineval_sumcheck</code></td><td>β</td><td>The sumcheck identity over the variable domain. The commitment to w appears inside it, scaled by the public-input and matrix terms, so w is never opened on its own.</td></tr>
+    <tr><td><code>matrix_sumcheck</code></td><td>γ</td><td>Numerator − denominator·f for every matrix of every circuit, combined with random weights, minus h₂·v<sub>K</sub>(γ). The index polynomials appear inside it.</td></tr>
+  </table></div>
+  <p>Three virtual commitments, three points, one batched KZG opening proof for all of them, and verification still ends in a single pairing check. These three are listed in the code as <code>LC_WITH_ZERO_EVAL</code> in <code>ahp/ahp.rs</code>.</p>
+  <div class="note">
+    <strong>Deep idea:</strong> every polynomial that is not opened is one fewer field element in the proof and one fewer thing for the prover to prove honest. Varuna opens only the g polynomials, because the sumcheck needs their actual values to pin the constant term; everything else is checked as "this combination is zero".
+  </div>
+</section>
+
+<section>
+  <h2>What are the rounds, as implemented?</h2>
+  <div class="tw"><table class="t">
+    <tr><th>Round</th><th>Prover sends</th><th>Verifier replies with</th></tr>
+    <tr><td>1</td><td>Commitment to w for every run, plus the mask polynomial</td><td>Batch combiners</td></tr>
+    <tr><td>2</td><td>Commitment to h₀, the batched rowcheck quotient</td><td>α</td></tr>
+    <tr><td>Prepare 3</td><td>σ<sub>A</sub>, σ<sub>B</sub>, σ<sub>C</sub> for every run</td><td>Fresh batch combiners, and η<sub>B</sub>, η<sub>C</sub> to fold the three matrices</td></tr>
+    <tr><td>3</td><td>Commitments to g₁ and h₁, the batched lineval sumcheck</td><td>β</td></tr>
+    <tr><td>4</td><td>Per circuit: the claimed matrix values at (α, β), and commitments to g<sub>A</sub>, g<sub>B</sub>, g<sub>C</sub></td><td>δ<sub>A</sub>, δ<sub>B</sub>, δ<sub>C</sub> per circuit</td></tr>
+    <tr><td>5</td><td>Commitment to h₂, the batched matrix-check quotient</td><td>γ</td></tr>
+    <tr><td>Final</td><td>Evaluations of g₁ and the g<sub>M</sub>, and one batched opening proof</td><td>Nothing. Verify.</td></tr>
+  </table></div>
+  <p>Read it against the three checks of Marlin. Round 2 is the rowcheck. Round 3 is the lincheck. Rounds 4 and 5 are the matrix check. Every "replies with" entry is a Fiat-Shamir challenge, squeezed from the sponge after the prover's message was absorbed.</p>
+</section>
+
+<section>
+  <h2>What changed between V1 and V2?</h2>
+  <p>The "Prepare 3" row is the difference, and it is a pure ordering change.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">Varuna V1</div>
+      <p>The verifier drew η<sub>B</sub> and η<sub>C</sub> together with α in round 2, and the lineval reused the combiners from round 1. The σ values were sent in round 3 together with g₁ and h₁.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">Varuna V2</div>
+      <p>The prover must first send the σ values. Only then does the verifier draw fresh combiners and the η values that fold the three matrices together.</p>
+    </div>
+  </div>
+  <p>Recall the rule from part 03: randomness that combines claims must be drawn <em>after</em> the claims are fixed. The σ values are claims, and the combiners and η's are the randomness that combines them into one sumcheck. V2 puts the claims before the randomness. V2 is active from consensus version V4 (<code>varuna_version_from_consensus</code> in <code>console/network/src/consensus_heights.rs</code>).</p>
+</section>
+
+<section>
+  <h2>What else does the code do?</h2>
+  <h3>Zero knowledge</h3>
+  <p>Executions use <code>VarunaHidingMode</code>. Commitments are hiding, and the mask polynomial in round 1 hides the sumcheck polynomials g₁ and h₁, so that their opened values reveal nothing about the witness. A non-hiding mode, <code>VarunaNonHidingMode</code>, also exists.</p>
+  <h3>Fiat-Shamir across two fields</h3>
+  <p>The sponge absorbs commitments, whose coordinates live in the base field Fq of the curve. Challenges are needed in the scalar field Fr, where the polynomials live. So the sponge squeezes "nonnative" field elements: bits from Fq squeezes, reinterpreted as elements of Fr.</p>
+  <h3>Certificates</h3>
+  <p>When a program is deployed, validators must know that the 12 index commitments in its verifying key really belong to the program's circuit. Recomputing them means running the indexer and doing 12 large MSMs per circuit. Instead the deployer attaches a <strong>certificate</strong>: one KZG opening of a random linear combination of the index polynomials at a random point.</p>
+  <p>The validator reruns only the cheap part: it computes the index polynomials' values at that point directly from the circuit, with field arithmetic, and checks the opening against the 12 commitments. Holography used in the other direction (<code>prove_vk</code> and <code>verify_vk</code> in <code>varuna.rs</code>).</p>
+</section>
+
+<section>
+  <h2>Where should I read in the source?</h2>
+  <p>All paths are under <code>algorithms/src/snark/varuna/</code>.</p>
+  <div class="tw"><table class="t">
+    <tr><th>File</th><th>Read it for</th></tr>
+    <tr><td><code>varuna.rs</code></td><td><code>prove_batch</code> and <code>verify_batch</code>: the transcript, in order, with every absorb and squeeze.</td></tr>
+    <tr><td><code>ahp/ahp.rs</code></td><td><code>construct_linear_combinations</code>: the three virtual commitments built term by term. The single best function to read.</td></tr>
+    <tr><td><code>ahp/prover/round_functions/</code></td><td><code>first.rs</code> to <code>fifth.rs</code>, one file per round, plus <code>prepare_third.rs</code> for the V2 step.</td></tr>
+    <tr><td><code>ahp/verifier/verifier.rs</code></td><td>Which challenge is drawn when, for V1 and V2.</td></tr>
+    <tr><td><code>ahp/indexer/</code>, <code>ahp/matrices.rs</code></td><td>row, col, row_col, row_col_val.</td></tr>
+    <tr><td><code>data_structures/proof.rs</code></td><td>Exactly what a proof contains.</td></tr>
+  </table></div>
+  <div class="note warn">
+    <strong>One caveat:</strong> the code comments point to a written specification in a ProvableHQ <code>protocol-docs</code> repository. That link returned "not found" on 3 October 2026, so this page is based on the code alone. The code implements plain R1CS (<code>AHPForR1CS</code>); there is no lookup argument in the Varuna module.
+  </div>
+
+  <div class="takeaway">
+    <span class="lbl">Where we are</span>
+    <p>Varuna is Marlin's three checks with the bookkeeping rearranged. Only the witness is committed per run; the three product vectors become three claimed numbers, backed by the lineval. Everything else is shared across the batch with random combiners, or folded into three virtual commitments that must evaluate to zero.</p>
+    <p>The result is one proof per transaction, where an extra run of a known circuit costs one curve point and three field elements.</p>
+  </div>
+  <div class="pager"><a href="#marlin">← Marlin</a><a href="#compare">next: side by side →</a></div>
+</section>
+</article>
+</div>
+<div class="view" id="compare" data-view="compare">
+<header class="hero">
+  <div class="crumb"><a href="#home">← all topics</a></div>
+  <h1><em>Side by side</em></h1>
+  <p class="dek">all systems in one table, the trade each one makes, the misreadings to avoid, questions to test yourself, and what to read next</p>
+  <p class="byline"><span class="hl">Part 07 of 07</span> · review</p>
+</header>
+
+<article>
+<section>
+  <h2>What is the one real difference between the systems?</h2>
+  <p>Every system checks "left times right equals result" row by row with the quotient trick. What distinguishes them is how they make sure values in different rows agree, that is, where the wiring lives and who checks it.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">Groth16</div>
+      <p>The wiring is inside the matrices, and the <strong>setup</strong> checks it: it bundles each variable's u, v, w polynomials into one secret point, so one value per variable is forced everywhere. No wiring argument at proof time at all.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">PLONK</div>
+      <p>The wiring is a <strong>permutation</strong> of cells, and the prover proves it with a running product that must return to 1.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">Marlin</div>
+      <p>The wiring is inside the <strong>matrices</strong>, and the prover proves it with a sumcheck. The matrices themselves are checked through holography against public commitments.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">Varuna</div>
+      <p>Same as Marlin, with the product vectors replaced by three claimed numbers, and every check shared across a whole batch of circuits and runs.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>How does the same statement look in each?</h2>
+  <p>The statement is x³ + x + 5 = 35 with x = 3.</p>
+  <div class="tw"><table class="t">
+    <tr><th>&nbsp;</th><th>PLONK</th><th>Groth16, Marlin and Varuna</th></tr>
+    <tr><td>Shape of the witness</td><td>A table: 4 rows × 3 wires = 12 cells</td><td>One vector z of 5 variables</td></tr>
+    <tr><td>Rules</td><td>4 gates: 2 multiplications, 2 additions</td><td>3 constraints, additions absorbed</td></tr>
+    <tr><td>How x is reused</td><td>4 separate cells, tied by a copy constraint</td><td>One variable, referenced by 4 matrix entries</td></tr>
+    <tr><td>Circuit description</td><td>5 selector columns and the permutation σ</td><td>3 sparse matrices with 5 + 3 + 3 = 11 nonzero entries</td></tr>
+    <tr><td>A wiring cheat is caught by</td><td>The running product ending at 67 instead of 1</td><td>Marlin and Varuna: the lincheck, both weighted sums must be 77. Groth16: the α, β bundling in the setup makes the pairing equation fail</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>How do they compare, concept by concept?</h2>
+  <div class="tw"><table class="t">
+    <tr><th>Concept</th><th>Groth16</th><th>PLONK</th><th>Marlin</th><th>Varuna in snarkVM</th></tr>
+    <tr><td>Row-local rule</td><td>The QAP identity, whole circuit at once</td><td>Gate equation with selectors</td><td>Rowcheck: z<sub>A</sub>·z<sub>B</sub> = z<sub>C</sub></td><td>Same, checked at α from three claimed numbers</td></tr>
+    <tr><td>Cross-row rule</td><td>None needed: the setup bundles u, v, w with α and β</td><td>Permutation argument</td><td>Lincheck by univariate sumcheck</td><td>"Lineval" sumcheck over the variable domain</td></tr>
+    <tr><td>Circuit committed in preprocessing</td><td>Not committed: evaluated at τ inside the secret setup</td><td>8 polynomials: selectors and σ</td><td>row, col, val per matrix</td><td>12 polynomials: row, col, row_col, row_col_val per matrix</td></tr>
+    <tr><td>Extra machinery for the circuit</td><td>None</td><td>None</td><td>Rational sumcheck over nonzero entries</td><td>Same, one per matrix, batched into one h₂</td></tr>
+    <tr><td>Witness polynomials committed per run</td><td>None: only A, B, C</td><td>a, b, c, z</td><td>w, z<sub>A</sub>, z<sub>B</sub></td><td>w only</td></tr>
+    <tr><td>Quotient polynomials</td><td>h, folded into C</td><td>t, in 3 pieces</td><td>One per check</td><td>h₀, h₁, h₂, shared by the whole batch</td></tr>
+    <tr><td>Open few, linearize the rest</td><td>Nothing is opened</td><td>Linearization polynomial</td><td>Linear combinations of commitments</td><td>Three virtual commitments that evaluate to zero</td></tr>
+    <tr><td>Evaluation points</td><td>Only the secret τ</td><td>ζ and ζω</td><td>One per sumcheck</td><td>α, β, γ</td></tr>
+    <tr><td>Cost of an addition</td><td>Free</td><td>One gate</td><td>Free in constraints, adds nonzero entries</td><td>Same as Marlin</td></tr>
+    <tr><td>Proof size</td><td>2 G1 + 1 G2</td><td>9 G1 + 6 field elements</td><td>13 G1 + 8 field elements</td><td>Grows by 1 G1 + 3 field elements per extra run</td></tr>
+    <tr><td>Many circuits in one proof</td><td>No</td><td>Not in the base protocol</td><td>Not in the base protocol</td><td>Built in</td></tr>
+    <tr><td>Setup</td><td>Per circuit</td><td>Universal KZG</td><td>Universal KZG</td><td>Universal KZG</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>What trade does each one make?</h2>
+  <p><strong>Groth16</strong> pays with a ceremony per circuit, and in exchange gets the smallest proof and the cheapest verifier of all. The setup does the circuit-specific work once, in secret, so the proof never has to. It is the right tool when the circuit is fixed and the ceremony can be run once with care.</p>
+  <p><strong>PLONK</strong> pays for wiring with a grand product, and in exchange its gate equation is open for extension: custom gates, lookups, wider rows. Additions cost a gate each. It is the right tool when you want to design your own constraint system.</p>
+  <p><strong>Marlin</strong> pays for wiring with a second domain over the nonzero matrix entries, and in exchange additions are free and every existing R1CS circuit works unchanged. It is the right tool when you already have R1CS and want a universal setup.</p>
+  <p><strong>Varuna</strong> keeps Marlin's trade and adds what a transaction-processing chain needs: one proof for a whole batch of circuits and runs, with the per-run cost cut to a single commitment and three field elements.</p>
+  <div class="note">
+    <strong>Why Aleo sits where it does:</strong> snarkVM's <code>circuit</code> crates produce R1CS, programs are deployed by anyone at any time, and a transaction is a batch of circuits. Those three facts rule out Groth16 (per-circuit setup), make PLONK's gate format a detour, and make batching essential. That is the problem Varuna is shaped around.
+  </div>
+</section>
+
+<section>
+  <h2>Which misreadings should I avoid?</h2>
+  <ol class="steps">
+    <li><strong>"KZG is a proof system."</strong> It is a commitment scheme. It proves evaluations of a polynomial, and nothing about any computation. The proof systems use it as a tool.</li>
+    <li><strong>"Universal setup means no trusted setup."</strong> The setup is still trusted: someone must destroy τ. Universal means it is done once for all circuits instead of once per circuit.</li>
+    <li><strong>"The verifying key is a secret, or needs a ceremony."</strong> In the universal systems it is computed deterministically from the circuit and the public setup. Anyone can recompute it. Only Groth16's verifying key comes out of a ceremony.</li>
+    <li><strong>"The gate check, or the rowcheck, is the proof."</strong> On its own it proves nothing. All-zero vectors pass the rowcheck. The wiring check is what ties values to the circuit.</li>
+    <li><strong>"τ and ζ are the same kind of random point."</strong> τ is secret forever, fixed at setup, and only ever appears inside curve points. ζ, α, β and γ are public and fresh for every proof. Groth16 uses only τ; the universal systems use both kinds.</li>
+    <li><strong>"Fiat-Shamir is a formality."</strong> The order of commit and challenge is the security argument. The Varuna V1 to V2 change is purely a change in that order.</li>
+    <li><strong>"R1CS additions are completely free."</strong> They are free in constraint count. They add nonzero matrix entries, and the prover pays for those in the domain K.</li>
+    <li><strong>"The degree bound in the sumcheck is a technicality."</strong> Without it the prover can claim any sum and hide the difference in g.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Can I answer these without looking?</h2>
+  <p>Try each one first, then open it.</p>
+  <details>
+    <summary>Why must the prover commit before the evaluation point is chosen?</summary>
+    <div class="ans"><p>Knowing the point, it could build polynomials that satisfy the identity there and nowhere else, and the verifier only looks there.</p></div>
+  </details>
+  <details>
+    <summary>In the KZG check, why is (τ − z) taken in G2?</summary>
+    <div class="ans"><p>The proof π is in G1. A pairing needs one input from each group to multiply the two hidden values q(τ) and (τ − z).</p></div>
+  </details>
+  <details>
+    <summary>Why can the liar in the KZG example not compute the forged proof?</summary>
+    <div class="ans"><p>The forged value is (p(τ) − 12)/(τ − 2) = 76. Computing it needs τ itself, or a division inside the exponent, and neither is available.</p></div>
+  </details>
+  <details>
+    <summary>Why does Groth16 need a new ceremony for every circuit?</summary>
+    <div class="ans"><p>Its setup contains the circuit's own polynomials u, v, w evaluated at the secret point. Change the circuit and every published point changes.</p></div>
+  </details>
+  <details>
+    <summary>In the PLONK example, which cells does σ cycle for x?</summary>
+    <div class="ans"><p>a₁ → b₁ → b₂ → b₃ → back to a₁.</p></div>
+  </details>
+  <details>
+    <summary>Why does PLONK open z at ζω?</summary>
+    <div class="ans"><p>The running-product rule relates each row to the next, and multiplying by ω is "next row". At the random point ζ the next row is ζω.</p></div>
+  </details>
+  <details>
+    <summary>What is the sum over H of a polynomial of degree below n?</summary>
+    <div class="ans"><p>n times its constant term. All other powers of the roots of unity cancel around the circle.</p></div>
+  </details>
+  <details>
+    <summary>What would the verifier have to do without holography?</summary>
+    <div class="ans"><p>Compute the matrix at (α, β) itself, touching every nonzero entry. That is time linear in the size of the circuit.</p></div>
+  </details>
+  <details>
+    <summary>Why does Varuna's indexer commit to row_col?</summary>
+    <div class="ans"><p>Commitments cannot be multiplied, so the product row·col must be committed in advance for the denominator to be a linear combination.</p></div>
+  </details>
+  <details>
+    <summary>What does one more run of a circuit already in the batch add to a Varuna proof?</summary>
+    <div class="ans"><p>One G1 point, the commitment to w, and three field elements, the σ values.</p></div>
+  </details>
+  <details>
+    <summary>What changed from Varuna V1 to V2?</summary>
+    <div class="ans"><p>The σ values are sent before the combiners and η values for the lineval are drawn, so the randomness that combines the claims comes after the claims.</p></div>
+  </details>
+</section>
+
+<section>
+  <h2>What can I compute by hand to be sure?</h2>
+  <p>Three exercises with known answers.</p>
+  <ol class="steps">
+    <li>Redo the PLONK running product with β = 13 and γ = 4. The z column should read 1, 10, 12, 100 and return to 1.</li>
+    <li>Redo the lincheck with α = 5. The row weights are 39, 92, 75, 98. Both sides should come to 35, with column weights 72, 13, 92, 75, 0. Notice that 35 is also the left factor of the Groth16 page's QAP check at X = 5; it is the same number for the same reason.</li>
+    <li>Open <code>construct_linear_combinations</code> in <code>ahp/ahp.rs</code>. Match every <code>.add(...)</code> line to a term of the rowcheck, the sumcheck identity, or the fraction formula.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>What should I read next?</h2>
+  <div class="tw"><table class="t">
+    <tr><th>Topic</th><th>Source</th><th>Read it for</th></tr>
+    <tr><td>KZG</td><td><a href="https://www.iacr.org/archive/asiacrypt2010/6477178/6477178.pdf">Kate, Zaverucha, Goldberg: Constant-Size Commitments to Polynomials and Their Applications</a></td><td>The original construction and its security assumptions.</td></tr>
+    <tr><td>KZG</td><td><a href="https://dankradfeist.de/ethereum/2020/06/16/kate-polynomial-commitments.html">Dankrad Feist: KZG polynomial commitments</a></td><td>The clearest short explanation, including multi-point openings.</td></tr>
+    <tr><td>Groth16</td><td><a href="https://eprint.iacr.org/2016/260">Jens Groth: On the Size of Pairing-based Non-interactive Arguments</a></td><td>The construction, the three-pairing check, and the lower bound.</td></tr>
+    <tr><td>PLONK</td><td><a href="https://eprint.iacr.org/2019/953">Gabizon, Williamson, Ciobotaru: PlonK</a></td><td>The final protocol, written out round by round.</td></tr>
+    <tr><td>PLONK</td><td><a href="https://vitalik.eth.limo/general/2019/09/22/plonk.html">Vitalik Buterin: Understanding PLONK</a></td><td>Intuition for copy constraints as coordinate accumulators.</td></tr>
+    <tr><td>Sumcheck</td><td><a href="https://eprint.iacr.org/2018/828">Ben-Sasson et al.: Aurora</a></td><td>Where the univariate sumcheck comes from.</td></tr>
+    <tr><td>Marlin</td><td><a href="https://eprint.iacr.org/2019/1047">Chiesa, Hu, Maller, Mishra, Vesely, Ward: Marlin</a></td><td>Section 2 is a readable overview of the AHP. Figure 1 has the cost comparison.</td></tr>
+    <tr><td>Varuna</td><td>snarkVM source, <code>algorithms/src/snark/varuna/</code></td><td>The reading order at the end of the Varuna part.</td></tr>
+  </table></div>
+
+  <div class="takeaway">
+    <span class="lbl">How this was checked</span>
+    <p>The proof sizes for Groth16, PLONK and Marlin, Groth's lower bound, and the list of polynomials Marlin's prover sends first were checked against the papers. Every worked number was recomputed by script over the field mod 101. The Varuna part was read from the snarkVM source at commit 638c8145d.</p>
+  </div>
+  <div class="pager"><a href="#varuna">← Varuna</a><a href="#home">back to the map →</a></div>
+</section>
+</article>
+</div>
+<footer class="foot">
+  KZG to Varuna · study notes · examples over the integers mod 101
+</footer>
+</main>
+
+<script>
+(function () {
+  var views = Array.prototype.slice.call(document.querySelectorAll('[data-view]'));
+  var links = Array.prototype.slice.call(document.querySelectorAll('[data-nav]'));
+  function current() {
+    var id = (location.hash || '').replace('#', '');
+    var known = views.some(function (v) { return v.getAttribute('data-view') === id; });
+    return known ? id : 'home';
+  }
+  function show() {
+    var id = current();
+    views.forEach(function (v) { v.hidden = v.getAttribute('data-view') !== id; });
+    links.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + id); });
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', show);
+  show();
+})();
+</script>
+</body>
+</html>
