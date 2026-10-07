@@ -1,0 +1,1289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Berrang Research Primer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400..600&display=swap">
+<style>
+/* Layout: one long-read column on the left, a sticky notebook on the right.
+   Figures sit inside the reading column as bordered instruments. Two semantic
+   hues carry the argument everywhere: plum = secret, teal = public. */
+:root{
+  --bg:#edf0f3; --surface:#f8f9fb; --ink:#141d27; --muted:#566371; --line:#c9d1d9;
+  --secret:#7b2d76; --secret-soft:#f0dcee;
+  --public:#0b6f66; --public-soft:#d3ebe7;
+  --bad:#b03a14; --bad-soft:#f7ddd3;
+  --accent:#27408b; --accent-soft:#dbe2f4; --on-accent:#ffffff; --bar:#7f8c9a;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --font-body:"Newsreader",Georgia,"Times New Roman",serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f151b; --surface:#171f28; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+    --secret:#dd9ad8; --secret-soft:#3a2238;
+    --public:#58cfc0; --public-soft:#143531;
+    --bad:#ff9a70; --bad-soft:#40211a;
+    --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b; --bar:#5d6b79;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#171f28; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+  --secret:#dd9ad8; --secret-soft:#3a2238;
+  --public:#58cfc0; --public-soft:#143531;
+  --bad:#ff9a70; --bad-soft:#40211a;
+  --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b; --bar:#5d6b79;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:18px;line-height:1.6}
+.page{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:44px;max-width:1160px;margin-inline:auto;padding-inline:20px;padding-block:36px 80px;align-items:start}
+.article{min-width:0;max-width:720px;display:flex;flex-direction:column;gap:22px}
+.article section{display:flex;flex-direction:column;gap:16px;scroll-margin-top:20px;padding-top:26px;border-top:1px solid var(--line)}
+p,ul,ol,h1,h2,h3,figure{margin:0}
+ul,ol{padding-left:1.25em;display:flex;flex-direction:column;gap:6px}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+strong{font-weight:600}
+code,.mono{font-family:var(--font-mono);font-size:.82em}
+
+.eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:750;font-size:clamp(2.1rem,5.4vw,3.3rem);line-height:1.04;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--secret)}
+h2{font-family:var(--font-display);font-weight:700;font-size:1.65rem;line-height:1.15;letter-spacing:-.01em;text-wrap:balance}
+h3{font-family:var(--font-display);font-weight:650;font-size:1.08rem;line-height:1.25}
+.deck{font-size:1.2rem;line-height:1.45;color:var(--muted);max-width:34em}
+.toc{display:flex;flex-wrap:wrap;gap:6px 14px;font-family:var(--font-mono);font-size:.74rem}
+.toc a{color:var(--muted)}
+.secret{color:var(--secret);font-weight:600}
+.public{color:var(--public);font-weight:600}
+.note-line{font-size:.92rem;color:var(--muted)}
+.callout{border-left:3px solid var(--accent);padding:4px 0 4px 16px;font-size:1.05rem}
+
+/* three options */
+.options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.opt{border:1px solid var(--line);background:var(--surface);padding:14px;border-radius:4px;display:flex;flex-direction:column;gap:6px;font-size:.95rem;line-height:1.45}
+.opt .tag{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase}
+.opt.o1 .tag{color:var(--bad)} .opt.o2 .tag{color:var(--bad)} .opt.o3 .tag{color:var(--public)}
+.opt.o3{border-color:var(--public);background:var(--public-soft)}
+
+/* black-box flow */
+.flow{display:flex;align-items:stretch;gap:10px;font-size:.92rem;line-height:1.35}
+.flow .col{display:flex;flex-direction:column;gap:8px;flex:1 1 0;min-width:0;justify-content:center}
+.flow .chip{border:1px solid var(--line);background:var(--surface);padding:9px 11px;border-radius:4px}
+.flow .chip b{display:block;font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.flow .box{flex:0 0 auto;align-self:center;background:var(--ink);color:var(--bg);font-family:var(--font-display);font-weight:700;padding:22px 16px;border-radius:4px;text-align:center;line-height:1.15}
+.flow .box small{display:block;font-family:var(--font-mono);font-weight:400;font-size:.66rem;letter-spacing:.06em;opacity:.8;margin-top:5px}
+.flow .arrow{align-self:center;color:var(--muted);flex:0 0 auto;display:flex}
+.flow .yes{border-color:var(--public)} .flow .no{border-color:var(--bad)}
+
+/* who + when */
+.scn{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;margin:0;font-size:.97rem;line-height:1.45}
+.scn dt{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:4px;white-space:nowrap}
+.scn dd{margin:0;min-width:0}
+.sealrow{display:flex;align-items:center;gap:10px;font-size:.9rem;line-height:1.35}
+.sealrow .chip{border:1px solid var(--line);background:var(--bg);padding:9px 11px;border-radius:4px;flex:0 1 150px;min-width:0}
+.sealrow .chip b{display:block;font-family:var(--font-mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.sealrow .arrow{color:var(--muted);flex:0 0 auto;display:flex}
+.sealbox{flex:1 1 0;min-width:0;border:1.5px solid var(--secret);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.sealbox .eyebrow{color:var(--secret)}
+.inside{display:flex;flex-direction:column;gap:5px}
+.inside span{font-family:var(--font-mono);font-size:.74rem;line-height:1.3;border:1px dashed var(--line);border-radius:3px;padding:5px 8px;color:var(--muted);transition:background .25s,color .25s,border-color .25s}
+.inside span.on{border-style:solid;border-color:var(--secret);background:var(--secret-soft);color:var(--secret)}
+.tl{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.tl-row{display:grid;grid-template-columns:128px minmax(0,1fr);background:var(--surface)}
+.tl-row+.tl-row{border-top:1px solid var(--line)}
+.tl-when{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;padding:16px 12px;background:var(--accent-soft);color:var(--accent);line-height:1.35}
+.tl-row.hot .tl-when{background:var(--accent);color:var(--on-accent)}
+.tl-b{padding:14px 16px;display:flex;flex-direction:column;gap:6px;font-size:.95rem;line-height:1.45;min-width:0}
+.tl-b q{font-family:var(--font-display);font-weight:650;font-size:1.1rem;line-height:1.25;quotes:"\201C" "\201D"}
+
+/* token stepper + lanes */
+.tokline{display:flex;flex-wrap:wrap;gap:4px;font-family:var(--font-mono);font-size:.84rem;min-height:2.2em;align-items:center}
+.tokline span{padding:4px 7px;border-radius:3px;background:var(--bg);border:1px solid var(--line);color:var(--ink);white-space:pre}
+.tokline span.gen{background:var(--secret-soft);border-color:var(--secret);color:var(--secret)}
+.tokline span.new{outline:2px solid var(--secret);outline-offset:1px}
+.tokline .cursor{border:0;background:transparent;color:var(--muted);padding:4px 2px}
+.cands{display:flex;flex-direction:column;gap:8px}
+.cands-h{font-size:.9rem;line-height:1.4;color:var(--muted)}
+.cands-bars{display:flex;flex-direction:column;gap:6px;max-width:440px}
+.cand{display:grid;grid-template-columns:110px minmax(0,1fr) 44px;gap:10px;align-items:center;font-family:var(--font-mono);font-size:.76rem}
+.cand .cl{color:var(--ink);white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.cand .ct{display:block;height:12px;min-width:0}
+.cand .cf{display:block;height:100%;background:var(--bar);border-radius:0 3px 3px 0}
+.cand.top .cf{background:var(--accent)}
+.cand.top .cl{font-weight:500}
+.cand .cv{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.lanes{display:flex;flex-direction:column;gap:14px}
+.lane{display:grid;grid-template-columns:150px minmax(0,1fr);gap:4px 14px;align-items:center}
+.lane-l{font-size:.9rem;line-height:1.3;color:var(--ink)}
+.lane-l small{display:block;font-family:var(--font-mono);font-size:.66rem;color:var(--muted);letter-spacing:.04em}
+.lane-r{display:flex;flex-direction:column;gap:4px;min-width:0}
+.track{display:flex;gap:3px;align-items:center}
+.track i{display:block;width:18px;height:18px;border-radius:2px;border:1px solid var(--line);background:var(--bg);transition:background .25s,border-color .25s}
+.track i.gap{width:8px;border:0;background:transparent}
+.track i.on{background:var(--accent-soft);border-color:var(--accent)}
+.track i.on.g{background:var(--accent)}
+.track.faint i{height:6px;border-color:transparent;background:var(--line);opacity:.6}
+.track.faint i.on{background:var(--accent);opacity:.5}
+.lane-s{font-family:var(--font-mono);font-size:.7rem;color:var(--muted);min-height:1.2em}
+.lane.done .lane-s{color:var(--ink)}
+@media (max-width:640px){
+  .lane{grid-template-columns:minmax(0,1fr)}
+  .track i{width:14px;height:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  .track i,.tokline span{transition:none}
+}
+
+/* relay + cost bars */
+.relay{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.step{border:1px solid var(--line);background:var(--bg);border-radius:4px;padding:10px 11px;display:flex;flex-direction:column;gap:6px;font-size:.9rem;line-height:1.4;transition:border-color .2s,background .2s}
+.step .eyebrow{font-size:.64rem}
+.step.on{border-color:var(--accent);background:var(--accent-soft)}
+.step.ok{border-color:var(--public);background:var(--public-soft)}
+.step.fail{border-color:var(--bad);background:var(--bad-soft)}
+.bars{display:flex;flex-direction:column;gap:12px}
+.bar-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;border-radius:3px}
+.bar-label{grid-column:1/-1;font-size:.92rem;line-height:1.3;color:var(--ink)}
+.bar-track{display:block;height:16px;min-width:0}
+.bar-fill{display:block;height:100%;background:var(--bar);border-radius:0 4px 4px 0}
+.bar-row.hl .bar-fill{background:var(--accent)}
+.bar-row.hl .bar-label{font-weight:600}
+.bar-val{font-family:var(--font-mono);font-size:.76rem;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar-tip{display:none;grid-column:1/-1;font-size:.84rem;line-height:1.4;color:var(--muted);border-left:2px solid var(--line);padding-left:10px}
+.bar-row:hover .bar-tip,.bar-row:focus .bar-tip{display:block}
+.bar-row:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.tableview summary{font-family:var(--font-mono);font-size:.74rem;color:var(--muted);cursor:pointer}
+.tableview[open] summary{margin-bottom:8px}
+
+/* figures */
+.fig{border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.fig-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 14px}
+.fig-head .eyebrow{color:var(--accent)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--ink);border-radius:3px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:.74rem;padding:7px 10px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.btn{font-family:var(--font-mono);font-size:.76rem;padding:8px 12px;border:1px solid var(--ink);border-radius:3px;background:transparent;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.quiet{border-color:var(--line);color:var(--muted)}
+.scroll-x{overflow-x:auto}
+.log{font-size:.95rem;line-height:1.45;min-height:4.3em;padding:10px 12px;background:var(--bg);border-radius:3px}
+.log.good{box-shadow:inset 3px 0 0 var(--public)} .log.bad{box-shadow:inset 3px 0 0 var(--bad)}
+figcaption{font-size:.86rem;color:var(--muted);line-height:1.45}
+
+/* figure 1 svg */
+#fig1svg{display:block;width:100%;min-width:600px;height:auto}
+#fig1svg .node rect{fill:var(--bg);stroke:var(--ink);stroke-width:1.4}
+#fig1svg .node text{fill:var(--ink);font-family:var(--font-display);font-weight:650;font-size:15px}
+#fig1svg .node.dim{opacity:.35}
+#fig1svg .edge{fill:none;stroke:var(--muted);stroke-width:1.6;marker-end:url(#mk)}
+#fig1svg .edge.good{stroke:var(--public);stroke-width:2.2;marker-end:url(#mk-good)}
+#fig1svg .edge.bad{stroke:var(--bad);stroke-width:2.6;marker-end:url(#mk-bad)}
+#fig1svg .lbl{fill:var(--muted);font-family:var(--font-mono);font-size:11px}
+#fig1svg .flag .lbl{fill:var(--bad);font-weight:500}
+#fig1svg .m0{fill:var(--muted)} #fig1svg .m1{fill:var(--public)} #fig1svg .m2{fill:var(--bad)}
+#fig1svg .badge{display:none}
+#fig1svg.ranked .badge{display:block}
+#fig1svg .badge circle{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+#fig1svg .badge text{fill:var(--on-accent);font-family:var(--font-mono);font-size:12px;font-weight:500}
+#fig1svg .tok{fill:var(--secret);stroke:var(--surface);stroke-width:2}
+
+/* jargon table + generic tables */
+table{border-collapse:collapse;width:100%;font-size:.93rem;line-height:1.4;font-variant-numeric:tabular-nums}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td:first-child{font-weight:600}
+
+/* figure 2 grid */
+.grid2{display:grid;grid-template-columns:92px repeat(6,minmax(40px,1fr));gap:3px;min-width:400px;font-family:var(--font-mono);font-size:.72rem}
+.grid2 .h{color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.2;padding:2px}
+.grid2 .rh{justify-content:flex-start;color:var(--ink)}
+.grid2 .rk{color:var(--accent);margin-left:4px}
+.grid2 .cell{aspect-ratio:1/1;max-height:54px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:.9rem;background:var(--secret-soft);color:var(--secret)}
+.grid2 .cell.forb{background:repeating-linear-gradient(135deg,var(--bad-soft) 0 5px,transparent 5px 9px);outline:1px solid var(--line);outline-offset:-1px;color:var(--bad)}
+.grid2 .cell.zero{background:var(--public-soft);color:var(--public);font-weight:500}
+.grid2 .cell.has{background:var(--secret);color:var(--surface);font-weight:500}
+.grid2 .cell.hit{background:var(--bad);color:var(--surface);font-weight:500;outline:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--font-mono);font-size:.7rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:5px}
+.legend .l-forb{background:repeating-linear-gradient(135deg,var(--bad-soft) 0 4px,transparent 4px 7px);outline:1px solid var(--line)}
+.legend .l-seal{background:var(--secret-soft)} .legend .l-zero{background:var(--public-soft)} .legend .l-has{background:var(--secret)}
+
+/* farkas + fold */
+.farkas{font-family:var(--font-mono);font-size:.9rem;display:grid;grid-template-columns:auto auto;gap:4px 22px;justify-content:start;align-items:baseline}
+.farkas .sum{grid-column:1/-1;border-top:1.5px solid var(--ink);padding-top:6px;margin-top:2px;color:var(--bad);font-weight:500}
+.farkas .mul{color:var(--secret)}
+.foldwrap{position:relative;min-height:96px;display:flex;align-items:center}
+.foldgrid{display:flex;flex-wrap:wrap;gap:4px;max-width:420px}
+.foldgrid i{width:14px;height:14px;background:var(--secret-soft);border:1px solid var(--secret);border-radius:2px;transition:transform .55s cubic-bezier(.5,0,.2,1),opacity .55s}
+.foldone{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:3px;background:var(--secret);color:var(--surface);font-family:var(--font-mono);font-size:.9rem;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.4);transition:opacity .3s .45s,transform .3s .45s}
+.foldwrap.folded .foldone{opacity:1;transform:scale(1)}
+.foldwrap.folded .foldgrid i{opacity:0}
+
+/* claims ladder */
+.ladder{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.rung{display:grid;grid-template-columns:54px minmax(0,1fr);background:var(--surface)}
+.rung+.rung{border-top:1px solid var(--line)}
+.rung .n{font-family:var(--font-display);font-weight:800;font-size:1.5rem;display:flex;align-items:flex-start;justify-content:center;padding-top:14px;background:var(--accent-soft);color:var(--accent)}
+.rung .b{padding:14px 16px;display:flex;flex-direction:column;gap:5px;font-size:.95rem;line-height:1.45}
+.rung q{font-family:var(--font-display);font-weight:650;font-size:1.12rem;quotes:"\201C" "\201D";line-height:1.25}
+.status{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.two>div{display:flex;flex-direction:column;gap:8px;font-size:.95rem;line-height:1.45;min-width:0}
+.two h3 span{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--muted);display:block;margin-bottom:2px}
+.fit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fit>div{border-top:2px solid var(--ink);padding-top:10px;font-size:.94rem;line-height:1.45;display:flex;flex-direction:column;gap:4px}
+.sources{font-size:.88rem;line-height:1.45;color:var(--muted)}
+.sources a{word-break:break-word}
+
+/* notebook */
+.ask{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);max-height:calc(100vh - 32px);display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:16px;min-width:0;scroll-margin-top:16px}
+.ask h2{font-size:1.2rem}
+.ask p{font-size:.88rem;line-height:1.4;color:var(--muted)}
+.ask textarea{width:100%;min-height:92px;resize:vertical;font-family:var(--font-body);font-size:1rem;line-height:1.4;padding:10px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font-family:var(--font-body);font-size:.8rem;line-height:1.25;text-align:left;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:3px;padding:5px 8px;cursor:pointer}
+.chips button:hover{color:var(--ink);border-color:var(--ink)}
+#askStatus{font-size:.82rem;min-height:1.2em}
+.notes{display:flex;flex-direction:column;gap:10px;overflow:auto;min-height:0;padding-right:2px}
+.n-item{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.n-q{font-weight:600;font-size:.95rem;line-height:1.35;color:var(--ink);overflow-wrap:anywhere}
+.n-a{font-size:.93rem;line-height:1.45;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.n-a.wait{color:var(--muted);font-style:italic}
+.n-meta{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:.66rem;color:var(--muted);letter-spacing:.04em}
+.n-meta button{border:0;background:transparent;color:var(--muted);font-family:inherit;font-size:inherit;cursor:pointer;text-decoration:underline;padding:0}
+.empty{font-size:.88rem;color:var(--muted);border:1px dashed var(--line);border-radius:3px;padding:10px}
+.jump{display:none}
+
+@media (max-width:960px){
+  .page{grid-template-columns:minmax(0,1fr);gap:28px;padding-inline:16px}
+  .ask{position:static;max-height:none}
+  .notes{overflow:visible}
+  .jump{display:inline-flex;position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--accent);color:var(--on-accent);font-family:var(--font-mono);font-size:.76rem;padding:10px 14px;border-radius:999px;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:5}
+}
+@media (max-width:640px){
+  body{font-size:17px}
+  .options,.two,.fit{grid-template-columns:minmax(0,1fr)}
+  .flow{flex-direction:column}
+  .sealrow{flex-direction:column;align-items:stretch}
+  .sealrow .chip{flex:0 0 auto}
+  .sealrow .arrow{transform:rotate(90deg);align-self:center}
+  .tl-row{grid-template-columns:minmax(0,1fr)}
+  .tl-when{padding:8px 16px}
+  .relay{grid-template-columns:minmax(0,1fr)}
+  .flow .arrow{transform:rotate(90deg)}
+  .flow .box{align-self:stretch}
+}
+@media (prefers-reduced-motion:reduce){
+  .foldgrid i,.foldone{transition:none}
+  .inside span{transition:none}
+  .step{transition:none}
+}
+</style>
+
+<div class="page">
+<main class="article">
+
+  <header style="display:flex;flex-direction:column;gap:16px">
+    <span class="eyebrow">Primer · 7 October 2026 · about 20 minutes</span>
+    <h1>Proving a machine is safe <em>without opening it</em></h1>
+    <p class="deck">What Pascal Berrang is building, explained for someone who knows zero-knowledge proofs and has never done formal verification.</p>
+    <nav class="toc" aria-label="Sections">
+      <a href="#problem">1 The problem</a>
+      <a href="#when">2 Launch or every prompt</a>
+      <a href="#cost">3 Why proving is slow</a>
+      <a href="#verify">4 Verification as a box</a>
+      <a href="#sealed">5 The sealed proof</a>
+      <a href="#big">6 Big machines</a>
+      <a href="#goal">7 His goal</a>
+      <a href="#kind">8 Research or optimisation</a>
+      <a href="#you">9 Where you fit</a>
+    </nav>
+  </header>
+
+  <section id="problem">
+    <span class="eyebrow">1 · The problem</span>
+    <h2>You are sold one model. How do you know that is the one running?</h2>
+    <p>Start with a plain example. Your company pays a reseller for answers from a large model. The model runs in the reseller's datacentre. A smaller or compressed copy would cost them much less to run, and its answers would read almost the same. You have no way to tell which one answered you.</p>
+    <p>SASH's own training material points out that three different people have this same problem. Pick one:</p>
+
+    <figure class="fig" id="figWho">
+      <div class="fig-head">
+        <span class="eyebrow">Same problem, three people</span>
+        <div class="seg" role="group" aria-label="Who is checking">
+          <button type="button" id="whoBuyer" data-who="buyer" aria-pressed="true">A buyer</button>
+          <button type="button" id="whoSafety" data-who="safety" aria-pressed="false">A safety team</button>
+          <button type="button" id="whoTreaty" data-who="treaty" aria-pressed="false">A treaty inspector</button>
+        </div>
+      </div>
+      <dl class="scn" aria-live="polite">
+        <dt>You are</dt><dd id="scnYou"></dd>
+        <dt>You were told</dt><dd id="scnTold"></dd>
+        <dt>Why you can't look</dt><dd id="scnLook"></dd>
+      </dl>
+      <div class="sealrow">
+        <div class="chip"><b>You send</b>a prompt</div>
+        <div class="arrow"><svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><path d="M0 7h22M17 2l6 5-6 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div>
+        <div class="sealbox"><span class="eyebrow">Their datacentre · could be running</span><div class="inside" id="scnInside"></div></div>
+        <div class="arrow"><svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><path d="M0 7h22M17 2l6 5-6 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div>
+        <div class="chip"><b>You get</b>an answer that looks fine either way</div>
+      </div>
+      <figcaption>The three people come from SASH's public course material. The swaps it names are real ones: the same weights rounded to 8 or 4 bits, or the base model the promised one was tuned from.</figcaption>
+    </figure>
+
+    <p class="callout">The problem in one sentence: someone makes a claim about a computation you did not run, on hardware you do not control, and they will not hand you their secrets.</p>
+
+    <h3>So what is SASH?</h3>
+    <ul>
+      <li><strong>It is not a regulator.</strong> The Singapore AI Safety Hub is an independent nonprofit that launched in Singapore in early 2025. It does research and builds the AI-safety field in Asia. It has no power over any AI lab.</li>
+      <li><strong>It is not a company with a product.</strong> As far as I can find, it sells nothing. Its verification team builds prototype tools in public and shows them to policymakers.</li>
+      <li><strong>Who the tools are for:</strong> governments that want to sign AI agreements they can check (it names smaller "middle power" countries in particular), safety teams, and companies in high-stakes industries that buy AI.</li>
+      <li><strong>Its own description of the work:</strong> "Tools and protocols that prove whether AI systems meet their safety claims across training, evaluation and deployment." Its About page names Pascal Berrang as the lead of its technical AI verification work.</li>
+    </ul>
+    <p>So think of SASH as a workshop that builds measuring instruments. Regulators, inspectors and buyers would be the ones who use them. SASH is never inside the transaction itself:</p>
+    <div class="scroll-x">
+    <table>
+      <thead><tr><th>Role</th><th>Who plays it</th></tr></thead>
+      <tbody>
+        <tr><td>Prover</td><td>Whoever runs the model: the lab, or the hosting provider</td></tr>
+        <tr><td>Verifier</td><td>You: the buyer, the safety team, the inspector, or an auditor you appoint</td></tr>
+        <tr><td>Tool builder</td><td>SASH. It builds the open prototype, measures what it costs, and shows policymakers what is possible</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="when">
+    <span class="eyebrow">2 · When the check happens</span>
+    <h2>At launch or on every prompt? Both. They are different claims.</h2>
+    <p>A model owner makes different promises at different moments. Each promise needs its own tool. This is the map, in time order, with the tool SASH or Berrang is prototyping for each.</p>
+    <div class="tl">
+      <div class="tl-row"><div class="tl-when">Before launch</div><div class="tl-b">
+        <q>This model scored X on this safety test.</q>
+        <span>The test runs inside a sealed hardware enclave, so the lab keeps its weights private and the test owner keeps the questions private. A signed receipt comes out.</span>
+        <span class="status">Tool: hardware attestation · SASH's evaluation receipt registry</span>
+      </div></div>
+      <div class="tl-row"><div class="tl-when">At launch</div><div class="tl-b">
+        <q>The model we deployed is the one that was tested.</q>
+        <span>A proof that two models are the same, without showing either.</span>
+        <span class="status">Tool: model equality in zero-knowledge · a project Berrang mentors</span>
+      </div></div>
+      <div class="tl-row hot"><div class="tl-when">Every request</div><div class="tl-b">
+        <q>This answer came from the declared model.</q>
+        <span><strong>Route A, recompute:</strong> an auditor re-runs a random sample of logged requests on its own copy and compares. Cheap. But the auditor must hold the weights, and the operator writes the log.</span>
+        <span><strong>Route B, prove:</strong> the operator attaches a proof to the answer. The checker needs only a fingerprint of the weights, never the weights.</span>
+        <span class="status">Tool for route B: Berrang's zk-inference-prover</span>
+      </div></div>
+      <div class="tl-row"><div class="tl-when">For all behaviour</div><div class="tl-b">
+        <q>This system can never break this rule.</q>
+        <span>A statement about every possible run, where the other three are about one test or one answer. It is the furthest from practice.</span>
+        <span class="status">Tool: zero-knowledge model checking · the paper this page explains</span>
+      </div></div>
+    </div>
+
+    <h3>Route B in practice: buying through a reseller</h3>
+    <p>Take the buyer again. You call a reseller's API and pay for a large model. This is how a proof would travel, and what happens when the model is swapped.</p>
+    <figure class="fig" id="figRelay">
+      <div class="fig-head">
+        <span class="eyebrow">Try it · follow one request</span>
+        <div class="seg" role="group" aria-label="What the reseller does">
+          <button type="button" id="rlHonest" data-relay="honest" aria-pressed="true">You get the real model</button>
+          <button type="button" id="rlSwap" data-relay="swap" aria-pressed="false">A cheaper model is swapped in</button>
+        </div>
+      </div>
+      <div class="relay">
+        <div class="step" id="rl1"><span class="eyebrow">1 · Model owner</span><span class="step-t"></span></div>
+        <div class="step" id="rl2"><span class="eyebrow">2 · Whoever runs the model</span><span class="step-t"></span></div>
+        <div class="step" id="rl3"><span class="eyebrow">3 · Reseller</span><span class="step-t"></span></div>
+        <div class="step" id="rl4"><span class="eyebrow">4 · You</span><span class="step-t"></span></div>
+      </div>
+      <div class="controls"><button type="button" class="btn primary" id="btnRelay">Send a request</button></div>
+      <div class="log" id="logRelay" aria-live="polite">A "fingerprint" is a commitment to the model's weights, like a Merkle root. A proof for one fingerprint can only be built by running the weights behind it.</div>
+      <figcaption>For a closed model the reseller does not run anything. It forwards your request to the owner, so the owner would make the proof, and the possible cheat is routing you to a cheaper model. For an open model the hosting provider runs the weights and would make the proof.</figcaption>
+    </figure>
+
+    <h3>What is missing today</h3>
+    <p>The prototype cannot do the reseller case yet. Four gaps stand between it and that picture:</p>
+    <ul>
+      <li><strong>Models.</strong> It proves one open model, Llama-3.1-8B, in a fixed quantized form. No closed model is supported.</li>
+      <li><strong>Hiding.</strong> I found no zero-knowledge blinding in the prover code. An owner of secret weights would need it.</li>
+      <li><strong>Link to the API call.</strong> The repo's own gap document says a proof is not yet tied to what was served. It proves token ids, not the text you sent and received, and it names no request or time.</li>
+      <li><strong>Cost.</strong> Section 3 covers this.</li>
+    </ul>
+    <p class="note-line">On billing, which is my own reasoning and not a use SASH states: a proof makes the prompt tokens and output tokens public, so a buyer could count proved tokens and compare them with an invoice. It would not show the price is fair, and today nothing links a proof to an invoice.</p>
+
+    <h3>Is every prompt really proved?</h3>
+    <p>It can be, one request at a time. The open question is cost, and measuring that cost is what the prover repo is for. On one H100 it proves about 1.25 token positions per second, roughly $0.73 per 1,000 positions. SASH's own notes put that between about 30 and 1,000 times slower than plain serving, depending on how much of the request is prompt.</p>
+    <p>SASH's own job posting says a verifier does not need every answer proved. Checking a random sample of about 300 outputs is enough for 95% confidence that 99% of the compute is used legitimately. So the realistic picture is a proof for a sample of requests, not for each one.</p>
+
+    <h3>Why not simply look inside?</h3>
+    <p>Every row above runs into the same wall. The weights, or the design, are the owner's secret. That leaves three options.</p>
+    <div class="options">
+      <div class="opt o1"><span class="tag">Open the box</span><span>Hand over the weights or the design. The checker can re-run everything. The secret is gone. Route A needs this.</span></div>
+      <div class="opt o2"><span class="tag">Say "trust us"</span><span>Keep everything private. The checker has only the owner's word.</span></div>
+      <div class="opt o3"><span class="tag">Seal the proof</span><span>Keep everything private and hand over a proof that anyone can check. This is where zero-knowledge comes in.</span></div>
+    </div>
+    <p>The next section looks at what proving costs. After that, the page takes the hardest claim, the last row: a rule that holds on every run. Proving that needs <strong>formal verification</strong>, which produces the proof, and <strong>zero-knowledge</strong>, which lets someone check it without seeing the machine. You already know the second. The next section gives you the first.</p>
+  </section>
+
+  <section id="cost">
+    <span class="eyebrow">3 · The cost</span>
+    <h2>Why proving is slow: everything has to be written down</h2>
+    <h3>First, how a model is run</h3>
+    <p>A language model produces one token at a time. Each step reads every token so far, gives a score to every word in its vocabulary (128,256 words for Llama 3), and one is chosen. The chosen token is added to the text and the step repeats. Step through one:</p>
+    <figure class="fig" id="figTok">
+      <div class="fig-head"><span class="eyebrow">Try it · one token at a time</span><div class="controls"><button type="button" class="btn primary" id="btnTokNext">Next token</button><button type="button" class="btn quiet" id="btnTokReset">Reset</button></div></div>
+      <div class="tokline" id="tokLine" aria-live="polite"></div>
+      <div class="cands">
+        <div class="cands-h" id="candsH">Press "Next token" to run one step.</div>
+        <div class="cands-bars" id="candsBars"></div>
+      </div>
+      <figcaption>The scores are made up for the example. Greedy decoding always takes the top one, and that is the rule the prover proves (its argmax gadget binds each token to the scores of the step before). A provider that samples from the scores could pick a lower one, which the proof does not cover yet.</figcaption>
+    </figure>
+    <p>Two phases matter for cost. The prompt is read in <strong>one parallel pass</strong>, called prefill: the GPU handles all 4,096 prompt tokens at once. Then each new token needs <strong>its own pass</strong>, called decode, which reuses a cache of what the earlier tokens computed. That is why serving is very fast on prompts and slower on generation.</p>
+    <p>The repos run the model in two ways, and the prover is a third:</p>
+    <ul>
+      <li><strong>HF Transformers</strong> is the Hugging Face library most research code uses: a plain PyTorch loop, easy to read and change. The harness uses it to run the model in fixed arithmetic and dump every intermediate value, which is the material the proof is built from.</li>
+      <li><strong>vLLM</strong> is a serving engine. It batches many requests, pages the cache, and fuses GPU kernels. It is what a provider runs, and it is the "plain serving" the prover is compared with.</li>
+      <li><strong>The prover</strong> pays the same for every position, prompt or generated, because every position's intermediate values must be written down and committed.</li>
+    </ul>
+    <figure class="fig" id="figLanes">
+      <div class="fig-head"><span class="eyebrow">Try it · the same request three ways</span><div class="controls"><button type="button" class="btn primary" id="btnLanes">Play</button></div></div>
+      <div class="lanes" id="lanes"></div>
+      <figcaption>Eight prompt cells and four generated cells stand for a 4,096-token prompt and 512 generated tokens. The speeds are only in the right order, not to scale: at the real ratios the prover's row would take hours.</figcaption>
+    </figure>
+
+    <h3>Where the time goes</h3>
+    <p>The natural guess is that the STARK or the Merkle trees are the slow part. The measurements say otherwise. Formal verification is not involved at all: the inference prover contains none.</p>
+    <figure class="fig" id="figCost">
+      <div class="fig-head"><span class="eyebrow">Where proving time goes · 748 seconds for one block of 512 tokens</span></div>
+      <div class="bars">
+        <div class="bar-row" tabindex="0"><span class="bar-label">Lookup columns and their running sums</span><span class="bar-track"><span class="bar-fill" style="width:100%"></span></span><span class="bar-val">313 s · 42%</span><span class="bar-tip">For every rounding, range check and table lookup, the prover builds extra columns (LogUp) and runs the five GKR reductions over them.</span></div>
+        <div class="bar-row" tabindex="0"><span class="bar-label">Base trace</span><span class="bar-track"><span class="bar-fill" style="width:84.6%"></span></span><span class="bar-val">265 s · 35%</span><span class="bar-tip">Laying out every intermediate value of the model as columns of field elements.</span></div>
+        <div class="bar-row" tabindex="0"><span class="bar-label">Loading the dumped values and building the segment</span><span class="bar-track"><span class="bar-fill" style="width:28.2%"></span></span><span class="bar-val">88 s · 12%</span><span class="bar-tip">Reading the witness dump from disk, decoding and checking it, and building the arrays a segment is made of.</span></div>
+        <div class="bar-row" tabindex="0"><span class="bar-label">Other host work</span><span class="bar-track"><span class="bar-fill" style="width:15.3%"></span></span><span class="bar-val">48 s · 6%</span><span class="bar-tip">Session setup, the host side of commit calls, writing the proof out, and loop overhead.</span></div>
+        <div class="bar-row hl" tabindex="0"><span class="bar-label">The STARK itself: Merkle commitment, constraints, FRI</span><span class="bar-track"><span class="bar-fill" style="width:10.9%"></span></span><span class="bar-val">34 s · 5%</span><span class="bar-tip">The proof system's own commitment path and prove call. This is the part most people expect to be slow.</span></div>
+      </div>
+      <details class="tableview"><summary>Show as a table</summary>
+        <div class="scroll-x"><table>
+          <thead><tr><th>Phase</th><th>Seconds</th><th>Share</th></tr></thead>
+          <tbody>
+            <tr><td>Lookup columns and GKR</td><td>313.1</td><td>41.8%</td></tr>
+            <tr><td>Base trace</td><td>264.9</td><td>35.4%</td></tr>
+            <tr><td>Load and build the segment</td><td>88.2</td><td>11.8%</td></tr>
+            <tr><td>Other host work</td><td>47.9</td><td>6.4%</td></tr>
+            <tr><td>STARK: commit and prove</td><td>34.1</td><td>4.6%</td></tr>
+            <tr><td>Whole loop</td><td>748.2</td><td>100%</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <figcaption>Measured in the results repo: a serial loop over the 32 layer segments of one token block of Llama-3.1-8B, at a 4,096-token context, on one H100. I grouped its twelve phases into five. Hover or focus a bar for what the phase does.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>The STARK is under 5%.</strong> Merkle trees and FRI are already fast on a GPU, which commits about 2 billion field elements per second.</li>
+      <li><strong>It used to be the bottleneck.</strong> With constraint evaluation left on the CPU, the same sample spends 3,984 seconds in the proof system. With generated GPU kernels it spends 34. That optimisation is done.</li>
+      <li><strong>What is left is preparing the data.</strong> Building the trace and the lookup columns is 77% of the time, and part of it still runs on the CPU. The prover's issue list names this as its ceiling.</li>
+    </ul>
+
+    <h3>The root cause</h3>
+    <p>Normal inference does the arithmetic and throws the intermediate values away. A proof has to write every one of them down as a field element, plus extra columns for each rounding, range check and table lookup. That comes to about <strong>79 million numbers for one token position</strong>. Attention makes it grow with context: about 105 million per position at 16,384 tokens.</p>
+
+    <h3>Why the gap is a range and not one number</h3>
+    <div class="scroll-x">
+    <table>
+      <thead><tr><th>On one H100, same request</th><th>Token positions per second</th></tr></thead>
+      <tbody>
+        <tr><td>Plain serving, prompt tokens</td><td>about 42,000</td></tr>
+        <tr><td>Plain serving, generated tokens</td><td>about 150</td></tr>
+        <tr><td>Plain serving, whole request</td><td>about 1,340</td></tr>
+        <tr><td>Proving, any token</td><td>1.25</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Proving costs the same for every position. Serving does not, because a GPU reads all the prompt tokens in one parallel pass and then generates one token at a time. So a request that is mostly prompt looks far worse than one that is mostly generation. For this request, a 4,096-token prompt with 512 generated tokens, the measured gap is about 1,070 times.</p>
+
+    <h3>How much faster could it get?</h3>
+    <p>The repo carries two projections for this request, which takes 61 minutes to prove today:</p>
+    <ul>
+      <li><strong>About 30 minutes</strong> if the phases still on the CPU gain what the already-moved phases measured.</li>
+      <li><strong>About 12 minutes</strong> if all remaining CPU work became 8 times faster. Nothing has measured that factor; the repo labels it an assumption.</li>
+    </ul>
+    <p class="note-line">My arithmetic on top: even at 12 minutes, proving this request would still be roughly 200 times slower than serving it. Past that point the STARK itself, about 5 minutes for this request, becomes the floor.</p>
+  </section>
+
+  <section id="verify">
+    <span class="eyebrow">4 · Formal verification as a black box</span>
+    <h2>Two things go in, a verdict with evidence comes out</h2>
+    <p>Take a controller whose design is secret, and a rule it must never break. Skip the theory for now and treat formal verification as a box.</p>
+    <div class="flow" role="img" aria-label="A machine and a rule go into the verifier. It returns either yes with a certificate, or no with the run that breaks the rule.">
+      <div class="col">
+        <div class="chip"><b>Input 1</b>A machine: states, and arrows between them</div>
+        <div class="chip"><b>Input 2</b>A rule: "never wait forever"</div>
+      </div>
+      <div class="arrow"><svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><path d="M0 7h22M17 2l6 5-6 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div>
+      <div class="box">Verifier<small>checks every run</small></div>
+      <div class="arrow"><svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><path d="M0 7h22M17 2l6 5-6 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div>
+      <div class="col">
+        <div class="chip yes"><b>Yes</b>and here is a certificate you can check yourself</div>
+        <div class="chip no"><b>No</b>and here is the exact run that breaks the rule</div>
+      </div>
+    </div>
+    <p>The important word is <strong>every</strong>. Testing tries some runs. Verification covers all of them, including runs nobody thought to try. The figure below shows the difference. It is a simplified version of the paper's own example: a TCP-style handshake that sends <code>syn</code>, waits for <code>synack</code>, and retries up to three times.</p>
+
+    <figure class="fig" id="fig1">
+      <div class="fig-head">
+        <span class="eyebrow">Try it · testing against proving</span>
+        <div class="seg" role="group" aria-label="Which design">
+          <button type="button" id="d1ok" data-design="ok" aria-pressed="true">Correct design</button>
+          <button type="button" id="d1bug" data-design="bug" aria-pressed="false">Design with a bug</button>
+        </div>
+      </div>
+      <div class="scroll-x">
+        <svg id="fig1svg" viewBox="0 0 760 275" role="img" aria-label="State machine: Closed, then Try 1, Try 2, Try 3. Each try can reach Connected. After Try 3 the correct design gives up; the buggy design goes back to Try 1.">
+          <defs>
+            <marker id="mk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="m0" d="M0 0L10 5L0 10z"/></marker>
+            <marker id="mk-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="m1" d="M0 0L10 5L0 10z"/></marker>
+            <marker id="mk-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse"><path class="m2" d="M0 0L10 5L0 10z"/></marker>
+          </defs>
+
+          <path id="e_c_t1" class="edge" d="M102 92L165 92"/><text class="lbl" x="134" y="84" text-anchor="middle">syn</text>
+          <path id="e_t1_t2" class="edge" d="M260 92L323 92"/><text class="lbl" x="292" y="84" text-anchor="middle">timeout</text>
+          <path id="e_t2_t3" class="edge" d="M418 92L481 92"/><text class="lbl" x="450" y="84" text-anchor="middle">timeout</text>
+          <g id="g_ok"><path id="e_t3_g" class="edge" d="M576 92L651 92"/><text class="lbl" x="614" y="84" text-anchor="middle">timeout</text></g>
+          <g id="g_bug" hidden><path id="e_t3_t1" class="edge" d="M530 70C530 12 214 12 214 67"/><text class="lbl" x="372" y="20" text-anchor="middle">timeout: retry from the start</text></g>
+          <path id="e_t1_c" class="edge" d="M214 114L330 212"/><text class="lbl" x="258" y="172" text-anchor="end">synack</text>
+          <path id="e_t2_c" class="edge" d="M372 114L372 212"/><text class="lbl" x="380" y="172">synack</text>
+          <path id="e_t3_c" class="edge" d="M530 114L414 212"/><text class="lbl" x="486" y="172">synack</text>
+
+          <g class="node" id="n_closed"><rect x="10" y="70" width="92" height="44" rx="5"/><text x="56" y="97" text-anchor="middle">Closed</text><g class="badge"><circle cx="100" cy="72" r="12"/><text x="100" y="76" text-anchor="middle">4</text></g></g>
+          <g class="node" id="n_t1"><rect x="168" y="70" width="92" height="44" rx="5"/><text x="214" y="97" text-anchor="middle">Try 1</text><g class="badge"><circle cx="258" cy="72" r="12"/><text x="258" y="76" text-anchor="middle">3</text></g></g>
+          <g class="node" id="n_t2"><rect x="326" y="70" width="92" height="44" rx="5"/><text x="372" y="97" text-anchor="middle">Try 2</text><g class="badge"><circle cx="416" cy="72" r="12"/><text x="416" y="76" text-anchor="middle">2</text></g></g>
+          <g class="node" id="n_t3"><rect x="484" y="70" width="92" height="44" rx="5"/><text x="530" y="97" text-anchor="middle">Try 3</text><g class="badge"><circle cx="574" cy="72" r="12"/><text x="574" y="76" text-anchor="middle">1</text></g></g>
+          <g class="node" id="n_gave"><rect x="654" y="70" width="96" height="44" rx="5"/><text x="702" y="97" text-anchor="middle">Gave up</text><g class="badge"><circle cx="748" cy="72" r="12"/><text x="748" y="76" text-anchor="middle">0</text></g></g>
+          <g class="node" id="n_conn"><rect x="302" y="215" width="140" height="44" rx="5"/><text x="372" y="242" text-anchor="middle">Connected</text><g class="badge"><circle cx="440" cy="217" r="12"/><text x="440" y="221" text-anchor="middle">0</text></g></g>
+
+          <circle id="tok" class="tok" r="8" cx="56" cy="92" hidden/>
+        </svg>
+      </div>
+      <div class="controls">
+        <button type="button" class="btn" id="btnTests">Run 200 random tests</button>
+        <button type="button" class="btn primary" id="btnCheck">Check the countdown</button>
+        <button type="button" class="btn" id="btnMissed" hidden>Show the run the tests missed</button>
+      </div>
+      <div class="log" id="log1" aria-live="polite">Rule to check: the machine never waits forever. Run the tests first, then check the countdown. Then switch to the design with a bug and do both again.</div>
+      <figcaption>Simplified from Figure 2 of the paper. The real example also has a delay timer inside each try, and its countdown is <code>513 − 256·done + delay</code>.</figcaption>
+    </figure>
+
+    <h3>What you just saw</h3>
+    <ul>
+      <li><strong>Tests sample runs.</strong> The buggy design passes 200 out of 200, because in a random test the reply usually arrives. The one run that matters, where the reply never arrives, goes on forever and so never reports anything.</li>
+      <li><strong>The countdown covers all runs at once.</strong> Give every state a number. If every arrow leads to a smaller number, no run can go on forever, because a whole number cannot keep dropping below zero.</li>
+      <li><strong>That numbering is the certificate.</strong> The paper calls it a ranking function. Finding one can be hard. Checking one is easy: look at each arrow once.</li>
+    </ul>
+    <p class="callout">Hard to find and easy to check: that is the same shape as a witness in a ZK proof. This is why the two fields fit together.</p>
+
+    <h3>The paper's words, translated</h3>
+    <div class="scroll-x">
+    <table>
+      <thead><tr><th>The paper says</th><th>In this page</th></tr></thead>
+      <tbody>
+        <tr><td>Transition system <code>M</code></td><td>The machine: states and arrows</td></tr>
+        <tr><td>LTL specification <code>φ</code></td><td>The rule, written in a logic that can say "always" and "eventually"</td></tr>
+        <tr><td>Büchi automaton</td><td>The rule turned into a small watcher machine that looks for a violation</td></tr>
+        <tr><td>Ranking function <code>V</code></td><td>The countdown numbers</td></tr>
+        <tr><td>Fair transition</td><td>An arrow on which the number must strictly drop</td></tr>
+        <tr><td>Model checking, <code>M ⊨ φ</code></td><td>"Every run of machine M obeys rule φ"</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="sealed">
+    <span class="eyebrow">5 · The paper's main move</span>
+    <h2>Checking the countdown needs the arrows, and the arrows are the secret</h2>
+    <p>To check a countdown you look at every arrow. The regulator can see the <span class="public">numbers</span>. It cannot see the <span class="secret">arrows</span>. The paper turns the question around:</p>
+    <ol>
+      <li>The numbers are public. From them, anyone can list every arrow that <em>would</em> break the rule: every pair of states where the number fails to drop. Call this the forbidden list.</li>
+      <li>The owner commits to its real arrows with a hiding commitment.</li>
+      <li>The owner proves one statement: <strong>none of my committed arrows is on the forbidden list.</strong></li>
+    </ol>
+    <p>In your vocabulary: RLN proves "my key <em>is</em> in the membership set". This proves "none of my arrows is in the forbidden set". It is a non-membership proof over a hidden set.</p>
+
+    <figure class="fig" id="fig2">
+      <div class="fig-head">
+        <span class="eyebrow">Try it · the sealed check</span>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Owner's machine">
+            <button type="button" id="d2ok" data-d2="ok" aria-pressed="true">Correct</button>
+            <button type="button" id="d2bug" data-d2="bug" aria-pressed="false">Has the bug</button>
+          </div>
+          <div class="seg" role="group" aria-label="Whose view">
+            <button type="button" id="v2c" data-view="checker" aria-pressed="true">Checker's view</button>
+            <button type="button" id="v2o" data-view="owner" aria-pressed="false">Owner's view</button>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-x"><div class="grid2" id="grid2" role="img" aria-label="Grid of every possible arrow, from row state to column state."></div></div>
+      <div class="legend">
+        <span><i class="l-forb"></i>forbidden: number would not drop (public)</span>
+        <span><i class="l-seal"></i>sealed: checker cannot see inside</span>
+        <span><i class="l-has"></i>a real arrow (owner only)</span>
+        <span><i class="l-zero"></i>proven empty</span>
+      </div>
+      <div class="controls"><button type="button" class="btn primary" id="btnProof">Check the sealed proof</button></div>
+      <div class="log" id="log2" aria-live="polite">Each cell is one possible arrow, from the row state to the column state. The blue numbers are the public countdown. The checker sees which cells are forbidden and nothing else.</div>
+      <figcaption>Simplified: the paper pairs each state with a state of the watcher machine and treats initial states the same way. I folded both away.</figcaption>
+    </figure>
+
+    <h3>Under the hood, in terms you know</h3>
+    <p>The arrows are encoded as a polynomial that equals 1 at every real arrow and 0 at every other pair of states. One batched KZG opening shows that this committed polynomial is zero at every forbidden point. The proof is <strong>two group elements</strong>, whatever the size of the machine. The prover's work grows with the square of the number of states, so this version reaches about 4,000 states (2<sup>12</sup>) inside the paper's two-hour limit.</p>
+    <p class="note-line">One honest weakness, which the paper names itself: the public numbers hint at the shape of the secret machine. In the grid above, the checker learns that no arrow sits in a hatched cell. How much a public certificate leaks is listed as an open problem.</p>
+  </section>
+
+  <section id="big">
+    <span class="eyebrow">6 · The second scheme</span>
+    <h2>When the machine is too big to draw</h2>
+    <p>Real systems are written as rules, and a dozen rules can stand for millions of states. For example: <em>if waiting and delay ≥ 1, then delay goes down by 1.</em> The secret is now the numbers inside the rules, written as matrices.</p>
+    <p>The countdown check turns into statements of this kind: <em>there is no state where this rule fires and the number fails to drop.</em> Each one says that a group of linear inequalities has no solution. That sounds like checking every state. An old result called <strong>Farkas' lemma</strong> avoids it: when inequalities contradict each other, there is a recipe of multipliers that adds them up into something plainly false.</p>
+    <figure class="fig">
+      <span class="eyebrow" style="color:var(--accent)">Worked example · no x can satisfy both</span>
+      <div class="farkas">
+        <span>x ≤ 1</span><span class="mul">× 1</span>
+        <span>−x ≤ −3 &nbsp;(that is, x ≥ 3)</span><span class="mul">× 1</span>
+        <span class="sum">0 ≤ −2 &nbsp; which is false, so no such x exists</span>
+      </div>
+      <figcaption>The multipliers (1, 1) are the witness. "No solution exists for any x" has become "I know two numbers".</figcaption>
+    </figure>
+    <p>So each check becomes a normal ZK statement: <em>I know multipliers that make these committed matrices add up to a contradiction.</em> The paper proves it with Pedersen commitments, matrix-product proofs and range proofs. A real protocol produces thousands of checks with the same shape, so they are <strong>folded</strong> into one, in the spirit of Nova.</p>
+    <figure class="fig">
+      <div class="fig-head">
+        <span class="eyebrow">Try it · folding</span>
+        <button type="button" class="btn" id="btnFold">Fold 2,847 checks into one</button>
+      </div>
+      <div class="foldwrap" id="foldwrap"><div class="foldgrid" id="foldgrid" aria-hidden="true"></div><div class="foldone" aria-hidden="true">1</div></div>
+      <figcaption id="foldcap">Each square stands for about 60 checks. This is the paper's largest DHCP model: about two million states and 2,847 checks, proved in 25 minutes and verified in 3.</figcaption>
+    </figure>
+    <div class="scroll-x">
+    <table>
+      <thead><tr><th></th><th>Small machines ("explicit")</th><th>Large machines ("symbolic")</th></tr></thead>
+      <tbody>
+        <tr><td>What is secret</td><td>The arrows</td><td>The numbers in the rules</td></tr>
+        <tr><td>Cryptography</td><td>KZG, one batched opening</td><td>Pedersen, range proofs, folding</td></tr>
+        <tr><td>Proof size</td><td>2 group elements</td><td>Not constant (the paper notes a SNARK version would be)</td></tr>
+        <tr><td>Largest shown</td><td>About 2<sup>12</sup> states</td><td>About 2<sup>21</sup> states</td></tr>
+        <tr><td>Limit</td><td>Prover work grows with states²</td><td>Rules must be linear inequalities over integers</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note-line">The benchmarks are small protocol models: the handshake, DHCP and a round-robin scheduler. The code is public and its README says "academic implementation, not production ready".</p>
+  </section>
+
+  <section id="goal">
+    <span class="eyebrow">7 · The bigger picture</span>
+    <h2>What Berrang is trying to do</h2>
+    <p>This section is my reading of the public record. I could not find one sentence where he states it himself, so treat the framing as mine.</p>
+    <p class="callout">One goal: let an outsider check a claim about an AI system while the owner keeps the system private. His projects differ in which claim they prove.</p>
+    <div class="ladder">
+      <div class="rung"><div class="n">1</div><div class="b">
+        <q>This answer came from that model.</q>
+        <span>The <strong>zk-inference-prover</strong> at SASH. A STARK proof that a committed, quantized Llama-3.1-8B produced these tokens. Measured at about 1.25 token positions per second on one H100, roughly $0.73 per 1,000 positions.</span>
+        <span class="status">Measurement prototype · public repo · every commit is his</span>
+      </div></div>
+      <div class="rung"><div class="n">2</div><div class="b">
+        <q>This is the same model that was evaluated.</q>
+        <span><strong>Proving Model Equality in Zero-Knowledge</strong>, a project he mentors through SPAR. A regulator confirms that the deployed model matches the reference one without seeing weights or architecture.</span>
+        <span class="status">Mentored research project · SPAR</span>
+      </div></div>
+      <div class="rung"><div class="n">3</div><div class="b">
+        <q>This system obeys this rule on every run.</q>
+        <span><strong>Zero-Knowledge Model Checking</strong>, the paper above, with Mirco Giacobbe, Jacob Swales and Xiao Yang.</span>
+        <span class="status">Paper · arXiv 2605.00487 · academic prototype</span>
+      </div></div>
+    </div>
+    <p>From top to bottom the claims get stronger. The first is about one answer. The last is about all possible behaviour.</p>
+    <h3>Where he sits</h3>
+    <ul>
+      <li><strong>University of Birmingham.</strong> Associate Professor in Computer Security. His earlier work was on privacy attacks against ML models (membership inference, ML-Leaks).</li>
+      <li><strong>Zeroth Research.</strong> Co-founder. His co-author Mirco Giacobbe is its CEO. It builds formal methods and cryptographic verification tools for AI.</li>
+      <li><strong>Funding named in the paper.</strong> ARIA's Safeguarded AI programme and an Amazon Research Award.</li>
+      <li><strong>SASH.</strong> An independent nonprofit, and no regulator. Its About page names him as the lead of its technical AI verification work. Its other public repos take the routes from section 2: re-running inference to compare, and hardware attestation for evaluations. Zero-knowledge is one route among several there, and the prover is his.</li>
+    </ul>
+  </section>
+
+  <section id="kind">
+    <span class="eyebrow">8 · What kind of work</span>
+    <h2>Research or optimisation? Both, on different projects</h2>
+    <div class="two">
+      <div>
+        <h3><span>The paper</span>A new idea at toy scale</h3>
+        <p>It is the first scheme of its kind. The open questions it names:</p>
+        <ul>
+          <li>What a public rule and a public certificate leak about the secret machine.</li>
+          <li>What it means for security to commit before or after the proof.</li>
+          <li>Probabilistic and continuous systems, which are closer to real AI and robotics and need new cryptographic routines.</li>
+          <li>Other folding designs, and a Groth16 or PlonK version with constant-size proofs and a slower prover.</li>
+        </ul>
+      </div>
+      <div>
+        <h3><span>The inference prover</span>Engineering and measurement</h3>
+        <p>The idea is fixed. The work is making it sound, auditable, broader and faster. From its open issues:</p>
+        <ul>
+          <li>Split the circuit into small gadgets that can be audited and tested one at a time (#28 and its sub-issues).</li>
+          <li>Support a second architecture. Qwen cannot be proved today because of a missing bias term (#27, #10).</li>
+          <li>Move the rest of witness generation onto the GPU. The STARK itself is under 5% of proving time, as section 3 shows (#2).</li>
+          <li>Tests that try to cheat the verifier (#3, #5).</li>
+          <li>Memory at long context (#7, #12), and a 70B campaign in the results repo.</li>
+        </ul>
+      </div>
+    </div>
+    <h3>Where it is probably heading</h3>
+    <p>This is inference from the issue lists and the paper's conclusion. I have no inside knowledge of his plans.</p>
+    <ul>
+      <li><strong>Prover:</strong> bigger models, more architectures, and closing the gap between what is proved (greedy decoding of one request) and what a provider really serves (sampling, batching, chat templates).</li>
+      <li><strong>Model checker:</strong> richer kinds of systems. The GitHub organisation that hosts the prototype also hosts a repo named <code>neuralmc</code>, and the paper cites Giacobbe's "Neural model checking", where, as I understand it, a neural network plays the role of the countdown. Combining that with zero-knowledge would be a natural next step. That is a guess.</li>
+    </ul>
+  </section>
+
+  <section id="you">
+    <span class="eyebrow">9 · Before you write to him</span>
+    <h2>Where your background meets his work</h2>
+    <div class="fit">
+      <div><h3>Underconstrained circuits</h3><span>You wrote that a circuit can pass every test and still be underconstrained. The prover's gadget refactor is about exactly this: one row-level constraint test per gadget (#29) and negative controls (#3). Your Lean and Clean learning points the same way.</span></div>
+      <div><h3>Groth16 in production</h3><span>The paper says its core relation could run directly on Groth16 or PlonK. You have maintained a Groth16 system in a live network through RLN.</span></div>
+      <div><h3>Membership proofs</h3><span>RLN proves membership against an on-chain root. The explicit scheme proves non-membership with KZG. Same family, opposite direction.</span></div>
+      <div><h3>Benchmarks and CI</h3><span>The prover pins a proof digest on two backends before any merge. You added proving benchmarks and a daily end-to-end RLN test.</span></div>
+    </div>
+    <h3>Questions you could honestly ask</h3>
+    <ol>
+      <li>For the model checker, which open problem matters most to you now: what the public certificate leaks, or reaching probabilistic systems?</li>
+      <li>Would a Groth16 or PlonK version of the symbolic scheme be useful to anyone yet, or is prover time the only thing that matters at this stage?</li>
+      <li>In the inference prover, how do you gain confidence that a gadget is not underconstrained? Is formal verification of the gadgets themselves on the table?</li>
+      <li>Do you see the model checker and the inference prover meeting, for example a proof that a served model obeys a safety rule?</li>
+    </ol>
+    <p>Pick the one you most want answered. A short message with one real question does more than a summary of his own work.</p>
+  </section>
+
+  <section id="sources">
+    <span class="eyebrow">What this is based on</span>
+    <div class="sources">
+      <p><strong>Read in full:</strong> the paper (18 pages), both SASH repos and their open issues, and the README of the model-checking prototype. <strong>From the web:</strong> his title and bio, the SPAR project, Zeroth Research, SASH's site and its public course repo. SASH's job board gives the team description, the sampling argument and the launch date; "independent nonprofit" comes from a search result. <strong>Not verified:</strong> anything about his future plans or SASH's internal roadmap.</p>
+      <p style="margin-top:8px">
+        <a href="https://arxiv.org/abs/2605.00487">Paper on arXiv</a> ·
+        <a href="https://github.com/aiverification/zkmc">Prototype code</a> ·
+        <a href="https://github.com/sg-ai-safety-hub/zk-inference-prover">zk-inference-prover</a> ·
+        <a href="https://github.com/sg-ai-safety-hub/zk-inference-results">zk-inference-results</a> ·
+        <a href="https://sparai.org/projects/sp26/recsrRCjElTbmHHK6/">SPAR project and bio</a> ·
+        <a href="https://manifund.org/projects/formal-certification-technologies-for-ai-safety">Zeroth Research team</a> ·
+        <a href="https://www.aisafety.sg/about">SASH About page</a> ·
+        <a href="https://github.com/sg-ai-safety-hub/FAST">SASH course material</a> ·
+        <a href="https://jobs.ashbyhq.com/sash/8407d60d-ea29-4414-834a-998343af4863">SASH job posting</a>
+      </p>
+    </div>
+  </section>
+</main>
+
+<aside class="ask" id="ask" aria-label="Your notebook">
+  <span class="eyebrow">Your notebook</span>
+  <h2>Stuck on something?</h2>
+  <p>Write the confusing part here. Ask Claude for a plain answer, or save it as a note for later. Notes stay in this browser.</p>
+  <textarea id="askBox" placeholder="Example: why must the number drop only on some arrows?"></textarea>
+  <div class="chips" id="askChips">
+    <button type="button">What is a fair transition, with an example?</button>
+    <button type="button">Why can't random testing find the retry bug?</button>
+    <button type="button">Explain Farkas' lemma again with different numbers.</button>
+    <button type="button">How is this different from a zkVM proving a program ran?</button>
+  </div>
+  <div class="controls">
+    <button type="button" class="btn primary" id="askBtn">Ask Claude</button>
+    <button type="button" class="btn" id="noteBtn">Save as note</button>
+    <button type="button" class="btn" id="stopBtn" hidden>Stop</button>
+  </div>
+  <div id="askStatus" class="note-line" aria-live="polite">Asking uses your own Claude account. The first question asks for permission.</div>
+  <div class="notes" id="notes"></div>
+  <div class="controls">
+    <button type="button" class="btn quiet" id="copyBtn">Copy all notes</button>
+    <button type="button" class="btn quiet" id="clearBtn">Clear all</button>
+  </div>
+</aside>
+</div>
+<a class="jump" id="jump" href="#ask">Ask a question</a>
+
+<script>
+(function(){
+'use strict';
+var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+function $(s,r){return (r||document).querySelector(s);}
+function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
+function wait(ms){return new Promise(function(res){setTimeout(res,ms);});}
+
+/* ---------- Figure 0: same problem, three people ---------- */
+var WHO={
+  buyer:{you:'A company that buys AI answers through a reseller\'s API.',
+         told:'"You are getting the large model named on your invoice."',
+         look:'The model runs in their datacentre. You only ever see text come back.',
+         inside:['the model on the invoice','the same weights rounded to 4 bits','a smaller, cheaper model']},
+  safety:{you:'The team that tested a model before it was released.',
+          told:'"The model answering users is the one you tested."',
+          look:'You tested a file months ago. Production is another system, run by another team, under pressure to serve faster.',
+          inside:['the model you tested','a quantised copy swapped in for speed','the base model it was tuned from']},
+  treaty:{you:'An inspector for a country that signed an AI agreement.',
+          told:'"This datacentre runs only the system we declared."',
+          look:'The other side will not give a foreign inspector its weights, and you cannot walk into the server hall.',
+          inside:['the declared system','a modified copy of it','a different model entirely']}
+};
+var whoTimer=null;
+function setWho(k){
+  var w=WHO[k];
+  $('#scnYou').textContent=w.you; $('#scnTold').textContent=w.told; $('#scnLook').textContent=w.look;
+  var box=$('#scnInside'); box.textContent='';
+  w.inside.forEach(function(s,i){var sp=document.createElement('span');sp.textContent=s;if(i===0)sp.className='on';box.appendChild(sp);});
+  $$('#figWho [data-who]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.who===k));});
+  if(whoTimer) clearInterval(whoTimer);
+  if(!reduce){var n=0;whoTimer=setInterval(function(){n=(n+1)%3;$$('span',box).forEach(function(sp,i){sp.className=i===n?'on':'';});},1300);}
+}
+$$('#figWho [data-who]').forEach(function(b){b.addEventListener('click',function(){setWho(b.dataset.who);});});
+setWho('buyer');
+
+/* ---------- Figure: one token at a time ---------- */
+var TOK_PROMPT=['Zero','-','knowledge',' proofs',' let',' you'];
+var TOK_STEPS=[
+  {tok:' prove',cands:[[' prove',.46],[' show',.31],[' verify',.12]]},
+  {tok:' something',cands:[[' something',.38],[' a',.27],[' that',.16]]},
+  {tok:' without',cands:[[' without',.71],[' while',.14],[' and',.06]]},
+  {tok:' revealing',cands:[[' revealing',.64],[' showing',.22],[' giving',.05]]},
+  {tok:' it',cands:[[' it',.44],[' the',.29],[' your',.13]]},
+  {tok:'.',cands:[['.',.58],[' to',.17],[',',.11]]}
+];
+var tokN=0, tokLine=$('#tokLine'), candsH=$('#candsH'), candsBars=$('#candsBars');
+function tokRender(){
+  tokLine.textContent='';
+  TOK_PROMPT.forEach(function(s){var e=document.createElement('span');e.textContent=s;tokLine.appendChild(e);});
+  for(var i=0;i<tokN;i++){var g=document.createElement('span');g.className='gen'+(i===tokN-1?' new':'');g.textContent=TOK_STEPS[i].tok;tokLine.appendChild(g);}
+  var c=document.createElement('span');c.className='cursor';c.textContent=tokN<TOK_STEPS.length?'▍':'';tokLine.appendChild(c);
+  candsBars.textContent='';
+  if(tokN===0){candsH.textContent='Press "Next token" to run one step.';$('#btnTokNext').disabled=false;return;}
+  var st=TOK_STEPS[tokN-1], read=TOK_PROMPT.length+tokN-1;
+  candsH.textContent='Step '+tokN+': the model read all '+read+' tokens so far and scored every word in its vocabulary. The top three, and the one greedy decoding takes:';
+  st.cands.forEach(function(cd,i){
+    var row=document.createElement('div');row.className='cand'+(i===0?' top':'');
+    var l=document.createElement('span');l.className='cl';l.textContent='"'+cd[0]+'"';
+    var tr=document.createElement('span');tr.className='ct';var f=document.createElement('span');f.className='cf';f.style.width=Math.round(cd[1]/st.cands[0][1]*100)+'%';tr.appendChild(f);
+    var v=document.createElement('span');v.className='cv';v.textContent=Math.round(cd[1]*100)+'%';
+    row.appendChild(l);row.appendChild(tr);row.appendChild(v);candsBars.appendChild(row);
+  });
+  if(tokN>=TOK_STEPS.length){candsH.textContent+=' That was the last step of this example.';$('#btnTokNext').disabled=true;}
+}
+$('#btnTokNext').addEventListener('click',function(){if(tokN<TOK_STEPS.length){tokN++;tokRender();}});
+$('#btnTokReset').addEventListener('click',function(){tokN=0;tokRender();});
+tokRender();
+
+/* ---------- Figure: the same request three ways ---------- */
+var LANES=[
+  {id:'hf',label:'HF Transformers',sub:'one request, plain PyTorch',prefill:500,decode:900,faint:0,
+   done:'measured: about 33,000 prompt and 57 generated tokens per second'},
+  {id:'vllm',label:'vLLM',sub:'serving engine, many requests at once',prefill:250,decode:350,faint:3,
+   done:'measured: about 42,000 prompt and 153 generated tokens per second'},
+  {id:'zk',label:'The prover',sub:'every position written down',prefill:0,decode:1400,faint:0,
+   done:'measured: 1.25 positions per second, prompt or generated alike'}
+];
+var NP=8, NG=4, lanesEl=$('#lanes'), laneSeq=0, laneEls={};
+function buildLanes(){
+  LANES.forEach(function(L){
+    var lane=document.createElement('div');lane.className='lane';lane.id='lane_'+L.id;
+    var l=document.createElement('div');l.className='lane-l';l.textContent=L.label;var sm=document.createElement('small');sm.textContent=L.sub;l.appendChild(sm);
+    var r=document.createElement('div');r.className='lane-r';
+    var tr=document.createElement('div');tr.className='track';
+    var cells=[];
+    for(var i=0;i<NP+NG;i++){ if(i===NP){var gp=document.createElement('i');gp.className='gap';tr.appendChild(gp);} var c=document.createElement('i');if(i>=NP)c.className='g';tr.appendChild(c);cells.push(c);}
+    r.appendChild(tr);
+    var faints=[];
+    for(var f=0;f<L.faint;f++){var ft=document.createElement('div');ft.className='track faint';var fc=[];for(var k=0;k<NP+NG;k++){if(k===NP){var g2=document.createElement('i');g2.className='gap';ft.appendChild(g2);}var e=document.createElement('i');ft.appendChild(e);fc.push(e);}faints.push(fc);r.appendChild(ft);}
+    var s=document.createElement('div');s.className='lane-s';s.textContent=L.id==='zk'?'numbers written down: 0':'';r.appendChild(s);
+    lane.appendChild(l);lane.appendChild(r);lanesEl.appendChild(lane);
+    laneEls[L.id]={lane:lane,cells:cells,faints:faints,status:s};
+  });
+}
+function laneReset(){
+  Object.keys(laneEls).forEach(function(k){var e=laneEls[k];e.lane.classList.remove('done');e.cells.forEach(function(c){c.classList.remove('on');});e.faints.forEach(function(fc){fc.forEach(function(c){c.classList.remove('on');});});e.status.textContent=k==='zk'?'numbers written down: 0':'';});
+}
+function laneFinish(L){
+  var e=laneEls[L.id];e.cells.forEach(function(c){c.classList.add('on');});e.faints.forEach(function(fc){fc.forEach(function(c){c.classList.add('on');});});
+  e.lane.classList.add('done');e.status.textContent=L.done;
+}
+function lanesPlay(){
+  var my=++laneSeq; laneReset(); $('#btnLanes').disabled=true;
+  if(reduce){LANES.forEach(laneFinish);$('#btnLanes').disabled=false;return;}
+  var longest=0;
+  LANES.forEach(function(L){
+    var e=laneEls[L.id], t=0;
+    if(L.id==='zk'){
+      for(var i=0;i<NP+NG;i++){(function(i,at){setTimeout(function(){if(my!==laneSeq)return;e.cells[i].classList.add('on');e.status.textContent='numbers written down: '+((i+1)*79)+' million… ('+(i<NP?'prompt':'generated')+' position '+(i+1)+')';},at);})(i,t);t+=L.decode;}
+    }else{
+      t=L.prefill;
+      (function(at){setTimeout(function(){if(my!==laneSeq)return;for(var i=0;i<NP;i++){e.cells[i].classList.add('on');}e.faints.forEach(function(fc){for(var i=0;i<NP;i++)fc[i].classList.add('on');});e.status.textContent='prefill: all prompt tokens in one pass';},at);})(t);
+      for(var j=0;j<NG;j++){t+=L.decode;(function(j,at){setTimeout(function(){if(my!==laneSeq)return;e.cells[NP+j].classList.add('on');e.faints.forEach(function(fc){fc[NP+j].classList.add('on');});e.status.textContent='decode: generated token '+(j+1)+' of '+NG+(L.faint?', for '+(L.faint+1)+' requests at once':'');},at);})(j,t);}
+    }
+    t+=400;
+    (function(at){setTimeout(function(){if(my!==laneSeq)return;laneFinish(L);},at);})(t);
+    if(t>longest) longest=t;
+  });
+  setTimeout(function(){if(my===laneSeq)$('#btnLanes').disabled=false;},longest+50);
+}
+buildLanes();
+$('#btnLanes').addEventListener('click',lanesPlay);
+
+/* ---------- Figure: one request through a reseller ---------- */
+var RELAY={
+  honest:['Published once: fingerprint A stands for the large model.',
+          'Runs the large model on your prompt and builds a proof tied to fingerprint A.',
+          'Passes the answer and the proof to you. It cannot change either.',
+          'Checks the proof against fingerprint A.'],
+  swap:['Published once: fingerprint A stands for the large model.',
+        'Runs a cheaper model instead. Any proof it can build is tied to that model\'s fingerprint, B.',
+        'Passes the answer along with a proof for B, or with no proof at all.',
+        'Checks against fingerprint A, the model on the invoice.']
+};
+var relayMode='honest', relaySeq=0, logRelay=$('#logRelay');
+var relaySteps=['#rl1','#rl2','#rl3','#rl4'].map(function(s){return $(s);});
+function relayReset(){
+  relaySeq++;
+  relaySteps.forEach(function(el,i){el.className='step';$('.step-t',el).textContent=RELAY[relayMode][i];});
+  $$('#figRelay [data-relay]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.relay===relayMode));});
+}
+function relayVerdict(){
+  var good=relayMode==='honest';
+  relaySteps.forEach(function(el){el.className='step';});
+  relaySteps[3].className='step '+(good?'ok':'fail');
+  if(!good) relaySteps[1].className='step fail';
+  logRelay.className='log '+(good?'good':'bad');
+  logRelay.textContent=good
+    ? 'Accepted. The proof matches fingerprint A, so the answer came from the model you pay for. You never saw the weights.'
+    : 'Rejected. No valid proof for fingerprint A arrived, because nobody ran the weights behind A. You know the answer did not come from the model you pay for.';
+}
+function relayRun(){
+  var my=++relaySeq;
+  relaySteps.forEach(function(el){el.className='step';});
+  logRelay.className='log'; logRelay.textContent='Request on its way…';
+  if(reduce){relayVerdict();return;}
+  relaySteps.forEach(function(el,i){
+    setTimeout(function(){ if(my!==relaySeq) return; relaySteps.forEach(function(e){e.className='step';}); el.className='step on'; }, i*750);
+  });
+  setTimeout(function(){ if(my===relaySeq) relayVerdict(); }, 4*750);
+}
+$$('#figRelay [data-relay]').forEach(function(b){b.addEventListener('click',function(){
+  relayMode=b.dataset.relay; relayReset();
+  logRelay.className='log';
+  logRelay.textContent=relayMode==='honest'?'The request is served by the model you pay for. Press "Send a request".':'Somewhere on the way, a cheaper model answers instead. Press "Send a request" and watch step 4.';
+});});
+$('#btnRelay').addEventListener('click',relayRun);
+relayReset();
+
+/* ---------- Figure 1: testing against proving ---------- */
+var RANK={closed:4,t1:3,t2:2,t3:1,gave:0,conn:0};
+var EDGE={e_c_t1:['closed','t1'],e_t1_t2:['t1','t2'],e_t2_t3:['t2','t3'],e_t3_g:['t3','gave'],e_t3_t1:['t3','t1'],e_t1_c:['t1','conn'],e_t2_c:['t2','conn'],e_t3_c:['t3','conn']};
+var design='ok', runId=0;
+var svg1=$('#fig1svg'), tok=$('#tok'), log1=$('#log1');
+var btnTests=$('#btnTests'), btnCheck=$('#btnCheck'), btnMissed=$('#btnMissed');
+
+function activeEdges(){return Object.keys(EDGE).filter(function(id){return design==='ok'?id!=='e_t3_t1':id!=='e_t3_g';});}
+function say1(text,tone){log1.textContent=text;log1.className='log'+(tone?' '+tone:'');}
+function busy1(b){btnTests.disabled=b;btnMissed.disabled=b;}
+function clearCheck(){
+  svg1.classList.remove('ranked');
+  Object.keys(EDGE).forEach(function(id){document.getElementById(id).classList.remove('good','bad');});
+  $('#g_bug').classList.remove('flag');
+}
+function setDesign(d){
+  design=d; runId++; busy1(false); clearCheck();
+  $('#g_ok').toggleAttribute('hidden',d!=='ok');
+  $('#g_bug').toggleAttribute('hidden',d!=='bug');
+  $('#n_gave').classList.toggle('dim',d==='bug');
+  $$('#fig1 [data-design]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.design===d));});
+  tok.setAttribute('hidden',''); btnMissed.hidden=true;
+  say1(d==='ok'
+    ? 'Correct design: after the third timeout the machine gives up. Run the tests, then check the countdown.'
+    : 'Design with a bug: after the third timeout the machine starts again from Try 1. Run the tests and see if they notice.');
+}
+function simulate(noReply){
+  var p=['e_c_t1'], at='t1', steps=0;
+  while(steps++<30){
+    if(!noReply && Math.random()<0.65){p.push('e_'+at+'_c');return {path:p,end:'conn'};}
+    if(at==='t1'){p.push('e_t1_t2');at='t2';}
+    else if(at==='t2'){p.push('e_t2_t3');at='t3';}
+    else if(design==='ok'){p.push('e_t3_g');return {path:p,end:'gave'};}
+    else{p.push('e_t3_t1');at='t1';}
+  }
+  return {path:p,end:'loop'};
+}
+function animate(path,ms){
+  var my=runId; tok.removeAttribute('hidden');
+  return new Promise(function(res){
+    var i=0;
+    function nextEdge(){
+      if(my!==runId) return res(false);
+      if(i>=path.length) return res(true);
+      var el=document.getElementById(path[i++]), len=el.getTotalLength();
+      if(reduce){var e=el.getPointAtLength(len);tok.setAttribute('cx',e.x);tok.setAttribute('cy',e.y);return nextEdge();}
+      var t0=performance.now();
+      function step(now){
+        if(my!==runId) return res(false);
+        var k=Math.min(1,Math.max(0,(now-t0)/ms)), pt=el.getPointAtLength(len*k);
+        tok.setAttribute('cx',pt.x);tok.setAttribute('cy',pt.y);
+        if(k<1) requestAnimationFrame(step); else nextEdge();
+      }
+      requestAnimationFrame(step);
+    }
+    nextEdge();
+  });
+}
+async function runTests(){
+  var my=++runId; clearCheck(); busy1(true); btnMissed.hidden=true;
+  var conn=0,gave=0;
+  for(var k=0;k<3;k++){
+    var r=simulate(false);
+    say1('Test '+(k+1)+' of 200 is running…');
+    var ok=await animate(r.path,300);
+    if(!ok||my!==runId) return;
+    if(r.end==='gave') gave++; else conn++;
+    await wait(reduce?0:260);
+    if(my!==runId) return;
+  }
+  for(var j=3;j<200;j++){var s=simulate(false); if(s.end==='gave') gave++; else conn++;}
+  busy1(false);
+  if(design==='ok'){
+    say1('200 random tests, 200 finished: '+conn+' connected, '+gave+' gave up cleanly. Good evidence, but it is still only 200 runs out of all possible ones.');
+  }else{
+    say1('200 random tests, 200 finished: all '+conn+' connected. Bugs found: 0. This design does have a bug. Press "Check the countdown".','bad');
+    btnMissed.hidden=false;
+  }
+}
+function checkCountdown(){
+  runId++; busy1(false); tok.setAttribute('hidden',''); clearCheck();
+  svg1.classList.add('ranked');
+  var bad=0;
+  activeEdges().forEach(function(id){
+    var a=EDGE[id][0], b=EDGE[id][1], good=RANK[b]<RANK[a];
+    document.getElementById(id).classList.add(good?'good':'bad');
+    if(!good) bad++;
+  });
+  if(bad){
+    $('#g_bug').classList.add('flag');
+    say1('Rejected. The red arrow goes from 1 up to 3. No other numbering can save it: the loop Try 1, Try 2, Try 3, Try 1 would need a number that is smaller than itself. The checker also gets the failing run for free.','bad');
+    btnMissed.hidden=false;
+  }else{
+    say1('Proven. Every arrow leads to a smaller number, and a number cannot drop forever. This covers every run, including the ones no test tried. The six numbers are the whole certificate.','good');
+  }
+}
+async function showMissed(){
+  var my=++runId; busy1(true);
+  say1('The listener never answers…');
+  var loop=['e_t1_t2','e_t2_t3','e_t3_t1'];
+  var ok=await animate(['e_c_t1'].concat(loop,loop,loop),240);
+  if(!ok||my!==runId) return;
+  busy1(false);
+  say1('…Try 1, Try 2, Try 3, back to Try 1, forever. A test only reports when a run ends. This run never ends, so no test can report it.','bad');
+}
+$$('#fig1 [data-design]').forEach(function(b){b.addEventListener('click',function(){setDesign(b.dataset.design);});});
+btnTests.addEventListener('click',runTests);
+btnCheck.addEventListener('click',checkCountdown);
+btnMissed.addEventListener('click',showMissed);
+
+/* ---------- Figure 2: the sealed check ---------- */
+var S=['Closed','Try 1','Try 2','Try 3','Gave up','Connected'], SH=['Cl','T1','T2','T3','Gu','Co'], R=[4,3,2,1,0,0];
+var ARR={ok:[[0,1],[1,2],[2,3],[3,4],[1,5],[2,5],[3,5]],bug:[[0,1],[1,2],[2,3],[3,1],[1,5],[2,5],[3,5]]};
+var d2='ok', view='checker', seq=0, cells=[];
+var grid2=$('#grid2'), log2=$('#log2');
+function say2(text,tone){log2.textContent=text;log2.className='log'+(tone?' '+tone:'');}
+function mk(cls,html){var d=document.createElement('div');d.className=cls;d.innerHTML=html;return d;}
+(function build(){
+  grid2.appendChild(mk('h','to →'));
+  for(var c=0;c<6;c++) grid2.appendChild(mk('h','<span>'+SH[c]+'<span class="rk">'+R[c]+'</span></span>'));
+  for(var f=0;f<6;f++){
+    grid2.appendChild(mk('h rh','<span>'+S[f]+'<span class="rk">'+R[f]+'</span></span>'));
+    for(var t=0;t<6;t++){
+      var el=mk('cell','');
+      grid2.appendChild(el);
+      cells.push({el:el,f:f,t:t,forb:R[t]>=R[f]});
+    }
+  }
+})();
+function hasArrow(f,t){return ARR[d2].some(function(a){return a[0]===f&&a[1]===t;});}
+function renderGrid(){
+  cells.forEach(function(c){
+    var arrow=view==='owner'&&hasArrow(c.f,c.t);
+    c.el.className='cell'+(c.forb?' forb':'')+(arrow?(c.forb?' hit':' has'):'');
+    c.el.textContent=arrow?'→':(c.forb?'':(view==='owner'?'':'?'));
+  });
+  $$('#fig2 [data-d2]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.d2===d2));});
+  $$('#fig2 [data-view]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.view===view));});
+}
+function intro2(){
+  seq++; renderGrid();
+  var nForb=cells.filter(function(c){return c.forb;}).length;
+  if(view==='checker') say2('Checker\'s view: '+nForb+' of 36 cells are forbidden, worked out from the public numbers alone. The other '+(36-nForb)+' are sealed. Press the button to check the proof.');
+  else say2(d2==='ok'
+    ? 'Owner\'s view: seven real arrows, and every one sits in an allowed cell. A valid proof exists.'
+    : 'Owner\'s view: the retry arrow from Try 3 to Try 1 sits in a forbidden cell (red). No valid proof exists for this machine.', d2==='ok'?'':'bad');
+}
+function checkProof(){
+  var my=++seq; renderGrid();
+  var forb=cells.filter(function(c){return c.forb;});
+  var hit=ARR[d2].some(function(a){return R[a[1]]>=R[a[0]];});
+  if(hit){
+    say2('Rejected. The owner cannot build this proof: one forbidden cell holds an arrow, so the committed polynomial is not zero there and the opening fails. The checker learns only that the proof failed.','bad');
+    return;
+  }
+  say2('Checking that the committed polynomial is zero on every forbidden cell…');
+  forb.forEach(function(c,i){
+    setTimeout(function(){ if(my!==seq) return; c.el.classList.add('zero'); c.el.textContent='0'; }, reduce?0:i*45);
+  });
+  setTimeout(function(){
+    if(my!==seq) return;
+    say2('Accepted. All '+forb.length+' forbidden cells are provably empty, so every real arrow makes the number drop. The checker still does not know which of the other '+(36-forb.length)+' cells hold arrows.','good');
+  }, reduce?0:forb.length*45+120);
+}
+$$('#fig2 [data-d2]').forEach(function(b){b.addEventListener('click',function(){d2=b.dataset.d2;intro2();});});
+$$('#fig2 [data-view]').forEach(function(b){b.addEventListener('click',function(){view=b.dataset.view;intro2();});});
+$('#btnProof').addEventListener('click',checkProof);
+renderGrid();
+
+/* ---------- Figure 3: folding ---------- */
+var foldgrid=$('#foldgrid'), foldwrap=$('#foldwrap'), btnFold=$('#btnFold'), folded=false;
+for(var q=0;q<48;q++) foldgrid.appendChild(document.createElement('i'));
+btnFold.addEventListener('click',function(){
+  folded=!folded;
+  var w=foldwrap.getBoundingClientRect(), cx=w.left+w.width/2, cy=w.top+w.height/2;
+  $$('i',foldgrid).forEach(function(sq,i){
+    if(folded){
+      var r=sq.getBoundingClientRect();
+      sq.style.transitionDelay=(reduce?0:i*6)+'ms';
+      sq.style.transform='translate('+(cx-r.left-r.width/2)+'px,'+(cy-r.top-r.height/2)+'px) scale(.3)';
+    }else{sq.style.transitionDelay='0ms';sq.style.transform='';}
+  });
+  foldwrap.classList.toggle('folded',folded);
+  btnFold.textContent=folded?'Unfold':'Fold 2,847 checks into one';
+});
+
+/* ---------- Notebook ---------- */
+var KEY='berrang-primer-notes-v1';
+var BRIEF=[
+'PAGE NOTES (the only facts you may state about people and projects):',
+'- Paper: "Zero-Knowledge Model Checking" (arXiv 2605.00487) by Pascal Berrang, Mirco Giacobbe, Jacob Swales, Xiao Yang. University of Birmingham and Zeroth Research. Goal: prove a SECRET system satisfies a PUBLIC temporal-logic rule, without revealing the system.',
+'- Formal verification basics used: transition system (states, initial states, transitions; runs are infinite). LTL adds X next, F eventually, G always, U until. Safety = bad thing never happens; liveness = good thing eventually happens. The rule is negated and compiled to a Buchi automaton, which accepts a run if it takes "fair" (accepting) transitions infinitely often. System is correct iff system combined with the automaton for NOT-rule has no fair run.',
+'- Certificate = ranking function V on (system state, automaton state) pairs, values in naturals or infinity. Three conditions: finite on initial states; never increases along any transition; strictly decreases on fair transitions. Then no run can take fair transitions forever.',
+'- Running example: 3-way handshake with exponential backoff; rule "never wait forever" (not F G Wait); ranking function 513 - 256*done + delay while waiting. The page uses a simplified version with states Closed(4), Try1(3), Try2(2), Try3(1), Gave up(0), Connected(0), and a buggy variant where Try3 times out back to Try1.',
+'- Explicit scheme: state space, automaton and ranking function are public; initial states S0 and transitions T are secret. Both sides compute the "bad" sets of states/transitions that would violate the conditions. Prover commits with hiding KZG to indicator polynomials p_S0 and p_T (1 on members, 0 elsewhere) and proves with one batched opening that they vanish on the bad sets. Proof is two group elements; prover work quadratic in number of states; reaches about 2^12 states in 2 hours. Trusted setup needed.',
+'- Symbolic scheme: system is guarded commands with linear integer constraints (matrices A, b are secret); ranking function piecewise linear and public. Each condition becomes "this system of linear inequalities is infeasible". Farkas lemma: infeasible iff non-negative multipliers exist that combine the inequalities into a contradiction. Prover shows knowledge of bounded integer multipliers using two-tier Pedersen matrix commitments (pairing based), matrix-multiplication proofs, Bulletproofs range proofs, then a one-shot folding of all obligations. Largest benchmark: DHCP model with about 2^20.9 states and 2847 obligations, prover 25 min, verifier 3 min.',
+'- Limits named by the paper: public rule and certificate may leak information about the secret system; commitment timing; no probabilistic or continuous systems yet; alternative folding (Nova, ProtoGalaxy) and Groth16/PlonK instantiation are possible future directions. Prototype is Python plus Rust (arkworks), marked not production ready.',
+'- Other work by Berrang: zk-inference-prover at Singapore AI Safety Hub (SASH): a Circle STARK prover (stwo fork, M31 field, FRI, Blake2s, LogUp lookups, GKR, Freivalds checks for matrix multiplication) proving that a committed quantized Llama-3.1-8B produced given tokens with greedy decoding; about 1.25 positions/s on one H100; it is a validity proof, with no hiding of the witness found in the code. He also mentors a SPAR project "Proving Model Equality in Zero-Knowledge". He is Associate Professor in Computer Security at Birmingham and co-founder of Zeroth Research.',
+'- SASH (Singapore AI Safety Hub): an independent nonprofit launched in Singapore in early 2025; research and field-building; its technical verification team is led by Pascal Berrang; NOT a regulator and not a company selling a product. Its verification team builds prototype tools in public and shows them to policymakers. Stated aim: verify what happens inside datacentres running large AI models, to enable international agreements, protect middle-power sovereignty and support trustworthy AI adoption in high-stakes industries. Its About page names Pascal Berrang as lead of technical AI verification.',
+'- Who has the problem (from SASH course material): a buyer of inference checking they get the model they pay for and not a cheaper one behind the same API name; a safety team checking the model answering requests is the one that passed evaluations and not a quantised variant; a treaty inspector checking a signatory runs the system it declared.',
+'- When the check happens: before launch (evaluation result, checked with hardware enclave attestation receipts; SASH registry prototype); at launch (deployed model equals tested model; model equality proof); every request (answer came from declared model; either recompute a random sample, which is cheap but needs the weights and trusts the operator log, or attach a ZK proof, which needs only a commitment to the weights); all behaviour (ZK model checking). Proving cost today is roughly 30 to 1000 times plain serving depending on prompt share, and the SASH job posting says sampling about 300 outputs gives 95 percent confidence that 99 percent of compute is legitimate, so a sample of requests would be proved, not every request.',
+'- Roles: prover = whoever runs the model (lab or hosting provider); verifier = buyer, safety team, inspector or an appointed auditor; SASH = tool builder only, never inside the transaction. Reseller case: model owner publishes a commitment (fingerprint) to the weights; whoever runs the model builds a proof tied to that fingerprint; reseller passes answer plus proof; buyer checks against the fingerprint; a swapped cheaper model has a different fingerprint so the check fails. For a closed model the reseller only forwards requests, so the owner would make the proof. Not possible today: only Llama-3.1-8B in fixed quantized form, no hiding, no link between a proof and the served API call, and high cost.',
+'- Where proving time goes (measured, serial loop over 32 layer segments, 4096 context, one H100, 748 s): lookup (LogUp) columns plus GKR 42 percent; base trace generation 35 percent; loading the witness dump and building the segment 12 percent; other host work 6 percent; the STARK itself (Merkle commitment, constraints, FRI) under 5 percent. Formal verification is not part of the inference prover. With constraint evaluation on CPU the proof system took 3984 s for the same sample versus 34 s with GPU kernels. Root cause of cost: about 79 million field elements must be committed per token position (105 million at 16384 context). Plain serving on the same card: about 42000 prompt positions/s, 150 generated positions/s, 1340 for the whole request; proving 1.25 positions/s for any position; about 1070 times slower for a 4096-prompt plus 512-token request. Repo projections for that request: 61 min today, about 30 min using measured port speed-ups, about 12 min under an unmeasured 8x assumption.',
+'- How a model runs: one token per step; each step reads all tokens so far and scores the whole vocabulary (128,256 for Llama 3); greedy decoding takes the top score, sampling may not. Prefill reads the whole prompt in one parallel pass; decode produces one token per pass using a key/value cache. HF Transformers = the Hugging Face PyTorch library, slow and easy to modify; the harness uses it to run the model in fixed arithmetic and dump the witness. vLLM = a production serving engine with batching, paged KV cache and fused kernels; it is the unproved baseline (about 42,000 prompt and 153 generated tokens per second on one H100 for one request; HF about 33,000 and 57). The prover costs the same per position whether prompt or generated.',
+'- Unknown: his future plans, SASH internal roadmap.'
+].join('\n');
+var RULES='You are answering inside a study page. The reader knows zero-knowledge cryptography well (Groth16, KZG, Merkle trees, Pedersen commitments, RLN) and is new to formal verification. English is their second language. Answer the last message in plain text only, with no Markdown symbols, in short paragraphs of simple words, at most about 170 words unless they ask for more. For formal-verification ideas, start from a small concrete example. If they ask about Pascal Berrang\'s plans, or anything that is not in the notes and not standard textbook knowledge, say plainly that you do not know.\n\n'+BRIEF;
+
+var notes=[];
+try{var raw=localStorage.getItem(KEY); if(raw){var parsed=JSON.parse(raw); if(Array.isArray(parsed)) notes=parsed;}}catch(e){}
+var box=$('#askBox'), askBtn=$('#askBtn'), noteBtn=$('#noteBtn'), stopBtn=$('#stopBtn'), statusEl=$('#askStatus'), listEl=$('#notes');
+var samplePromise=(window.claude&&typeof window.claude.use==='function')?window.claude.use('sample'):Promise.resolve(null);
+var ctl=null, askOff=false;
+function status(t){statusEl.textContent=t||'';}
+function when(t){try{return new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+function renderNotes(){
+  listEl.textContent='';
+  if(!notes.length){var e=document.createElement('div');e.className='empty';e.textContent='Nothing saved yet. Your questions and answers will be listed here, newest first.';listEl.appendChild(e);return;}
+  notes.slice().reverse().forEach(function(n){
+    var item=document.createElement('div');item.className='n-item';
+    var qEl=document.createElement('div');qEl.className='n-q';qEl.textContent=n.q;item.appendChild(qEl);
+    if(n.a||n.pending){var aEl=document.createElement('div');aEl.className='n-a'+(n.a?'':' wait');aEl.textContent=n.a||'Thinking…';item.appendChild(aEl);n._el=aEl;}
+    var meta=document.createElement('div');meta.className='n-meta';
+    var left=document.createElement('span');left.textContent=(n.kind==='ask'&&n.a?'answered':'note')+' · '+when(n.t);
+    var del=document.createElement('button');del.type='button';del.textContent='remove';
+    del.addEventListener('click',function(){notes=notes.filter(function(x){return x!==n;});saveAll();renderNotes();});
+    meta.appendChild(left);meta.appendChild(del);item.appendChild(meta);
+    listEl.appendChild(item);
+  });
+}
+function strip(n){return {q:n.q,a:n.a||'',kind:n.kind,t:n.t};}
+function saveAll(){var keep=notes.map(strip);try{localStorage.setItem(KEY,JSON.stringify(keep));}catch(e){}}
+var COPY={not_granted:1,sampling_disabled:1,not_declared:1,capability_disabled:1,capability_removed:1};
+function errText(code){
+  if(COPY[code]) return 'Asking Claude is switched off for this page. Your question is saved as a note.';
+  if(code==='rate_limited') return 'Too many questions at once. Wait a minute, then ask again.';
+  if(code==='session_expired') return 'Sign in to Claude again, then ask.';
+  if(code==='refused') return 'Claude declined that question. Try wording it differently.';
+  if(code==='prompt_too_large') return 'That question is too long. Shorten it and ask again.';
+  return 'Something went wrong on the way. Your question is saved; try again.';
+}
+function addNote(){
+  var q=box.value.trim(); if(!q){status('Write something first.');return;}
+  notes.push({q:q,a:'',kind:'note',t:Date.now()}); saveAll(); box.value=''; renderNotes(); status('Saved as a note.');
+}
+async function ask(){
+  var q=box.value.trim(); if(!q){status('Write your question first.');return;}
+  var entry={q:q,a:'',kind:'ask',t:Date.now(),pending:true};
+  var history=notes.filter(function(n){return n.kind==='ask'&&n.a;}).slice(-3);
+  notes.push(entry); saveAll(); box.value=''; renderNotes();
+  askBtn.disabled=true; noteBtn.disabled=true; stopBtn.hidden=false; status('Thinking…');
+  ctl=new AbortController();
+  try{
+    var sample=await samplePromise;
+    if(!sample){entry.pending=false;entry.kind='note';askOff=true;status('Asking Claude is not available in this view. Your question is saved as a note; open this page in Claude to ask it.');return;}
+    var turns=[{role:'user',content:RULES}];
+    history.forEach(function(h){turns.push({role:'user',content:h.q});turns.push({role:'assistant',content:h.a});});
+    turns.push({role:'user',content:q});
+    var res=await sample(turns,{cache:false,signal:ctl.signal,onText:function(u){entry.a=u.text;if(entry._el){entry._el.className='n-a';entry._el.textContent=u.text;}}});
+    entry.a=res.text; status(res.truncated?'The answer was cut short. Ask for a smaller piece.':'');
+  }catch(e){
+    var code=e&&e.code;
+    if(code==='refused') entry.a=''; else if(e&&e.text) entry.a=e.text;
+    if(code==='cancelled') status('Stopped.'); else {status(errText(code)); if(COPY[code]) askOff=true;}
+    if(!entry.a) entry.kind='note';
+  }finally{
+    entry.pending=false; ctl=null; saveAll(); renderNotes();
+    askBtn.disabled=askOff; noteBtn.disabled=false; stopBtn.hidden=true;
+  }
+}
+askBtn.addEventListener('click',ask);
+noteBtn.addEventListener('click',addNote);
+stopBtn.addEventListener('click',function(){if(ctl) ctl.abort();});
+$$('#askChips button').forEach(function(b){b.addEventListener('click',function(){box.value=b.textContent;box.focus();});});
+$('#copyBtn').addEventListener('click',function(){
+  if(!notes.length){status('There is nothing to copy yet.');return;}
+  var text=notes.map(function(n){return 'Q: '+n.q+(n.a?'\nA: '+n.a:'');}).join('\n\n');
+  var done=function(){status('Copied '+notes.length+' item'+(notes.length===1?'':'s')+'.');};
+  var fail=function(){status('Copying is blocked here. Select the notes above and copy them by hand.');};
+  try{navigator.clipboard.writeText(text).then(done,fail);}catch(e){fail();}
+});
+var clearBtn=$('#clearBtn'), armed=null;
+clearBtn.addEventListener('click',function(){
+  if(!notes.length){status('There is nothing to clear.');return;}
+  if(armed){clearTimeout(armed);armed=null;notes=[];saveAll();renderNotes();clearBtn.textContent='Clear all';status('Cleared.');return;}
+  clearBtn.textContent='Press again to clear';
+  armed=setTimeout(function(){armed=null;clearBtn.textContent='Clear all';},4000);
+});
+renderNotes();
+
+/* hide the floating jump link while the notebook is on screen */
+var jump=$('#jump');
+if('IntersectionObserver' in window){
+  new IntersectionObserver(function(es){jump.style.visibility=es[0].isIntersecting?'hidden':'visible';},{threshold:0.05}).observe($('#ask'));
+}
+})();
+</script>
+</body>
+</html>
