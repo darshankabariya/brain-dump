@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Decode and Prove</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400&display=swap">
+<style>
+/* Layout: a desktop stepper. Left pane = the LLM, right pane = the prover, a
+   vertical stage spine between them, a ledger of trees / edges / log below.
+   Same palette as the other SASH study pages: amber = prover-chosen and
+   committed, teal = public or verifier-checked, plum = outside the statement. */
+:root{
+  --bg:#ffffff; --surface:#f6f7f9; --panel:#fbfbfc; --ink:#141d27; --muted:#566371; --line:#d6dce3;
+  --prover:#9a5b0a; --prover-soft:#f6e6cc;
+  --public:#0b6f66; --public-soft:#d3ebe7;
+  --gap:#7b2d76; --gap-soft:#f0dcee;
+  --accent:#27408b; --accent-soft:#dbe2f4; --on-accent:#ffffff;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --font-body:"Newsreader",Georgia,"Times New Roman",serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f151b; --surface:#171f28; --panel:#131a22; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+    --prover:#f0b45a; --prover-soft:#3a2a12;
+    --public:#58cfc0; --public-soft:#143531;
+    --gap:#dd9ad8; --gap-soft:#3a2238;
+    --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#171f28; --panel:#131a22; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+  --prover:#f0b45a; --prover-soft:#3a2a12;
+  --public:#58cfc0; --public-soft:#143531;
+  --gap:#dd9ad8; --gap-soft:#3a2238;
+  --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5}
+.app{max-width:1600px;margin-inline:auto;padding-inline:24px;padding-block:0 48px;display:flex;flex-direction:column;gap:16px}
+p,h1,h2,h3,ul,ol{margin:0}
+ul,ol{padding-left:1.2em}
+code,.mono{font-family:var(--font-mono);font-size:.84em}
+button{font-family:var(--font-mono);font-size:.76rem;letter-spacing:.03em;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px;border-radius:4px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+button.primary:hover{color:var(--on-accent);filter:brightness(1.08)}
+button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+.eyebrow{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;padding-block:12px}
+.brand{font-family:var(--font-display);font-weight:750;font-size:1.25rem;line-height:1.1;letter-spacing:-.01em;display:flex;flex-direction:column;gap:2px}
+.brand small{font-family:var(--font-mono);font-weight:400;font-size:.66rem;letter-spacing:.05em;color:var(--muted)}
+.examples{display:flex;gap:6px;flex-wrap:wrap}
+.examples button{font-family:var(--font-body);font-size:.92rem;letter-spacing:0}
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.controls label{font-family:var(--font-mono);font-size:.7rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.controls input[type=range]{width:90px;accent-color:var(--accent)}
+.pos{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);min-width:9ch;font-variant-numeric:tabular-nums}
+
+/* stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 210px minmax(0,1fr);gap:18px;align-items:stretch}
+.pane{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:18px 20px;display:flex;flex-direction:column;gap:14px;min-width:0;min-height:560px}
+.pane.left{border-top:4px solid var(--accent)}
+.pane.right{border-top:4px solid var(--prover)}
+.pane-h{display:flex;flex-direction:column;gap:4px}
+.pane-h h2{font-family:var(--font-display);font-weight:700;font-size:1.35rem;line-height:1.15;letter-spacing:-.01em;text-wrap:balance}
+.pane .text{font-size:1rem;line-height:1.5;display:flex;flex-direction:column;gap:8px}
+.pane .text b{font-weight:600}
+.viz{border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:180px;overflow-x:auto}
+.enter{animation:fade .35s ease-out}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* spine */
+.spine{display:flex;flex-direction:column;gap:3px;font-family:var(--font-mono);font-size:.68rem;padding-top:8px}
+.spine .s{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;align-items:center;padding:5px 8px;border-radius:3px;color:var(--muted);border-left:2px solid transparent}
+.spine .s i{display:block;width:10px;height:10px;border:1px solid var(--line);border-radius:50%;background:var(--bg)}
+.spine .s.done{color:var(--ink)} .spine .s.done i{background:var(--public);border-color:var(--public)}
+.spine .s.cur{color:var(--accent);background:var(--accent-soft);border-left-color:var(--accent)} .spine .s.cur i{background:var(--accent);border-color:var(--accent)}
+.spine .s.layerstep{padding-left:18px}
+.spine .grp{margin-top:8px;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-left:8px}
+
+/* token strip + gauge */
+.tokens{display:flex;flex-wrap:wrap;gap:4px;align-items:flex-end;min-height:3.4em}
+.tok{display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--font-mono);font-size:.8rem}
+.tok span{padding:4px 7px;border-radius:3px;border:1px solid var(--line);background:var(--bg);white-space:pre}
+.tok small{font-size:.6rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.tok.bos span{color:var(--muted);border-style:dashed}
+.tok.gen span{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.tok.cur span{outline:2px solid var(--accent);outline-offset:1px}
+.tok.pending span{opacity:.35;border-style:dashed}
+.gauge{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:.68rem;color:var(--muted)}
+.gauge .blocks{display:flex;gap:2px;flex:1 1 auto;min-width:0}
+.gauge .blocks i{display:block;flex:1 1 0;height:10px;border-radius:2px;background:var(--line);transition:background .25s}
+.gauge .blocks i.done{background:var(--public)}
+.gauge .blocks i.cur{background:var(--accent)}
+
+/* viz primitives */
+.vec{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.vec .lab{font-family:var(--font-mono);font-size:.66rem;color:var(--muted);min-width:7ch}
+.vec .c{font-family:var(--font-mono);font-size:.72rem;padding:5px 6px;border:1px solid var(--line);border-radius:3px;background:var(--bg);min-width:5.2ch;text-align:right;font-variant-numeric:tabular-nums}
+.vec .c.int{background:var(--prover-soft);border-color:var(--prover)}
+.vec .c.pub{background:var(--public-soft);border-color:var(--public)}
+.vec .more{font-family:var(--font-mono);font-size:.66rem;color:var(--muted);padding-left:4px}
+.arrow{font-family:var(--font-mono);color:var(--muted);font-size:.8rem;padding:0 4px}
+.formula{font-family:var(--font-mono);font-size:.78rem;line-height:1.6;color:var(--ink);white-space:pre-wrap}
+.formula b{color:var(--accent);font-weight:500}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;font-size:.9rem;align-items:baseline}
+.kv dt{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.kv dd{margin:0;min-width:0}
+.mats{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.mat{display:flex;flex-direction:column;gap:4px;align-items:center;font-family:var(--font-mono);font-size:.64rem;color:var(--muted)}
+.mat .box{border:1px solid var(--prover);background:var(--prover-soft);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--prover);font-weight:500;font-size:.72rem}
+.mat .box.pub{border-color:var(--public);background:var(--public-soft);color:var(--public)}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:120px minmax(0,1fr) 58px;gap:10px;align-items:center;font-family:var(--font-mono);font-size:.74rem}
+.bar .l{white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.bar .t{display:block;height:12px;background:var(--line);border-radius:2px;min-width:0;overflow:hidden}
+.bar .f{display:block;height:100%;width:0;background:var(--accent);border-radius:2px;transition:width .6s ease-out}
+.bar.top .f{background:var(--public)}
+.bar .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.bigtok{font-family:var(--font-display);font-weight:750;font-size:2.4rem;line-height:1;letter-spacing:-.02em;color:var(--accent);padding:6px 0}
+.bigtok small{display:block;font-family:var(--font-mono);font-weight:400;font-size:.68rem;letter-spacing:.06em;color:var(--muted);margin-top:8px}
+.prompttext{font-size:1.5rem;line-height:1.3;font-style:italic}
+.prompttext .g{color:var(--accent);font-style:normal;font-weight:600}
+.rmschart{display:flex;align-items:flex-end;gap:2px;height:110px;border-bottom:1px solid var(--line);padding-top:4px}
+.rmschart i{display:block;flex:1 1 0;min-height:2px;background:var(--line);border-radius:2px 2px 0 0;min-width:0;transition:height .5s ease-out,background .25s}
+.rmschart i.done{background:var(--public)} .rmschart i.cur{background:var(--accent)}
+.chartlab{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.62rem;color:var(--muted)}
+
+/* right-pane primitives */
+.gadget{border:1px solid var(--prover);border-radius:4px;background:var(--prover-soft);padding:12px 14px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;font-size:.9rem;align-items:baseline}
+.gadget dt{font-family:var(--font-mono);font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;color:var(--prover);white-space:nowrap}
+.gadget dd{margin:0;min-width:0}
+.gadget dd code{font-size:.78em}
+.gadget.none{border-color:var(--gap);background:var(--gap-soft)} .gadget.none dt{color:var(--gap)}
+.trees{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.tree{border:1px solid var(--line);border-radius:4px;padding:8px 9px;display:flex;flex-direction:column;gap:3px;font-family:var(--font-mono);font-size:.64rem;color:var(--muted);background:var(--bg);transition:border-color .3s,background .3s}
+.tree b{font-weight:500;color:var(--ink);font-size:.7rem}
+.tree .st{font-size:.6rem;letter-spacing:.05em;text-transform:uppercase}
+.tree.building{border-color:var(--prover);background:var(--prover-soft)} .tree.building .st{color:var(--prover)}
+.tree.committed{border-color:var(--public);background:var(--public-soft)} .tree.committed .st{color:var(--public)}
+.tree.pub b::after{content:" · public";color:var(--public);font-weight:400}
+.transcript{display:flex;flex-direction:column;gap:4px;font-family:var(--font-mono);font-size:.72rem}
+.transcript .r{display:grid;grid-template-columns:22px 150px minmax(0,1fr);gap:10px;padding:5px 8px;border-radius:3px;border:1px solid var(--line);background:var(--bg);opacity:.35;transform:translateX(-4px);transition:opacity .3s,transform .3s,border-color .3s}
+.transcript .r.lit{opacity:1;transform:none;border-color:var(--public)}
+.transcript .r .n{color:var(--muted)}
+.transcript .r .k{color:var(--ink);font-weight:500}
+.transcript .r .d{color:var(--muted)}
+.check{display:flex;flex-direction:column;gap:5px;font-family:var(--font-mono);font-size:.74rem}
+.check .c{display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:start}
+.check .c i{display:block;width:12px;height:12px;border-radius:50%;border:1px solid var(--line);margin-top:3px}
+.check .c.ok i{background:var(--public);border-color:var(--public)}
+.minigrid{display:grid;grid-template-columns:auto repeat(3,54px);gap:4px;font-family:var(--font-mono);font-size:.62rem;align-items:center}
+.minigrid .rl{color:var(--muted);text-align:right;padding-right:6px}
+.minigrid .cell{height:24px;border:1px solid var(--line);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--muted);background:var(--bg)}
+.minigrid .cell.l0{background:var(--prover-soft);border-color:var(--prover);color:var(--prover)}
+.minigrid .cell.hd{background:var(--public-soft);border-color:var(--public);color:var(--public)}
+
+/* ledger */
+.ledger{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px}
+.ledger>div{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.edges{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+.edge{border:1px solid var(--line);border-radius:3px;padding:6px 7px;font-family:var(--font-mono);font-size:.62rem;line-height:1.3;color:var(--muted);background:var(--bg);display:flex;flex-direction:column;gap:2px;transition:border-color .3s,background .3s}
+.edge b{font-weight:500;color:var(--ink);font-size:.68rem}
+.edge.bound{border-color:var(--public);background:var(--public-soft)} .edge.bound b{color:var(--public)}
+.edge.bound b::before{content:"✓ "}
+.log{font-family:var(--font-mono);font-size:.7rem;line-height:1.5;color:var(--muted);display:flex;flex-direction:column;gap:2px;min-height:6em}
+.log .l{display:grid;grid-template-columns:6ch minmax(0,1fr);gap:8px}
+.log .l .w{color:var(--accent)}
+.log .l.v .w{color:var(--public)}
+.log .l.p .w{color:var(--prover)}
+.log .l:last-child{color:var(--ink)}
+.foot{font-size:.84rem;color:var(--muted);line-height:1.5;display:flex;flex-direction:column;gap:6px;padding-top:6px}
+.foot a{color:var(--accent)}
+
+@media (max-width:1100px){
+  .stage{grid-template-columns:minmax(0,1fr)}
+  .spine{flex-direction:row;flex-wrap:wrap;gap:4px;order:-1}
+  .spine .s{grid-template-columns:auto;padding:4px 8px}
+  .spine .s i{display:none}
+  .spine .grp{display:none}
+  .spine .s.layerstep{padding-left:8px}
+  .pane{min-height:0}
+  .ledger{grid-template-columns:minmax(0,1fr)}
+  .edges{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .trees{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .bar .controls{margin-left:0}
+  .bar .l{width:80px}
+  .stage{gap:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">Decode and Prove<small>Llama-3.1-8B · y-delay-vw12 · zk-inference-prover · left: the model, right: the prover</small></div>
+    <div class="examples" id="examples"></div>
+    <div class="controls">
+      <button id="reset" title="Back to the start">⟲ Reset</button>
+      <button id="back" title="Previous step (←)">◀ Back</button>
+      <button id="step" class="primary" title="Next step (→)">Step ▶</button>
+      <button id="play" title="Auto-advance (space)">▶ Play</button>
+      <button id="stop" title="Stop and go back to the start">■ Stop</button>
+      <label for="speed">speed <input type="range" id="speed" min="1" max="5" value="3"></label>
+      <span class="pos" id="pos"></span>
+    </div>
+  </header>
+
+  <div class="stage">
+    <section class="pane left" aria-live="polite">
+      <div class="pane-h"><span class="eyebrow">What the LLM does</span><h2 id="l-title"></h2></div>
+      <div class="tokens" id="tokens"></div>
+      <div class="gauge"><span>layer</span><div class="blocks" id="gauge"></div><span id="gauge-l"></span></div>
+      <div class="viz" id="l-viz"></div>
+      <div class="text" id="l-text"></div>
+    </section>
+    <nav class="spine" id="spine" aria-label="stages"></nav>
+    <section class="pane right" aria-live="polite">
+      <div class="pane-h"><span class="eyebrow">What the prover does at this moment</span><h2 id="r-title"></h2></div>
+      <dl class="gadget" id="r-gadget"></dl>
+      <div class="trees" id="trees"></div>
+      <div class="viz" id="r-viz"></div>
+      <div class="text" id="r-text"></div>
+    </section>
+  </div>
+
+  <footer class="ledger">
+    <div>
+      <span class="eyebrow">The 16 edges of one layer segment (docs/statement.md) · bound so far</span>
+      <div class="edges" id="edges"></div>
+    </div>
+    <div>
+      <span class="eyebrow">Verifier-side log</span>
+      <div class="log" id="log"></div>
+    </div>
+  </footer>
+
+  <div class="foot">
+    <span><b>What is real here.</b> Token ids, top-5 logits, emitted tokens, per-layer residual magnitudes, attention rows and the layer-0 numbers come from running <code>unsloth/Llama-3.1-8B-Instruct</code> in bf16 on this Mac on 7 Oct 2026 (<span id="runmeta"></span>). The proved arithmetic is the int8/bf16 configuration y-delay-vw12, so the integers shown are the harness's rule applied to the bf16 values, not a witness dump. Prover-side numbers are the measured constants of zk-inference-results (c4096 headline run, one H100).</span>
+    <span><b>Keys.</b> ← → step · space play/pause · the three example buttons restart the walk with another prompt.</span>
+  </div>
+</div>
+
+<script>
+const RUNS = [{"text":"The capital of France is","ids":[128000,791,6864,315,9822,374],"pieces":["<|begin_of_text|>","The"," capital"," of"," France"," is"],"gen":[264,3363,315,30363],"gen_pieces":[" a"," city"," of"," romance"],"steps":[{"top5":[{"id":264,"piece":" a","logit":16.0},{"id":12366,"piece":" Paris","logit":15.938},{"id":3967,"piece":" known","logit":15.062},{"id":2162,"piece":" home","logit":14.875},{"id":279,"piece":" the","logit":14.312}],"argmax":264,"piece":" a","tie":false},{"top5":[{"id":3363,"piece":" city","logit":18.0},{"id":2011,"piece":" must","logit":16.5},{"id":6366,"piece":" beautiful","logit":16.0},{"id":2035,"piece":" place","logit":15.312},{"id":5526,"piece":" popular","logit":15.312}],"argmax":3363,"piece":" city","tie":false},{"top5":[{"id":315,"piece":" of","logit":18.875},{"id":430,"piece":" that","logit":18.625},{"id":1093,"piece":" like","logit":18.0},{"id":32366,"piece":" steep","logit":17.0},{"id":3967,"piece":" known","logit":16.5}],"argmax":315,"piece":" of","tie":false},{"top5":[{"id":30363,"piece":" romance","logit":15.688},{"id":6800,"piece":" grand","logit":15.438},{"id":13444,"piece":" beauty","logit":15.062},{"id":3021,"piece":" love","logit":14.75},{"id":2294,"piece":" great","logit":14.438}],"argmax":30363,"piece":" romance","tie":false}],"rms":[0.006,0.013,0.022,0.031,0.051,0.064,0.07,0.086,0.091,0.099,0.111,0.116,0.12,0.137,0.145,0.154,0.169,0.198,0.221,0.243,0.273,0.305,0.343,0.383,0.424,0.466,0.512,0.557,0.609,0.671,0.747,0.835,2.176],"emb8":[-0.0026,0.0008,0.0003,0.0039,-0.0053,-0.0033,-0.0009,0.0035],"attn":{"l0h0":[0.4629,0.2188,0.0859,0.1602,0.0459,0.0261],"l15h0":[0.2891,0.0304,0.1289,0.2754,0.1104,0.167],"l31h0":[0.2539,0.0083,0.0168,0.015,0.1953,0.5117]},"norm1":{"max_abs":4.0312,"s_x":0.03173828125,"h8":[-0.0171,0.0201,0.0152,0.0093,-0.3203,-0.0099,0.0,0.0022],"q8":[-1,1,0,0,-10,0,0,0]},"wq":{"s_w_ch0":0.00045,"w8":[11,-65,-14,-40,-7,59,-2,-5],"wfloat8":[0.00516,-0.0293,-0.00644,-0.01819,-0.00327,0.02637,-0.0007,-0.0023]},"meta":{"device":"mps","secs":28,"model":"unsloth/Llama-3.1-8B-Instruct"}},{"text":"2 + 2 =","ids":[128000,17,489,220,17,284],"pieces":["<|begin_of_text|>","2"," +"," ","2"," ="],"gen":[220,19,13,1115],"gen_pieces":[" ","4","."," This"],"steps":[{"top5":[{"id":220,"piece":" ","logit":14.125},{"id":18072,"piece":" ?\n","logit":12.75},{"id":949,"piece":" ?","logit":12.375},{"id":24688,"piece":" ?\n\n","logit":11.125},{"id":320,"piece":" (","logit":10.562}],"argmax":220,"piece":" ","tie":false},{"top5":[{"id":19,"piece":"4","logit":18.375},{"id":20,"piece":"5","logit":16.125},{"id":21,"piece":"6","logit":15.125},{"id":18,"piece":"3","logit":14.688},{"id":23,"piece":"8","logit":14.375}],"argmax":19,"piece":"4","tie":false},{"top5":[{"id":13,"piece":".","logit":11.688},{"id":320,"piece":" (","logit":11.5},{"id":11,"piece":",","logit":11.312},{"id":25,"piece":":","logit":10.812},{"id":198,"piece":"\n","logit":10.812}],"argmax":13,"piece":".","tie":false},{"top5":[{"id":1115,"piece":" This","logit":13.188},{"id":220,"piece":" ","logit":12.375},{"id":578,"piece":" The","logit":12.062},{"id":3011,"piece":" That","logit":12.062},{"id":1102,"piece":" It","logit":12.0}],"argmax":1115,"piece":" This","tie":false}],"rms":[0.007,0.015,0.024,0.041,0.05,0.06,0.077,0.086,0.098,0.107,0.112,0.117,0.118,0.132,0.143,0.152,0.168,0.194,0.205,0.23,0.255,0.269,0.295,0.317,0.351,0.377,0.418,0.464,0.503,0.553,0.61,0.692,2.12],"emb8":[0.0008,-0.008,-0.0001,0.006,0.0059,0.0044,-0.0015,0.0128],"attn":{"l0h0":[0.3867,0.0649,0.3301,0.1465,0.0205,0.0508],"l15h0":[0.5469,0.0342,0.1001,0.0505,0.126,0.1445],"l31h0":[0.3555,0.0138,0.0737,0.0146,0.2578,0.2832]},"norm1":{"max_abs":3.4531,"s_x":0.0272216796875,"h8":[0.0047,-0.1855,-0.0027,0.0127,0.3145,0.0117,0.0,0.0072],"q8":[0,-7,0,0,12,0,0,0]},"wq":{"s_w_ch0":0.00045,"w8":[11,-65,-14,-40,-7,59,-2,-5],"wfloat8":[0.00516,-0.0293,-0.00644,-0.01819,-0.00327,0.02637,-0.0007,-0.0023]}},{"text":"Roses are red, violets are","ids":[128000,49,20274,527,2579,11,348,822,10145,527],"pieces":["<|begin_of_text|>","R","oses"," are"," red",","," v","io","lets"," are"],"gen":[6437,11,323,279],"gen_pieces":[" blue",","," and"," the"],"steps":[{"top5":[{"id":6437,"piece":" blue","logit":20.5},{"id":25977,"piece":" purple","logit":15.75},{"id":6307,"piece":" green","logit":14.875},{"id":2288,"piece":" too","logit":14.812},{"id":80836,"piece":" violet","logit":14.5}],"argmax":6437,"piece":" blue","tie":false},{"top5":[{"id":11,"piece":",","logit":19.75},{"id":1131,"piece":"...","logit":16.625},{"id":345,"piece":",\n","logit":16.5},{"id":198,"piece":"\n","logit":15.938},{"id":13,"piece":".","logit":15.812}],"argmax":11,"piece":",","tie":false},{"top5":[{"id":323,"piece":" and","logit":12.5},{"id":719,"piece":" but","logit":11.312},{"id":358,"piece":" I","logit":10.75},{"id":420,"piece":" this","logit":9.562},{"id":279,"piece":" the","logit":9.438}],"argmax":323,"piece":" and","tie":false},{"top5":[{"id":279,"piece":" the","logit":10.375},{"id":420,"piece":" this","logit":10.188},{"id":1057,"piece":" our","logit":9.875},{"id":779,"piece":" so","logit":9.812},{"id":422,"piece":" if","logit":9.625}],"argmax":279,"piece":" the","tie":false}],"rms":[0.007,0.013,0.022,0.035,0.047,0.06,0.066,0.079,0.104,0.108,0.11,0.115,0.122,0.132,0.141,0.154,0.171,0.186,0.197,0.228,0.248,0.267,0.294,0.32,0.355,0.383,0.432,0.471,0.522,0.584,0.677,0.763,2.152],"emb8":[0.0043,-0.0005,0.0019,-0.0053,-0.0071,-0.0018,0.0013,0.006],"attn":{"l0h0":[0.2373,0.0242,0.0364,0.1396,0.0386,0.2773,0.1191,0.0544,0.0376,0.0364],"l15h0":[0.2715,0.0006,0.0215,0.0305,0.1138,0.0128,0.026,0.03,0.4609,0.033],"l31h0":[0.1953,0.0054,0.0806,0.1084,0.0742,0.0317,0.0095,0.0022,0.2109,0.2812]},"norm1":{"max_abs":3.8438,"s_x":0.0302734375,"h8":[0.0272,-0.012,0.103,-0.0121,-0.4121,-0.0052,-0.0,0.0036],"q8":[1,0,3,0,-14,0,0,0]},"wq":{"s_w_ch0":0.00045,"w8":[11,-65,-14,-40,-7,59,-2,-5],"wfloat8":[0.00516,-0.0293,-0.00644,-0.01819,-0.00327,0.02637,-0.0007,-0.0023]}}];
+const MODEL = {d:4096, L:32, nh:32, nkv:8, hd:128, ffn:14336, V:128256, theta:500000, eps:1e-5};
+const STAGES = [
+  ["Prompt",false],["Tokenise",false],["Embed",false],
+  ["norm 1",true],["requantise",true],["q k v matmul",true],["dequantise",true],["RoPE + quantise",true],["attention",true],["attention out",true],["o + residual",true],["MLP + residual",true],
+  ["Segment proof",false],["Layers 1 – 31",false],["Head",false],["Argmax",false],["Next tokens",false],["Verify the grid",false]
+];
+const EDGES = [
+  [1,"residual → norm 1"],[2,"norm 1 → q k v inputs"],[3,"q k v → attention"],[4,"attention itself"],
+  [5,"attn out → o input"],[6,"o out → add 1"],[7,"add 1 → norm 2"],[8,"norm 2 → gate up inputs"],
+  [9,"gate up → SwiGLU"],[10,"SwiGLU → down input"],[11,"down out → add 2"],[12,"matmul = Freivalds"],
+  [13,"residual → next layer"],[14,"K V → next block"],[15,"embedding row"],[16,"logits → token"]
+];
+const TREES = [["0","shape tree",true],["1","model tree",false],["2","base trace",false],["3","interaction",false],["4+","boundary",false]];
+
+const fmt = n => n.toLocaleString("en-US");
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const show = s => esc(s).replace(/ /g,"␣");
+function vec(label, vals, cls, more){
+  if(!vals) return `<div class="vec"><span class="lab">${label}</span><span class="more">n/a</span></div>`;
+  return `<div class="vec"><span class="lab">${label}</span>${vals.map(v=>`<span class="c ${cls||""}">${typeof v==="number"&&!Number.isInteger(v)?v.toFixed(3):v}</span>`).join("")}<span class="more">${more||""}</span></div>`;
+}
+function mat(name, r, c, note, pub){
+  const w = Math.max(44, Math.min(150, Math.round(Math.log2(c)*9))), h = Math.max(30, Math.min(150, Math.round(Math.log2(r)*9)));
+  return `<div class="mat"><div class="box ${pub?"pub":""}" style="width:${w}px;height:${h}px">${name}</div><span>${fmt(r)} × ${fmt(c)}</span><span>${note}</span></div>`;
+}
+function bars(rows, fmtv){
+  return `<div class="bars">${rows.map((r,i)=>`<div class="bar ${i===0?"top":""}"><span class="l">${show(r.label)}</span><span class="t"><span class="f" data-w="${(r.w*100).toFixed(1)}"></span></span><span class="v">${fmtv(r)}</span></div>`).join("")}</div>`;
+}
+function attnRows(ex, key){
+  const a = ex.attn && ex.attn[key]; if(!a) return null;
+  return ex.pieces.map((p,i)=>({label:p, w:a[i], p:a[i]})).sort((x,y)=>y.p-x.p);
+}
+function gadget(g){
+  if(!g) return `<dt>gadget</dt><dd>none. The prover has no role at this step.</dd>`;
+  let h = `<dt>gadget</dt><dd><b>${g.name}</b> · <code>${g.file}</code></dd>`;
+  if(g.edge) h += `<dt>edge</dt><dd>${g.edge}</dd>`;
+  if(g.commits) h += `<dt>commits</dt><dd>${g.commits}</dd>`;
+  if(g.pre) h += `<dt>preprocessed</dt><dd>${g.pre}</dd>`;
+  if(g.checks) h += `<dt>verifier checks</dt><dd>${g.checks}</dd>`;
+  if(g.cost) h += `<dt>cost</dt><dd>${g.cost}</dd>`;
+  return h;
+}
+const TR = [["0","shape tree","selectors, mask, tables, RoPE angles · verifier rebuilds it"],["1","model tree","int8 weights, scales, E, lm_head · publisher's root"],["2","base trace","every committed witness column"],["—","challenges","r, s, rv, z, α drawn from the roots"],["GKR","5 sumchecks","LogUp sums proved, not committed"],["3","interaction","what remains of the lookup columns"],["4+","boundary","residual in/out, K/V out · plain equality"],["STARK","OODS + FRI","100 queries, blowup 2 · ~65 MiB"]];
+function transcript(){ return `<div class="transcript">${TR.map((t,i)=>`<div class="r" data-i="${i}"><span class="n">${t[0]}</span><span class="k">${t[1]}</span><span class="d">${t[2]}</span></div>`).join("")}</div>`; }
+
+function buildSteps(ex){
+  const N = ex.ids.length, last = N-1, pos = N-1;
+  const st = (k) => (ex.steps && ex.steps[k]) || null;
+  const s0 = st(0);
+  const tie = s0 ? (s0.tie ? "yes" : "no") : "n/a";
+  const rms = ex.rms || [];
+  const n1 = ex.norm1 || {}, wq = ex.wq || {};
+  const topRows = (k) => { const s = st(k); if(!s) return null; const mx = s.top5[0].logit, mn = s.top5[4].logit; return s.top5.map(t=>({label:t.piece, w:Math.max(.06,(t.logit-mn+1.2)/(mx-mn+1.2)), logit:t.logit})); };
+  const S = [];
+  const push = o => S.push(o);
+
+  push({stage:0, layer:null, pos:null, gen:0,
+    l:{title:"The user types a prompt", viz:`<div class="prompttext">“${esc(ex.text)}”</div><dl class="kv"><dt>characters</dt><dd>${ex.text.length}</dd><dt>what the model will see</dt><dd>not this text. A list of integers.</dd></dl>`,
+       text:`<p>Nothing has been computed. The model never reads characters; the first thing that happens is a tokeniser turning this string into ids.</p>`},
+    r:{title:"Not involved yet", gadget:null, viz:`<div class="formula">statement so far:  (nothing)\n\nThe tokeniser and any chat template run <b>outside</b> every proof.\nThe verifier will never see this text, only the ids.</div>`,
+       text:`<p>This is the first row of the gap table in <code>docs/statement-gap.md</code>: both ends of a request, the text in and the text out, are outside the statement. A proof will say "these ids produce those ids under this model", nothing about words.</p>`},
+    trees:["idle","idle","idle","idle","idle"], edges:[], log:[]});
+
+  push({stage:1, layer:null, pos:null, gen:0,
+    l:{title:`Tokenise: ${N} ids`, viz:`<div class="tokens">${ex.ids.map((id,i)=>`<div class="tok ${i===0?"bos":""}"><span>${show(ex.pieces[i])}</span><small>${id}</small></div>`).join("")}</div><dl class="kv"><dt>vocabulary</dt><dd>${fmt(MODEL.V)} entries, byte-pair encoding</dd><dt>first id</dt><dd>128000 is the begin-of-text marker, added by the tokeniser</dd></dl>`,
+       text:`<p>Each piece becomes one integer. From here on the model works only on these ${N} integers and their order. The prompt occupies positions 0 to ${last}.</p>`},
+    r:{title:"The ids become the public input", gadget:{name:"the statement's public input", file:"prover/src/compose.rs · Fixed", commits:"layer 0 will commit <code>tok_in</code> (the ids) in the base trace, before any challenge is drawn", checks:"<code>boundary-grid --verify --prompt</code> compares every committed prompt id against this list"},
+       viz:`<div class="formula">public input = [${ex.ids.join(", ")}]\n\nverifier is handed:  these ids · the model root · the per-layer calibration\nverifier is NOT handed: weights, activations, the text</div>`,
+       text:`<p>Everything the verifier will ever learn hangs off these integers. The prover cannot change them later: they are committed in a tree whose root is hashed into the transcript before any randomness exists.</p>`},
+    trees:["idle","idle","building","idle","idle"], edges:[], log:[["in",`public input: ${N} prompt ids`]]});
+
+  push({stage:2, layer:0, pos, gen:0,
+    l:{title:"Embedding lookup: one row of E per id", viz:`<div class="mats">${mat("E", MODEL.V, MODEL.d, "bf16 table, 525M entries", true)}<span class="arrow">row ${ex.ids[last]} →</span></div>${vec("x["+pos+"]", ex.emb8, "", "… 4,088 more · bf16")}<dl class="kv"><dt>residual stream</dt><dd>${N} positions × ${fmt(MODEL.d)} channels. This vector is what every layer will read and add to.</dd></dl>`,
+       text:`<p>The id selects row ${ex.ids[last]} of a ${fmt(MODEL.V)} × ${fmt(MODEL.d)} table. No arithmetic yet, just a lookup. The result for the last token, <code>${show(ex.pieces[last])}</code>, is shown.</p>`},
+    r:{title:"Edge 15: the embedding gadget binds the row to the id", gadget:{name:"embed", file:"prover/src/gadgets/embed/", edge:"15 · embedding row into the first segment's residual stream", commits:"the ids, and the residual-stream input as (sign·significand, exponent) pairs", pre:"the whole embedding matrix E, V × d = 525M cells, in the model tree (tree 1)", checks:"a LogUp scan over the entire table proves <code>bin[t][c] == E[tok[t]][c]</code> for every position and channel; the Horner claim over the stream must equal the layer's stream-in claim", cost:"preprocessed V·d; fresh ≈ 5·V·d / pe cells per block (one multiplicity cell and one LogUp column per table row)"},
+       viz:`<div class="formula">for every position t, channel c:\n    <b>bin[t][c] == E[tok[t]][c]</b>\n\nwhy a scan of all 128,256 rows?  selecting one row by a committed index\nwith no positional opening costs one pass over the table; a cheaper digest\nwould have to be challenge-dependent, and a challenge-dependent value\ncannot be committed before the challenge that binds it.</div>`,
+       text:`<p>Only a layer-0 segment carries this gadget. Without it the first segment's residual input would be an unchecked value the prover could choose; the record used to call that "bin is the embedding's output, unchecked".</p>`},
+    trees:["building","building","building","idle","idle"], edges:[15], log:[["L0",`embed: tok_in committed; E in tree 1`],["v","edge 15 bound (embedding row)"]]});
+
+  push({stage:3, layer:0, pos, gen:0,
+    l:{title:"Layer 0 · RMSNorm 1", viz:`<div class="formula">ms = mean( bf16(x_i²) )      balanced tree of bf16 adds over 4,096 channels\nr  = rsqrt( ms + 1e-5 )     one bf16 unary op\nh  = bf16( bf16(x·r) · w )  w is the learned norm gain</div><dl class="kv"><dt>rms of x at layer 0 input</dt><dd class="mono">${rms[0]??"n/a"}</dd><dt>channels</dt><dd>${fmt(MODEL.d)}</dd></dl>`,
+       text:`<p>Every value between ops is a bf16 pattern, so each op is a correctly rounded bf16 op. The reduction over 4,096 squares is a balanced binary tree, which is what makes it provable as a chain of small adds.</p>`},
+    r:{title:"Edge 1: the norm reads the committed residual, not a copy", gadget:{name:"residual_stream (gn1, gn1b)", file:"prover/src/gadgets/residual_stream/", edge:"1 · residual stream into the first norm's reduction", commits:"the residual stream as (sm, ef) pairs; every intermediate bf16 of the tree sum; the level-2 roots", pre:"bf16 tables: NORM, FRAC, POW, a 2^16-row unary table for rsqrt, a multiply table", checks:"<code>gn1.roots == gn1b.in</code> as an equality of Horner claims; the mean of squares each norm took the reciprocal square root of is the published answer", cost:"one bf16 add ≈ 12 to 15 cells; d adds per norm, two norms per layer"},
+       viz:`<div class="formula">bf16 value = sm · 2^(ef − 134)      sm ∈ {0} ∪ ±[128, 256), ef ∈ [1, 255)\n\nadd:  acc = sm_a·pa + sm_b·pb   (pa, pb from a POW lookup)\n      mag = M2·ph + r  →  NORM(M2, ph, st) → (m7, ef, nz)   FRAC(ph, r, st)\n\nkept at degree 2 so blowup 2 suffices — that is why values are (sm, ef) pairs.</div>`,
+       text:`<p>A unary bf16 op is exactly a 65,536-row lookup table, so rsqrt costs one LogUp lookup per value. The square, the tree sum and the two multiplies are the add and multiply gadgets. Unbound, the prover could normalise any vector and call it the norm of the residual.</p>`},
+    trees:["building","building","building","idle","idle"], edges:[15,1], log:[["L0","norm1: tree-sum roots published"],["v","edge 1 bound"]]});
+
+  push({stage:4, layer:0, pos, gen:0,
+    l:{title:"Requantise h to int8 for the matmul", viz:`<div class="formula">s_x = bf16_ceil( max_i |h_i| / 127 )   one scale per token, rounded UP so nothing clamps\nq_i = round_half_away( h_i / s_x )     |q_i| ≤ 127</div>${vec("h", n1.h8, "", "… bf16")}<div class="arrow">÷ s_x = ${n1.s_x??"n/a"} (max |h| = ${n1.max_abs??"n/a"}), round</div>${vec("q", n1.q8, "int", "… int8, 4,096 of them")}`,
+       text:`<p>The matmul that follows multiplies integers. These int8 values for position ${pos} are the harness's rule applied to the real bf16 norm output. One scale per token is what "dynamic int8 per token" means.</p>`},
+    r:{title:"Edge 2: the seam proves q is the requantisation of h", gadget:{name:"requant", file:"prover/src/gadgets/requant/", edge:"2 · first norm's output into the q, k, v matmul inputs", commits:"the max's magnitude pattern pm per token, a selector bit per element, the scale, the int8 values", pre:"the (pm → bf16_ceil(pm/127)) scale table; a division table keyed by exponent difference; the (q, nz) pair table; the 15-bit range", checks:"pm − pat_i in [0, 2^15) for every element and sel_i·(pm − pat_i) = 0 with Σ sel_i = 1 pins the max; one (pm, scale) lookup pins the scale; one division lookup per nonzero q, one range lookup per zero", cost:"<code>model_constants.requant_cells_per_value</code>, per distinct matmul input"},
+       viz:`<div class="formula">max argument:   pm − pat_i ≥ 0  ∀i       sel_i (pm − pat_i) = 0,   Σ sel_i = 1\nscale:          (pm, s_x) ∈ SCALE_TABLE          the table IS bf16_ceil(v / 127)\nrequant, q≠0:   (tt, m7, q) ∈ DIV_TABLE          tt = exponent difference\nrequant, q=0:   |x| < s_x / 2  as a pattern comparison, one range lookup</div>`,
+       text:`<p>Why it matters: the Freivalds check multiplies exactly these integers. If this seam were unbound, the prover could feed the matmul any activation and the matmul's proof would faithfully multiply the wrong input. The <code>--unsound-skip-residual-stream</code> flag unbinds it and marks the run a control.</p>`},
+    trees:["building","building","building","idle","idle"], edges:[15,1,2], log:[["L0",`requant: s_x = ${n1.s_x??"?"} for position ${pos}`],["v","edge 2 bound"]]});
+
+  push({stage:5, layer:0, pos, gen:0,
+    l:{title:"q, k, v projections: three int8 matmuls", viz:`<div class="mats">${mat("W_q", MODEL.d, MODEL.d, "16.8M int8")}${mat("W_k", MODEL.d, MODEL.nkv*MODEL.hd, "4.2M int8")}${mat("W_v", MODEL.d, MODEL.nkv*MODEL.hd, "4.2M int8")}</div><div class="formula">acc[t, j] = Σ_i q[t, i] · w[j, i]      exact int32, no rounding\nweights: int8 per output channel, s_w[j] = max_i |W[j,i]| / 127</div>${vec("W_q[0]", wq.wfloat8, "", "… bf16 weights, channel 0")}${vec("int8", wq.w8, "int", `… s_w = ${wq.s_w_ch0??"n/a"}`)}<dl class="kv"><dt>heads</dt><dd>${MODEL.nh} query heads, ${MODEL.nkv} key/value heads (grouped-query attention), ${MODEL.hd} channels each</dd></dl>`,
+       text:`<p>The same int8 input feeds all three. The accumulation is exact, so a wrong accumulator is a wrong integer, not a rounding question. Seven matmuls per layer: q, k, v, o, gate, up, down, 218M weights in all.</p>`},
+    r:{title:"Edge 12: Freivalds, the trick that makes 8B weights affordable", gadget:{name:"freivalds", file:"prover/src/gadgets/freivalds/", edge:"12 · each matmul's input times the pinned weights into its accumulator", commits:"the int8 activations qx (four to a word) and the accumulators acc (shared with the dequant gadget, committed once)", pre:"the int8 weights of this layer, in the model tree; their root is the publisher's commitment", checks:"after r, s, rv are drawn: <code>u_m = Σ_i rv^i W_m[i,k]</code>, <code>v = Σ_t s^t qx[k,t]</code>, <code>acc_m = Σ_k u_m v</code>, and the verifier requires <code>acc_m == h_m</code> where h_m is the dequant's own Horner fold of the committed accumulators", cost:"a fixed number of cells per weight (12 QM31 accumulator cells per row of p weights); linear in the parameter count"},
+       viz:`<div class="formula">claim:  Y = W · X                 (per layer, per matmul, mod p)\ntest:   rᵀ Y  ==  (rᵀ W) · X        r drawn AFTER X, Y, W are committed\n\nleft side:  Horner fold of the committed accumulators (dequant already holds them)\nright side: computed in this gadget from preprocessed W and committed X\n\na wrong Y survives only if r happens to hit a root of (Y − W X): about 1 in |QM31| ≈ 2^124</div>`,
+       text:`<p>Checking Y = W·X cell by cell for 8 billion weights is hopeless. Checking one random linear combination costs one pass over the weights. The weights never leave the model tree; the verifier only compares the tree's root with the manifest.</p>`},
+    trees:["building","committed","building","idle","idle"], edges:[15,1,2,12], log:[["L0","q k v: 25.2M weights read from tree 1"],["v","edge 12 (Freivalds) will be checked once r, s, rv are drawn"]]});
+
+  push({stage:6, layer:0, pos, gen:0,
+    l:{title:"Dequantise the accumulators back to bf16", viz:`<div class="formula">y = bf16( bf16( bf16(acc · s_x) · s_w ) )     three correctly rounded steps, round half to even\n\nexample scales for this position:  s_x = ${n1.s_x??"n/a"}   s_w[0] = ${wq.s_w_ch0??"n/a"}</div><dl class="kv"><dt>why a chain</dt><dd>a general bf16 scale cannot be folded into one rounding; a power-of-two scale can (the output head uses that)</dd></dl>`,
+       text:`<p>The integer accumulator becomes a bf16 activation again. Each rounding is a specific, deterministic operation, so the proof can state exactly which bf16 pattern comes out.</p>`},
+    r:{title:"The dequant gadget: one lookup normalises, rounds and encodes", gadget:{name:"dequant", file:"prover/src/gadgets/dequant/", edge:"publishes the output claims that edges 6, 9 and 11 compare", commits:"acc as two limbs, M2, ph, r, the sticky bit, and the output (m7, ef, nz)", pre:"NORM(M2, ph, st) → (m7, ef, nz) and FRAC(ph, r, st): 2^(kmax+1) preprocessed rows", checks:"|acc| = M2·ph + r with M2 in [256, 512) and r < ph in one arity-6 lookup; the output claim of the consumer (a residual add, the SwiGLU) equals this gadget's", cost:"<code>dequant_chain_cells_per_acc</code> on the seven layer matmuls; one cell less for pow2 scales on the head"},
+       viz:`<div class="formula">|acc| = M2 · 2^k + r        M2 ∈ [256, 512),  0 ≤ r < 2^k\nNORM(M2, ph, st)  →  (m7, ef, nz)      the correctly rounded bf16 of |acc|\nFRAC(ph, r, st)                        r < ph  and  st = [r ≠ 0]  in one lookup\n\nthe decomposition is injective below 2^(kmax+9) < p, so acc + p has no valid (M2, ph, r)</div>`,
+       text:`<p>The accumulators are committed once and read by two gadgets: the dequant rounds them, the Freivalds check folds them. Nothing is committed twice, and the same cells are what both identities are about.</p>`},
+    trees:["building","committed","building","idle","idle"], edges:[15,1,2,12], log:[["L0","dequant: output claims published for q, k, v"]]});
+
+  const theta = (i) => Math.pow(MODEL.theta, -2*i/MODEL.hd);
+  push({stage:7, layer:0, pos, gen:0,
+    l:{title:"RoPE, then integer q, k, v for the attention", viz:`<div class="formula">for channel pair (i, i+64) of each head, angle = pos · θ_i,   θ_i = 500000^(−2i/128), low frequencies stretched by Llama 3's rope scaling\n  q' = bf16( q·cos ) + bf16( q_rot·sin )          same for k;  v is not rotated\n\nposition of this token = ${pos}:   θ_0 = 1 → angle ${pos} rad,   θ_63 ≈ ${theta(63).toExponential(2)} → angle ${(pos*theta(63)).toExponential(2)} rad\n\nthen:  qq = round(q' / s_q)  12-bit, one power-of-two scale per head (calibrated)\n       qk = round(k' / s_k)  11-bit, one scale per (layer, head)\n       qv = round(v  / s_v)   int8, one scale per (layer, head, channel)</div>`,
+       text:`<p>Rotation encodes the absolute position into q and k so the dot product depends on relative distance. The scales for k and v are fixed offline from a calibration slice, which is what lets the softmax that follows be an integer statement.</p>`},
+    r:{title:"Edge 3: rotation and quantise components, with a block-dependent shape tree", gadget:{name:"rope (two residual_stream programs + QuantEval)", file:"prover/src/gadgets/rope/", edge:"3 · q, k, v outputs into the attention block", commits:"the rotated bf16 values and the quantised integers per (token, head)", pre:"cos and sign-folded sin for every absolute position block·512 + t, in the shape tree; per-slot power-of-two scales", checks:"Horner comparison on the way in against the q and k dequant outputs, and on the way out against the key tiles' own committed Q, K, V columns; a padded row (odd head counts) must be zero or the comparison fails", cost:"two bf16 ops per rotated value; 37.5 % padding when the head count has an odd factor (Qwen2.5-14B), none for Llama's 32"},
+       viz:`<div class="formula">the shape tree is a function of (params, calibration, <b>block index</b>)\nbecause rope(pos) reads block · S + t.  pos0 is written into the statement and\nverify_composed checks it against Fixed.block.\n\nno site for a projection bias exists:  dequant states acc · s_x · s_w and nothing else,\nso Qwen2.5's q/k/v biases make edge 3 refuse every layer (issue #174).</div>`,
+       text:`<p>Before this component existed the seam between the projections and the attention was a hole: the key tiles' committed Q, K, V were not the dequant outputs. This is the stream that closed it.</p>`},
+    trees:["building","committed","building","idle","idle"], edges:[15,1,2,12,3], log:[["L0",`rope: angles for position ${pos} come from the shape tree`],["v","edge 3 bound"]]});
+
+  const a0 = attnRows(ex,"l0h0"), a15 = attnRows(ex,"l15h0");
+  push({stage:8, layer:0, pos, gen:0,
+    l:{title:"Attention scores: an integer softmax", viz:`<div class="formula">S = qq · qkᵀ                 exact integers, one row per query, one column per key (${N} keys now)\ncausal mask: key j > query t is hidden\nm = max_j S[t, j]            d = m − S ≥ 0\nn = round( 511 · exp(−d · s_q s_k / √128) )    9-bit numerator, ONE lookup table keyed by the bf16 input\nZ = Σ_j n[t, j]              exact integer denominator</div><span class="eyebrow">what the last position attends to · layer 0 head 0 (left) and layer 15 head 0 (right), the bf16 model's softmax, for intuition</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${a0?bars(a0,r=>r.p.toFixed(3)):"<span class='mono'>n/a</span>"}${a15?bars(a15,r=>r.p.toFixed(3)):"<span class='mono'>n/a</span>"}</div>`,
+       text:`<p>Subtracting the row max first keeps every exponent argument non-positive, so the table only needs exp on [−big, 0]. Each probability is an integer n over an integer Z; no division happens here.</p>`},
+    r:{title:"Edge 4: the attention component, the one that grows with context", gadget:{name:"attention (key tiles: chan, key, row evaluators)", file:"prover/src/gadgets/attention/ + gkr_key_tile.rs", edge:"4 · scores and values into the attention output: not a seam, the component itself, no skip exists", commits:"qq, qk, the score accumulators, the shift d, the numerators n, the sums Z, per key tile (a group of heads over a slice of the C keys)", pre:"the exp table (up to 2^22 rows under --tight-table), the causal mask, the marker for real key-grid rows, range tables: all in the shape tree", checks:"per key tile b: <code>r_sum·am_b − hs_b == chan_b</code> (Q·Kᵀ) and <code>sn_b == az_b</code> (denominator); every exp lookup lands in the table; mask and marker are derived from public parameters, not chosen", cost:"cells per (head, key, token): this is why a position costs ~79M cells at C = 4,096 and ~105M at C = 16,384"},
+       viz:`<div class="formula">lookups are LogUp: Σ_uses 1/(z − key)  must cancel  Σ_table mult/(z − row)\n\nthe running sums for these lookups are NOT committed as columns here:\nfive GKR sumchecks prove them instead (--gkr-key-tiles and friends).\nat C = 16,384 that takes the interaction tree from 93,184 columns to 5,600.\ngkrlink.rs then ties the sumcheck's final claims back to the committed\ncolumns with one MLE-evaluation IOP per distinct height.</div>`,
+       text:`<p>The mask invariant the component rests on, "the mask is clear on every row of padding", holds because the verifier rebuilds the shape tree itself and compares roots. A verifier that read the root off the statement would accept any shape the prover named.</p>`},
+    trees:["building","committed","building","idle","idle"], edges:[15,1,2,12,3,4], log:[["L0",`attention over ${N} keys; exp lookups collected for GKR`],["v","edge 4 is the component itself"]]});
+
+  push({stage:9, layer:0, pos, gen:0,
+    l:{title:"A·V, then one rounding to a 12-bit integer", viz:`<div class="formula">O = n · qv                       exact integers (numerators times int8 values)\nout = round( O · s_v / (Z · s_o) )   the softmax division, the value scale and the\n                                    next requantise, folded into ONE rounding\ns_o = power of two per token, chosen so |out| ≤ 2047  (12 bits, not 8)</div><dl class="kv"><dt>why 12 bits</dt><dd>the o projection consumes a wider value and one rounding is saved; perplexity cost of the whole configuration: +6.96 % vs fp32</dd><dt>shape</dt><dd>${MODEL.nh} heads × ${MODEL.hd} = ${fmt(MODEL.nh*MODEL.hd)} values per token</dd></dl>`,
+       text:`<p>The harness deletes the bf16 waypoint, the reciprocal lookup and the requantise that a textbook softmax would need. The division is exact because O and Z are integers and the rounding happens once, at the end.</p>`},
+    r:{title:"Edge 5: the attention-output fold is itself the o matmul's seam", gadget:{name:"attn_out (AttnOutEval)", file:"prover/src/gadgets/attn_out/", edge:"5 · attention output into the o matmul input", commits:"acc (the A·V outputs), denp = Z · 2^max(−e,0), the quotient and remainder of the rounding, the 12-bit result", pre:"num = 2^max(e,0) and the pj selector, per slot; the exponent window pinned by <code>--ao-rem-bits</code>", checks:"the rounding identity as an integer identity inside a 31-bit window; two Horner claims the key tiles' identities need: <code>Σ_b rv^(hd·off_b)·av_b == h_ao</code> and <code>Σ_b r^(C·off_b)·az_b == dz_ao</code>", cost:"<code>attnout_int8_cells_per_acc</code>; 9 cells against 15 + 4 + 15 for the unfolded form"},
+       viz:`<div class="formula">the fold's window:  1 + lo + hi + e_hi ≤ 31   and   q_bits + rem_bits ≤ 31\n\n--ao-rem-bits is ONE number for the whole loop (the model-wide worst case),\nso the shape table checks every layer against it before any proof is made.\nthe recorded 4,096-token run sits at 11 + 20 = 31 of 31: it composes and admits nothing wider.\n\nissue #13: a counted registration used each dump's own ao_rem_bits instead of the shared pin\nand came out 5 cells per table row short (159,989,760 cells).</div>`,
+       text:`<p>Because this component commits the rounded int output and pins it by the exact-rounding identity, the o matmul needs no second requantise gadget: a claim on this component is its input seam.</p>`},
+    trees:["building","committed","building","idle","idle"], edges:[15,1,2,12,3,4,5], log:[["L0","attn_out: h_ao and dz_ao published"],["v","edge 5 bound"]]});
+
+  push({stage:10, layer:0, pos, gen:0,
+    l:{title:"o projection, then the first residual add", viz:`<div class="mats">${mat("W_o", MODEL.d, MODEL.d, "16.8M int8")}</div><div class="formula">o_out = bf16-chain( W_o · out )        Freivalds + dequant again\nx_mid = bf16( x + o_out )              the residual stream grows by the attention's contribution</div>`,
+       text:`<p>The residual stream is the layer's memory: every sub-block reads it and adds to it. This add is the first of two per layer.</p>`},
+    r:{title:"Edges 6 and 7: the add reads the dequant's claim and feeds norm 2", gadget:{name:"freivalds + dequant + residual_stream (gn1 add)", file:"prover/src/gadgets/residual_stream/", edge:"6 · o output into the first residual add; 7 · the add into the second norm's reduction", commits:"x_mid as (sm, ef) pairs on the same rows that hold norm 1's first tree levels", pre:"the bf16 add's POW, NORM, FRAC tables", checks:"the dequant's output claim equals the add's input claim (6); <code>gn1.xmid == gn2.in</code> (7)", cost:"one bf16 add per channel: <code>residual_stream_add_cells_per_op</code>"},
+       viz:`<div class="formula">gn1   xin, o_out  →  norm1's level-1 roots, and xmid\ngn1b  those roots  →  norm1's mean of squares\ngn2   xmid, d_out  →  norm2's level-1 roots, and xout\ngn2b  those roots  →  norm2's mean of squares\n\nthree equalities:  gn1.roots == gn1b.in,   gn1.xmid == gn2.in,   gn2.roots == gn2b.in</div>`,
+       text:`<p>gn1 proves the reduction's first levels and the residual add on the same row, so the residual stream is committed once and read by both. Unbound, the prover could add any vector to the stream.</p>`},
+    trees:["building","committed","building","idle","idle"], edges:[15,1,2,12,3,4,5,6,7], log:[["L0","o: dequant claim read by the add"],["v","edges 6, 7 bound"]]});
+
+  push({stage:11, layer:0, pos, gen:0,
+    l:{title:"The MLP: norm 2, gate and up, SwiGLU, down, second add", viz:`<div class="formula">h2 = RMSNorm(x_mid)  → int8 (new per-token scale)\ng  = W_gate · h2,   u = W_up · h2         4,096 → 14,336 each\ny  = bf16( silu(g) · u )                  silu is one bf16 unary table\ny  → int8 (per-token scale)\nd  = W_down · y                           14,336 → 4,096\nx  = bf16( x_mid + d )                    layer 0 output</div><div class="mats">${mat("W_gate", MODEL.ffn, MODEL.d, "58.7M int8")}${mat("W_up", MODEL.ffn, MODEL.d, "58.7M int8")}${mat("W_down", MODEL.d, MODEL.ffn, "58.7M int8")}</div>`,
+       text:`<p>Three of the seven matmuls and 176M of the layer's 218M weights are here. Gate and up share one int8 input, exactly like q, k, v did.</p>`},
+    r:{title:"Edges 8 to 11: two more seams, one product, one add", gadget:{name:"requant · freivalds · dequant · residual_stream (SwiGLU, gn2 add)", file:"prover/src/gadgets/{requant,freivalds,dequant,residual_stream}/", edge:"8 · norm 2 → gate/up inputs; 9 · gate/up outputs → SwiGLU; 10 · SwiGLU → down input; 11 · down output → second add", commits:"the second norm, two int8 inputs with their scales, the SwiGLU's bf16 product, x_out", pre:"the silu unary table (2^16 rows), the shared bf16 tables, the gate/up/down weights in tree 1", checks:"two requant seams (8, 10) exactly as edge 2; the SwiGLU reads the gate and up dequant claims (9); the add reads down's (11); <code>gn2.roots == gn2b.in</code>", cost:"one unary table application = one committed bf16 value + one lookup; one multiply; one add per channel"},
+       viz:`<div class="formula">the layer's seven Freivalds groups:\n   { q, k, v }   share input h          { gate, up }  share input h2\n   { o }         input = attn_out       { down }      input = y\n\na group of n matmuls shares one accumulator fold and costs (4 + 8n)/(n·p) cells per weight</div>`,
+       text:`<p>At this point every seam inside the layer is bound: each matmul multiplies exactly the integers its producer made, and each consumer reads exactly the bf16 its producer rounded. What is left is the two boundaries of the segment.</p>`},
+    trees:["building","committed","building","idle","idle"], edges:[15,1,2,12,3,4,5,6,7,8,9,10,11], log:[["L0","gate up down: 176M weights read from tree 1"],["v","edges 8, 9, 10, 11 bound"]]});
+
+  push({stage:12, layer:0, pos, gen:0, transcript:true,
+    l:{title:"Layer 0 is done: the residual goes up, K and V go into the cache", viz:`<div class="formula">x_out[t]  (4,096 bf16 per position)   →   layer 1's input\nK, V for these ${N} positions, 8 heads × 128   →   the key/value cache every later position attends over</div><dl class="kv"><dt>rms of x after layer 0</dt><dd class="mono">${rms[1]??"n/a"}</dd><dt>in the paper's run</dt><dd>this is one block of 512 positions, not ${N}; a layer over one block is one segment</dd></dl>`,
+       text:`<p>For the model this is just the next layer. For the prover this is the end of a segment, so now the whole proof for "layer 0 over this block" is made.</p>`},
+    r:{title:"One segment becomes one STARK: the transcript, in order", gadget:{name:"compose (generate, then prove_gen_to) + boundary", file:"prover/src/compose.rs · boundary.rs", edge:"13 · residual out into the next layer; 14 · K, V out into the next block", commits:"two small trees per axis holding only the boundary values: residual in (tree 3), residual out (tree 4), K/V out", pre:"nothing new", checks:"each boundary column equals the component column by a plain equality constraint (no lookup, no challenge), so the trees can be committed after the interaction tree; <code>boundary-grid</code> compares roots between neighbours", cost:"the whole segment: ~2.1 Gcell/s to commit, ~99 Mcell/s for the loop; proof ≈ 65 MiB"},
+       viz:transcript(),
+       text:`<p>Why roots and not a shared challenge: a challenge drawn inside one proof cannot be reused by another, and a challenge known before the values are committed makes "my image equals yours" one linear equation the prover can solve. So the exposed value is a Merkle root.</p>`},
+    trees:["committed","committed","committed","committed","committed"], edges:[15,1,2,12,3,4,5,6,7,8,9,10,11,13,14], log:[["p","segment L0·B0: trees 0,1,2 → challenges → GKR → tree 3 → boundary → STARK"],["p","proof serialised: fixed.json, claims.json, proof.json"],["v","edges 13, 14 bound by boundary roots"]]});
+
+  push({stage:13, layer:31, pos, gen:0, sweep:true,
+    l:{title:"Layers 1 to 31: the same seven matmuls with different weights", viz:`<span class="eyebrow">rms of the residual stream at position ${pos}, after each layer (real, bf16 model)</span><div class="rmschart" id="rmschart">${rms.map((v,i)=>`<i data-h="${Math.round(100*v/Math.max(...rms))}" title="after layer ${i-1}: ${v}"></i>`).join("")}</div><div class="chartlab"><span>embed</span><span>layer 15</span><span>layer 31 · rms ${rms[32]??"n/a"}</span></div>`,
+       text:`<p>Each layer reads the stream and adds to it; the magnitude grows down the stack. Each layer has its own 218M weights, its own K/V cache rows, the same arithmetic.</p>`},
+    r:{title:"32 segments per block, chained by roots", gadget:{name:"compose-chunks --plan", file:"prover/src/chunks.rs · precache.rs · shaperoot.rs", edge:"13 between every pair of consecutive layers", commits:"each layer's own witness; dropped from host memory as soon as its proof is made", pre:"the shape tree is cached on the device per (layer, shape); the model tree per layer comes from the same cache; the verifier pays about 32 shape-root derivations for 290 segments, not 290", checks:"residual-out root of layer k equals residual-in root of layer k+1, for all 31 pairs, on the verifier side after the run", cost:"c4096 run: 3,683 s of loop for 290 segments on one H100, 1.25 positions/s"},
+       viz:`<div class="check">${Array.from({length:32},(_,i)=>`<div class="c" data-i="${i}"><i></i><span>segment L${i}·B0 proved · link L${i}→L${i+1} ${i<31?"pending":"(head)"}</span></div>`).join("")}</div>`,
+       text:`<p>No recursion anywhere. A segment is proved alone, one thread generates the next while this one proves, and the only thing one proof shares with the next is a 32-byte root.</p>`},
+    trees:["committed","committed","committed","committed","committed"], edges:[15,1,2,12,3,4,5,6,7,8,9,10,11,13,14], log:[["p","segments L1 … L31 proved (31 more STARKs)"],["v","31 residual links L_k → L_{k+1} compared"]]});
+
+  const tr0 = topRows(0);
+  push({stage:14, layer:null, pos, gen:0,
+    l:{title:"Final norm, then the output head: 128,256 logits", viz:`<div class="mats">${mat("lm_head", MODEL.V, MODEL.d, "525M int8, pow2 scales")}</div><span class="eyebrow">top-5 logits for position ${pos} (real)</span>${tr0?bars(tr0,r=>r.logit.toFixed(2)):"<span class='mono'>n/a</span>"}`,
+       text:`<p>One more RMSNorm, then the largest matmul of all: 4,096 → 128,256. The output is one score per vocabulary entry for the next token. The head uses power-of-two scales, so its dequant is a single rounding.</p>`},
+    r:{title:"The head segment: Freivalds over the largest matrix, no attention", gadget:{name:"head segment (compose with --synth-head / a head dump)", file:"prover/src/compose.rs · gadgets/freivalds · gadgets/dequant (pow2)", edge:"1, 2 (final norm and its seam), 12 (lm_head), 13 (the residual it consumed)", commits:"the final norm, the int8 head input, the logits' accumulators", pre:"lm_head, 128,256 × 4,096: about 570M preprocessed cells in the model tree", checks:"the same Freivalds equality over lm_head; edges 3 to 11 and 14 are absent here (no attention, no MLP of its own)", cost:"one head segment per block that emits tokens; the paper run proves it over the last prompt block and the generated block"},
+       viz:`<div class="formula">head segment = { final RMSNorm, requantise seam, lm_head Freivalds, pow2 dequant, argmax }\n\nproved twice in a run:  over the last prompt block (so the FIRST generated id is backed)\n                        and over the generated block (so every later id is backed)\n\nissue #9: family_cells has no argmax counter, so 131,727,360 base cells per head segment\nare unattributed in the cost breakdown (the proof itself is fine).</div>`,
+       text:`<p>The head is its own segment, placed at the layer coordinate after layer 31. Its residual input is committed as the in side of the last layer link, so the chain from embedding to logits has no gap.</p>`},
+    trees:["committed","committed","building","idle","idle"], edges:[15,1,2,12,3,4,5,6,7,8,9,10,11,13,14], log:[["p","head segment: lm_head Freivalds over 525M weights"]]});
+
+  push({stage:15, layer:null, pos, gen:1,
+    l:{title:"Greedy decoding: take the argmax", viz:`<div class="bigtok">${s0?show(s0.piece):"n/a"}<small>id ${s0?s0.argmax:"?"} · logit ${s0?s0.top5[0].logit.toFixed(2):"?"} · tie with another logit: ${tie}</small></div><div class="formula">tok = argmax_v logits[v]        torch.argmax returns the FIRST maximal index on a tie</div>`,
+       text:`<p>Greedy decoding has no sampling: the token is a deterministic function of the logits. That is what makes it a provable statement; a sampled token would need the whole softmax and a committed seed.</p>`},
+    r:{title:"Edge 16: the argmax gadget, in its strict form", gadget:{name:"argmax", file:"prover/src/gadgets/argmax/", edge:"16 · logits into the emitted token", commits:"the maximum's pattern pm, a monotone indicator b_i = [i < tok], the emitted token", pre:"range tables", checks:"<code>pm − k_i − b_i ≥ 0</code> for every vocabulary entry: strictly below the max before tok, at most the max from tok on; b non-increasing with Σ b_i = tok; the derived selector b_i − b_{i+1} is 1 exactly at tok and pins pm to an attained value", cost:"one comparison per vocabulary entry per token: <code>argmax_marginal_cells_per_comparison</code>"},
+       viz:`<div class="formula">lax   (--unsound-argmax-lax):  tok attains the maximum\nstrict (default):              tok is the LOWEST-INDEXED maximum   ← the model's own rule\n\non the real 512-token continuations, 15 of 512 rows (C = 4,096) have two or three\nco-maximal logits, so the two statements really differ. a lax run is marked a control.</div>`,
+       text:`<p>The strict statement is the lax one with the selector replaced by a monotone indicator and one extra degree-2 constraint. It costs almost nothing more and it is the only sound one.</p>`},
+    trees:["committed","committed","committed","committed","committed"], edges:[15,1,2,12,3,4,5,6,7,8,9,10,11,13,14,16], log:[["v",`edge 16 bound: emitted id ${s0?s0.argmax:"?"} is the lowest-indexed maximum`]]});
+
+  for(let k=1;k<=3;k++){
+    const s = st(k), trk = topRows(k);
+    push({stage:16, layer:null, pos:pos+k, gen:k+1,
+      l:{title:`Append the token and run again: position ${pos+k}`, viz:`<div class="prompttext">${esc(ex.text)}<span class="g">${esc((ex.gen_pieces||[]).slice(0,k+1).join(""))}</span></div><span class="eyebrow">top-5 logits at position ${pos+k} (real) · emitted: ${s?show(s.piece):"n/a"}</span>${trk?bars(trk,r=>r.logit.toFixed(2)):"<span class='mono'>n/a</span>"}`,
+         text:`<p>The emitted id is appended and all 32 layers run for the new position. Attention now spans ${N+k} keys; the earlier positions' K and V come from the cache, they are not recomputed.</p>`},
+      r:{title:"Not a new proof: one block of 512 positions is proved together", gadget:{name:"the block axis", file:"harness/witness/plan.py · prover/src/boundary.rs", edge:"14 along the token axis; 16 at every emitted position", commits:"each segment covers S = 512 positions of one layer at once; a generated position is one more row in the same tables", pre:"the K/V cache of earlier blocks enters as a committed boundary root (edge 14), never recomputed", checks:"<code>boundary-grid --verify --prompt</code>: the id committed at position p must equal the argmax the head segment proved for position p − 1", cost:"the paper's request: 4,096 prompt + 512 generated = 9 blocks × 32 layers + 2 head segments = 290 proofs, 61 minutes"},
+         viz:`<div class="minigrid"><span class="rl">head</span><span></span><span class="cell hd">argmax</span><span class="cell hd">argmax</span><span class="rl">L31</span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="rl">…</span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="rl">L0</span><span class="cell l0">emb</span><span class="cell l0">emb</span><span class="cell l0">emb</span><span></span><span class="rl" style="text-align:center">B0</span><span class="rl" style="text-align:center">B7</span><span class="rl" style="text-align:center">B8 gen</span></div><div class="formula">vertical neighbours: residual-stream root equality (281 links)\nhorizontal neighbours: K/V root equality (256 links)\nhead on B7 and B8: every generated id is backed by a proved argmax</div>`,
+         text:`<p>This is why the request is a grid and why there is no recursion: layers go up, blocks go right, and every arrow is one root comparison. A head on the generated block alone would leave the first generated id backed by nothing, so the head is proved on the last prompt block too.</p>`},
+      trees:["committed","committed","committed","committed","committed"], edges:[15,1,2,12,3,4,5,6,7,8,9,10,11,13,14,16], log:[["v",`position ${pos+k}: id ${s?s.argmax:"?"} == head's argmax at ${pos+k-1}`]]});
+  }
+
+  push({stage:17, layer:null, pos:pos+3, gen:4, done:true,
+    l:{title:"The output, and what a verifier can conclude from it", viz:`<div class="prompttext">${esc(ex.text)}<span class="g">${esc((ex.gen_pieces||[]).join(""))}</span></div><dl class="kv"><dt>emitted ids</dt><dd class="mono">${(ex.gen||[]).join(", ")}</dd><dt>statement</dt><dd>"ids [${ex.ids.join(", ")}] under the model with root R, decoded greedily in the y-delay-vw12 arithmetic, emit ${(ex.gen||[]).join(", ")}"</dd><dt>not in the statement</dt><dd>the text, the tokeniser, sampling, batching, who was served, when</dd></dl>`,
+       text:`<p>The model is done. What the proof adds is that nobody has to trust the provider's word for the decode: the computation is checkable from the ids, the model root and the calibration alone.</p>`},
+    r:{title:"Verify every segment, then every link, on a CPU with no weights", gadget:{name:"boundary-grid --verify (verify_composed per segment)", file:"prover/src/compose.rs · boundary.rs", edge:"all 16, per segment; 13 and 14 between segments", commits:"nothing: the verifier commits nothing", pre:"the verifier rebuilds the shape tree itself from params + calibration and compares the root; the model root is compared with the published manifest", checks:"replay the transcript; stwo verify (OODS + FRI, 100 queries, 100 conjectured bits); the LogUp sums cancel; every application identity; every root link; every id chained", cost:"about 43 s per segment on four consumer cores, dominated by rebuilding the shape tree; the whole c4096 proof is 18.5 GiB (7.2 GiB compressed)"},
+       viz:`<div class="check"><div class="c ok"><i></i><span>statement parses · security parameters not drifted</span></div><div class="c ok"><i></i><span>shape root derived == pre_root declared</span></div><div class="c ok"><i></i><span>model root == published manifest</span></div><div class="c ok"><i></i><span>stwo verify: constraints low-degree at the OODS point, FRI accepts</span></div><div class="c ok"><i></i><span>LogUp sums cancel (GKR sums stand in for the key tiles)</span></div><div class="c ok"><i></i><span>Freivalds h_m == acc_m for all seven matmuls · attention and denominator identities</span></div><div class="c ok"><i></i><span>281 layer links + 256 token links: root equalities hold</span></div><div class="c ok"><i></i><span>every generated id == the head's argmax for the position before it</span></div></div>`,
+       text:`<p>What this does not say: that the provider served this to anyone, that bf16 serving would give the same tokens (+6.96 % perplexity gap), or that a rerun reproduces it (issue #126). And nothing here is formally verified; the correctness evidence is the digest gate and the negative controls.</p>`},
+    trees:["committed","committed","committed","committed","committed"], edges:[15,1,2,12,3,4,5,6,7,8,9,10,11,13,14,16], log:[["v","290 / 290 segments accept · all_chain true"],["v","run gate: no unsound skip, every edge bound, no kernel fallback"]]});
+
+  return S;
+}
+
+/* ---------- state + render ---------- */
+let exi = 0, steps = buildSteps(RUNS[0]), i = 0, timer = null;
+const $ = id => document.getElementById(id);
+const DELAYS = {1:9000, 2:6500, 3:4500, 4:3000, 5:1800};
+
+function renderStatic(){
+  $("examples").innerHTML = RUNS.map((r,k)=>`<button data-ex="${k}" class="${k===exi?"on":""}">${esc(r.text)}</button>`).join("");
+  $("spine").innerHTML = STAGES.map((s,k)=>`${k===3?'<span class="grp">inside one layer</span>':''}${k===12?'<span class="grp">the proof side</span>':''}<a class="s ${s[1]?"layerstep":""}" data-k="${k}" href="#s${k}"><i></i><span>${s[0]}</span></a>`).join("");
+  $("edges").innerHTML = EDGES.map(e=>`<div class="edge" data-e="${e[0]}"><b>${e[0]}</b><span>${e[1]}</span></div>`).join("");
+  $("trees").innerHTML = TREES.map((t,k)=>`<div class="tree ${t[2]?"pub":""}" data-t="${k}"><b>tree ${t[0]}</b><span>${t[1]}</span><span class="st">idle</span></div>`).join("");
+  $("gauge").innerHTML = Array.from({length:32},(_,k)=>`<i data-l="${k}"></i>`).join("");
+  const meta = RUNS[0].meta || {};
+  $("runmeta").textContent = meta.device ? `${meta.device}, ${meta.secs}s` : "run metadata unavailable";
+}
+function renderTokens(s){
+  const ex = RUNS[exi];
+  const all = ex.ids.map((id,k)=>({id, p:ex.pieces[k], gen:false}));
+  (ex.gen||[]).forEach((id,k)=>all.push({id, p:(ex.gen_pieces||[])[k], gen:true, pending:k>=s.gen}));
+  $("tokens").innerHTML = all.map((t,k)=>`<div class="tok ${k===0?"bos":""} ${t.gen?"gen":""} ${t.pending?"pending":""} ${s.pos===k?"cur":""}"><span>${show(t.p||"")}</span><small>${t.id}</small></div>`).join("");
+}
+function renderGauge(s){
+  const blocks = $("gauge").querySelectorAll("i");
+  blocks.forEach((b,k)=>{ b.className = s.layer===null ? (s.stage>=14?"done":"") : (k<s.layer?"done":k===s.layer?"cur":""); });
+  $("gauge-l").textContent = s.layer===null ? (s.stage>=14 ? "head" : "—") : (s.sweep ? "1 → 31" : String(s.layer));
+}
+function render(){
+  const s = steps[i];
+  $("pos").textContent = `step ${i+1} / ${steps.length}`;
+  $("l-title").textContent = s.l.title; $("r-title").textContent = s.r.title;
+  for(const [id,html] of [["l-viz",s.l.viz],["l-text",s.l.text],["r-viz",s.r.viz],["r-text",s.r.text],["r-gadget",gadget(s.r.gadget)]]){
+    const el = $(id); el.innerHTML = html; el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
+  }
+  $("r-gadget").classList.toggle("none", !s.r.gadget);
+  renderTokens(s); renderGauge(s);
+  document.querySelectorAll("#spine .s").forEach(a=>{ const k=+a.dataset.k; a.classList.toggle("cur",k===s.stage); a.classList.toggle("done",k<s.stage); });
+  document.querySelectorAll("#trees .tree").forEach((t,k)=>{ t.className = `tree ${k===0?"pub":""} ${s.trees[k]}`; t.querySelector(".st").textContent = s.trees[k]; });
+  document.querySelectorAll("#edges .edge").forEach(e=>e.classList.toggle("bound", s.edges.includes(+e.dataset.e)));
+  const lines = []; for(let k=0;k<=i;k++) for(const l of steps[k].log) lines.push(l);
+  $("log").innerHTML = lines.slice(-9).map(l=>`<div class="l ${l[0]==="v"?"v":l[0]==="p"?"p":""}"><span class="w">${l[0]==="v"?"verify":l[0]==="p"?"prove":l[0]}</span><span>${esc(l[1])}</span></div>`).join("") || `<div class="l"><span class="w">—</span><span>nothing yet</span></div>`;
+  $("back").disabled = i===0; $("step").disabled = i===steps.length-1;
+  requestAnimationFrame(()=>{
+    document.querySelectorAll(".bar .f").forEach(f=>{ f.style.width = f.dataset.w+"%"; });
+    document.querySelectorAll(".rmschart i").forEach((b,k)=>{ b.style.height = b.dataset.h+"%"; b.classList.add("done"); if(k===32) b.classList.add("cur"); });
+    if(s.transcript){ document.querySelectorAll(".transcript .r").forEach((r,k)=>setTimeout(()=>r.classList.add("lit"), 120+k*260)); }
+    if(s.sweep){ document.querySelectorAll(".check .c").forEach((c,k)=>setTimeout(()=>{c.classList.add("ok"); const b=$("gauge").querySelectorAll("i")[k]; if(b){b.className = k<31?"done":"cur";}}, 60+k*70)); }
+  });
+  try{ localStorage.setItem("dap.pos", JSON.stringify({exi,i})); }catch(e){}
+}
+function go(n){ i = Math.max(0, Math.min(steps.length-1, n)); render(); if(i===steps.length-1) pause(); }
+function play(){ if(timer) return; $("play").textContent = "❚❚ Pause"; $("play").classList.add("on"); timer = setInterval(()=>{ if(i<steps.length-1) go(i+1); else pause(); }, DELAYS[$("speed").value]); }
+function pause(){ if(timer){ clearInterval(timer); timer=null; } $("play").textContent = "▶ Play"; $("play").classList.remove("on"); }
+function setExample(k){ pause(); exi = k; steps = buildSteps(RUNS[k]); document.querySelectorAll("#examples button").forEach(b=>b.classList.toggle("on", +b.dataset.ex===k)); go(0); }
+
+$("step").addEventListener("click", ()=>{ pause(); go(i+1); });
+$("back").addEventListener("click", ()=>{ pause(); go(i-1); });
+$("reset").addEventListener("click", ()=>{ pause(); go(0); });
+$("stop").addEventListener("click", ()=>{ pause(); go(0); });
+$("play").addEventListener("click", ()=>{ if(timer) pause(); else { if(i===steps.length-1) go(0); play(); } });
+$("speed").addEventListener("input", ()=>{ if(timer){ pause(); play(); } });
+$("examples").addEventListener("click", e=>{ const b = e.target.closest("button[data-ex]"); if(b) setExample(+b.dataset.ex); });
+$("spine").addEventListener("click", e=>{ const a = e.target.closest("a[data-k]"); if(!a) return; e.preventDefault(); pause(); const k=+a.dataset.k; const n = steps.findIndex(s=>s.stage===k); if(n>=0) go(n); });
+document.addEventListener("keydown", e=>{ if(e.target.tagName==="INPUT") return; if(e.key==="ArrowRight"){ pause(); go(i+1); } else if(e.key==="ArrowLeft"){ pause(); go(i-1); } else if(e.key===" "){ e.preventDefault(); if(timer) pause(); else play(); } });
+
+renderStatic();
+try{ const p = JSON.parse(localStorage.getItem("dap.pos")||"null"); if(p && RUNS[p.exi]){ exi=p.exi; steps=buildSteps(RUNS[exi]); document.querySelectorAll("#examples button").forEach(b=>b.classList.toggle("on", +b.dataset.ex===exi)); i=Math.min(p.i, steps.length-1);} }catch(e){}
+render();
+</script>
+</body>
+</html>

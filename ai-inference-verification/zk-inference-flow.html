@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>ZK Inference Prover Flow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400&display=swap">
+<style>
+/* Layout: a wide paper sheet with a sticky top nav; text in a 900px measure,
+   figures break out to the full width. Same visual family as the Berrang primer.
+   Three semantic hues carry the whole argument: amber = prover-chosen (committed),
+   teal = public / verifier-derived, plum = the trust boundary (what is NOT proved). */
+:root{
+  --bg:#ffffff; --surface:#f6f7f9; --ink:#141d27; --muted:#566371; --line:#d6dce3;
+  --prover:#9a5b0a; --prover-soft:#f6e6cc;
+  --public:#0b6f66; --public-soft:#d3ebe7;
+  --gap:#7b2d76; --gap-soft:#f0dcee;
+  --bad:#b03a14; --bad-soft:#f7ddd3;
+  --accent:#27408b; --accent-soft:#dbe2f4; --on-accent:#ffffff;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --font-body:"Newsreader",Georgia,"Times New Roman",serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f151b; --surface:#171f28; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+    --prover:#f0b45a; --prover-soft:#3a2a12;
+    --public:#58cfc0; --public-soft:#143531;
+    --gap:#dd9ad8; --gap-soft:#3a2238;
+    --bad:#ff9a70; --bad-soft:#40211a;
+    --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#171f28; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+  --prover:#f0b45a; --prover-soft:#3a2a12;
+  --public:#58cfc0; --public-soft:#143531;
+  --gap:#dd9ad8; --gap-soft:#3a2238;
+  --bad:#ff9a70; --bad-soft:#40211a;
+  --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:18px;line-height:1.6}
+/* Paper layout, desktop first: one sheet up to 1320px. Running text sits in a
+   centred 900px measure; anything marked .wide spans the whole sheet, which is
+   where the figures live. */
+.page{max-width:1320px;margin-inline:auto;padding-inline:24px;padding-block:0 96px}
+.article{min-width:0;display:flex;flex-direction:column;gap:30px;counter-reset:fig}
+.article section,.article header.paper{display:grid;grid-template-columns:[full-start] minmax(0,1fr) [text-start] minmax(0,900px) [text-end] minmax(0,1fr) [full-end];row-gap:16px;scroll-margin-top:70px;padding-top:30px;border-top:1px solid var(--line)}
+.article header.paper{border-top:0;padding-top:44px;row-gap:16px}
+.article section>*,.article header.paper>*{grid-column:text;min-width:0}
+.article section>.wide,.article header.paper>.wide{grid-column:full}
+figure.fig{counter-increment:fig}
+figure.fig figcaption::before{content:"Figure " counter(fig) ".  ";font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.flow figcaption,.trees figcaption,.layer figcaption{font-size:.9rem;color:var(--muted);line-height:1.45}
+.flow figcaption{padding:12px 16px;border-top:1px solid var(--line)}
+.trees figcaption,.layer figcaption{padding:4px 2px 0}
+
+/* sticky top bar */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:1320px;margin-inline:auto;padding-inline:24px;display:flex;align-items:center;gap:18px;min-height:48px}
+.topbar .brand{font-family:var(--font-display);font-weight:700;font-size:.95rem;white-space:nowrap}
+.topbar nav{display:flex;gap:0;overflow-x:auto;font-family:var(--font-mono);font-size:.7rem;min-width:0;scrollbar-width:none}
+.topbar nav::-webkit-scrollbar{display:none}
+.topbar nav a{color:var(--muted);text-decoration:none;padding:15px 9px;border-bottom:2px solid transparent;white-space:nowrap}
+.topbar nav a:hover,.topbar nav a.on{color:var(--accent);border-bottom-color:var(--accent)}
+.topbar .ver{margin-left:auto;font-family:var(--font-mono);font-size:.68rem;color:var(--muted);white-space:nowrap}
+
+/* paper header */
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;font-family:var(--font-mono);font-size:.72rem;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:500}
+.abstract{border:1px solid var(--line);background:var(--surface);padding:18px 22px;border-radius:4px;display:flex;flex-direction:column;gap:8px;font-size:1.02rem;line-height:1.55}
+.abstract .eyebrow{color:var(--accent)}
+.verlog{display:flex;flex-direction:column;gap:4px;font-family:var(--font-mono);font-size:.7rem;color:var(--muted)}
+.verlog b{color:var(--ink);font-weight:500}
+p,ul,ol,h1,h2,h3,h4,figure,dl{margin:0}
+ul,ol{padding-left:1.25em;display:flex;flex-direction:column;gap:6px}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible,button:focus-visible,details summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+strong{font-weight:600}
+code,.mono{font-family:var(--font-mono);font-size:.82em}
+pre{font-family:var(--font-mono);font-size:.78rem;line-height:1.5;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:12px 14px;overflow-x:auto;margin:0}
+
+.eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:750;font-size:clamp(2.1rem,5.4vw,3.2rem);line-height:1.04;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--prover)}
+h2{font-family:var(--font-display);font-weight:700;font-size:1.6rem;line-height:1.15;letter-spacing:-.01em;text-wrap:balance}
+h3{font-family:var(--font-display);font-weight:650;font-size:1.08rem;line-height:1.25}
+h4{font-family:var(--font-display);font-weight:650;font-size:.95rem;line-height:1.25}
+.deck{font-size:1.2rem;line-height:1.45;color:var(--muted);max-width:34em}
+.prover{color:var(--prover);font-weight:600}
+.public{color:var(--public);font-weight:600}
+.gapc{color:var(--gap);font-weight:600}
+.note-line{font-size:.92rem;color:var(--muted)}
+.callout{border-left:3px solid var(--accent);padding:4px 0 4px 16px;font-size:1.02rem}
+.callout.warn{border-color:var(--gap)}
+.callout.warn .eyebrow{color:var(--gap)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:var(--font-mono);font-size:.72rem;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.legend .l-prover::before{background:var(--prover)}
+.legend .l-public::before{background:var(--public)}
+.legend .l-gap::before{background:var(--gap)}
+
+/* the one-screen map */
+.mapfig{display:flex;flex-direction:column;gap:12px;border:1px solid var(--line);border-radius:4px;padding:16px 18px;background:var(--surface);overflow-x:auto}
+.mapfig svg{min-width:960px;width:100%}
+
+/* questions answered table */
+.qa{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.qa-row{display:grid;grid-template-columns:200px minmax(0,1fr);gap:4px 16px;border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:12px 14px;font-size:.95rem;line-height:1.45}
+.qa-row .q{font-family:var(--font-display);font-weight:650;line-height:1.25}
+.qa-row .q small{display:block;font-family:var(--font-mono);font-weight:400;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.qa-row .a{min-width:0}
+.qa-row.gap{border-color:var(--gap);background:var(--gap-soft)}
+
+/* the big flow */
+.flow{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.stage{display:grid;grid-template-columns:48px 150px minmax(0,1fr);gap:0 14px;padding:14px 16px;border-top:1px solid var(--line);align-items:start}
+.stage:first-child{border-top:0}
+.stage .n{font-family:var(--font-display);font-weight:750;font-size:1.3rem;line-height:1;color:var(--accent);padding-top:2px}
+.stage .who{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;line-height:1.4;padding-top:5px}
+.stage .who b{display:block;font-weight:500;color:var(--ink);font-size:.72rem;text-transform:none;letter-spacing:0;margin-bottom:3px}
+.stage .what{min-width:0;font-size:.95rem;line-height:1.45;display:flex;flex-direction:column;gap:6px}
+.stage .what .cmd{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);word-break:break-word}
+.stage.harness .who{color:var(--prover)}
+.stage.prover .who{color:var(--prover)}
+.stage.verifier .who{color:var(--public)}
+.stage.setup .who{color:var(--public)}
+.stage .out{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.stage .out span{font-family:var(--font-mono);font-size:.68rem;border:1px solid var(--line);border-radius:3px;padding:3px 7px;background:var(--bg)}
+.stage .out span.p{border-color:var(--prover);color:var(--prover)}
+.stage .out span.v{border-color:var(--public);color:var(--public)}
+
+/* grid of segments */
+.grid-fig{display:flex;flex-direction:column;gap:10px}
+.seggrid{display:grid;grid-template-columns:70px repeat(9,minmax(0,1fr));gap:3px;font-family:var(--font-mono);font-size:.62rem}
+.seggrid .hd{color:var(--muted);text-align:center;padding-bottom:2px}
+.seggrid .rl{color:var(--muted);align-self:center;white-space:nowrap}
+.seggrid .c{aspect-ratio:1.6;border:1px solid var(--line);border-radius:2px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.seggrid .c.l0{background:var(--prover-soft);border-color:var(--prover)}
+.seggrid .c.hd2{background:var(--public-soft);border-color:var(--public);color:var(--public)}
+.seggrid .c.gen{background:var(--accent-soft);border-color:var(--accent)}
+.seggrid .c.dots{border-style:dashed}
+.gridkey{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--font-mono);font-size:.7rem;color:var(--muted)}
+.gridkey i{display:inline-block;width:10px;height:10px;border:1px solid var(--line);border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--bg)}
+.gridkey i.l0{background:var(--prover-soft);border-color:var(--prover)}
+.gridkey i.gen{background:var(--accent-soft);border-color:var(--accent)}
+.gridkey i.hd2{background:var(--public-soft);border-color:var(--public)}
+
+/* transcript figure: the five trees */
+.trees{display:flex;flex-direction:column;gap:6px}
+.tree{display:grid;grid-template-columns:52px 150px minmax(0,1fr);gap:0 12px;align-items:start;border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--surface);font-size:.92rem;line-height:1.4}
+.tree .id{font-family:var(--font-mono);font-size:.7rem;color:var(--muted);padding-top:3px}
+.tree .nm{font-family:var(--font-display);font-weight:650;line-height:1.25}
+.tree .nm small{display:block;font-family:var(--font-mono);font-weight:400;font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;margin-top:3px}
+.tree .ds{min-width:0}
+.tree.pub{border-color:var(--public)} .tree.pub .nm small{color:var(--public)}
+.tree.prv{border-color:var(--prover)} .tree.prv .nm small{color:var(--prover)}
+.tree.ch{border-style:dashed;background:var(--bg)} .tree.ch .nm{color:var(--accent)}
+.tree.ch .nm small{color:var(--accent)}
+.transcript-note{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);text-align:center;padding:2px 0}
+
+/* layer diagram: gadgets along one layer */
+.layer{display:flex;flex-direction:column;gap:4px}
+.op{display:grid;grid-template-columns:28px minmax(0,1.1fr) minmax(0,1.3fr) 96px;gap:0 12px;align-items:center;border:1px solid var(--line);border-radius:3px;padding:8px 10px;background:var(--surface);font-size:.88rem;line-height:1.35}
+.op .e{font-family:var(--font-mono);font-size:.68rem;color:var(--muted)}
+.op .o{font-family:var(--font-display);font-weight:650}
+.op .g{font-family:var(--font-mono);font-size:.74rem;color:var(--muted)}
+.op .b{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;text-align:right}
+.op .b.bound{color:var(--public)} .op .b.self{color:var(--accent)} .op .b.edge{color:var(--prover)}
+.op.hl{border-color:var(--accent);background:var(--accent-soft)}
+
+/* glossary rows */
+.terms{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.term{display:grid;grid-template-columns:160px minmax(0,1fr);gap:4px 14px;font-size:.93rem;line-height:1.45;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.term b{font-family:var(--font-display);font-weight:650;line-height:1.25}
+.term b small{display:block;font-family:var(--font-mono);font-weight:400;font-size:.64rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+
+/* self-assessment */
+.check{display:flex;flex-direction:column;gap:6px}
+.check label{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font-size:.93rem;line-height:1.45;cursor:pointer}
+.check input{margin-top:5px;accent-color:var(--accent)}
+.check label.on{border-color:var(--public);background:var(--public-soft)}
+.check .score{font-family:var(--font-mono);font-size:.74rem;color:var(--muted)}
+.check-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button.small{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.04em;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:6px 10px;border-radius:3px;cursor:pointer}
+button.small:hover{border-color:var(--accent);color:var(--accent)}
+
+/* numbers */
+.numtab{width:100%;border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums}
+.numtab th,.numtab td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.numtab th{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.numtab td.n{text-align:right;font-family:var(--font-mono);font-size:.82rem;white-space:nowrap}
+.tabwrap{overflow-x:auto}
+
+/* details: extendable slots */
+details{border:1px dashed var(--line);border-radius:4px;padding:10px 14px;background:var(--surface)}
+details summary{cursor:pointer;font-family:var(--font-display);font-weight:650;font-size:.98rem;list-style:none;display:flex;align-items:center;gap:8px}
+details summary::before{content:"+";font-family:var(--font-mono);color:var(--accent);width:1em}
+details[open] summary::before{content:"–"}
+details[open]{border-style:solid}
+details .body{display:flex;flex-direction:column;gap:10px;padding-top:12px;font-size:.95rem}
+.slot{border:1px dashed var(--line);border-radius:4px;padding:10px 14px;font-family:var(--font-mono);font-size:.74rem;color:var(--muted);background:var(--bg)}
+.slot b{color:var(--accent);font-weight:500}
+
+/* two-up card grids on the wide sheet */
+@media (min-width:900px){
+  .terms.wide{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qa.wide{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stage{grid-template-columns:48px 180px minmax(0,1fr)}
+  .tree{grid-template-columns:60px 190px minmax(0,1fr)}
+  .op{grid-template-columns:36px minmax(0,1fr) minmax(0,1.6fr) 110px}
+}
+@media (max-width:640px){
+  body{font-size:17px}
+  .stage{grid-template-columns:36px minmax(0,1fr)}
+  .stage .what{grid-column:1 / -1;padding-top:6px}
+  .qa-row,.term{grid-template-columns:minmax(0,1fr)}
+  .tree{grid-template-columns:40px minmax(0,1fr)} .tree .ds{grid-column:1 / -1;padding-top:4px}
+  .op{grid-template-columns:24px minmax(0,1fr)} .op .g,.op .b{grid-column:2;text-align:left}
+  .seggrid{font-size:.5rem;grid-template-columns:48px repeat(9,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="topbar">
+  <div class="in">
+    <span class="brand">ZK Inference Prover Flow</span>
+    <nav id="nav">
+      <a href="#map">0 Map</a>
+      <a href="#intuition">1 Intuition</a>
+      <a href="#questions">2 Six questions</a>
+      <a href="#flow">3 Stages</a>
+      <a href="#grid">4 Grid</a>
+      <a href="#segment">5 One segment</a>
+      <a href="#layer">6 Gadgets</a>
+      <a href="#boundary">7 Trust boundary</a>
+      <a href="#numbers">8 Numbers</a>
+      <a href="#glossary">9 Terms</a>
+      <a href="#assess">10 Self-check</a>
+      <a href="#deeper">11 Slots</a>
+    </nav>
+    <span class="ver">v2 · 7 Oct 2026</span>
+  </div>
+</div>
+
+<div class="page">
+<main class="article">
+
+<header class="paper">
+  <div class="eyebrow">Study notes · sg-ai-safety-hub / zk-inference-prover · read against the code on disk</div>
+  <h1>How one proved <em>decode</em> is built, end to end</h1>
+  <p class="deck">The whole flow of the SASH prototype, from a prompt to a verified grid of STARK proofs, with every component placed where it really sits in the code. Written so you can see which parts you own and which parts are still fog.</p>
+  <div class="meta">
+    <span><b>Subject</b> Llama-3.1-8B, greedy decode, 4,096 + 512 positions</span>
+    <span><b>Proof system</b> Circle STARK over M31 (stwo fork), LogUp, 5 GKR reductions, Freivalds</span>
+    <span><b>Sources</b> prover and results repositories at their 7 Oct 2026 state</span>
+  </div>
+  <div class="abstract">
+    <div class="eyebrow">Abstract</div>
+    <p>A ZK inference proof is a receipt that one specific computation happened. This note follows the SASH prototype from the user's prompt to a verified grid of 290 STARK proofs. The prompt is tokenised outside the proof; the ids are the public input. The model is rerun in fixed arithmetic and every intermediate value is dumped as the witness. Each layer-by-block segment becomes a table of columns over the Mersenne-31 field, committed as five Merkle trees whose roots seed the challenges; the constraints are checked and a STARK is written. A CPU verifier checks each proof alone, then checks that neighbouring segments agree on their boundary roots and that each emitted id is the argmax the head proved. Two things it does not do: it is not hiding in the zero-knowledge sense, and nothing in it is formally verified.</p>
+  </div>
+  <div class="legend">
+    <span class="l-prover">prover-chosen, committed</span>
+    <span class="l-public">public, verifier-derived or checked</span>
+    <span class="l-gap">outside the statement (not proved)</span>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section id="map">
+  <div class="eyebrow">0 · The whole flow on one screen</div>
+  <h2>From a prompt to a verified grid, as a directed graph</h2>
+  <p class="note-line">Read top to bottom. Plum is outside every proof, teal is public or verifier-side, amber is what the prover chooses and commits. Every arrow is a real data dependency in the code.</p>
+  <figure class="mapfig wide fig">
+  <svg viewBox="0 0 960 672" role="img" aria-label="Flow: a prompt is tokenised to public ids; the model is rerun in fixed arithmetic and every intermediate value is dumped as the witness; per segment the witness becomes columns over M31, committed as five Merkle trees whose roots seed the challenges, constraints are checked and a STARK proof is produced; a CPU verifier checks each proof and then compares boundary roots between neighbouring segments in a grid whose layers go up and blocks go right." style="font-family:var(--font-display);max-width:100%;height:auto;display:block">
+    <defs>
+      <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="currentColor"/></marker>
+    </defs>
+
+    <!-- band separators -->
+    <line x1="40" y1="112" x2="940" y2="112" stroke="currentColor" stroke-opacity=".2"/>
+    <line x1="40" y1="284" x2="940" y2="284" stroke="currentColor" stroke-opacity=".2"/>
+    <line x1="40" y1="430" x2="940" y2="430" stroke="currentColor" stroke-opacity=".2"/>
+
+    <!-- ===== band 1-2 ===== -->
+    <text x="40" y="28" font-size="10" letter-spacing="1" fill="currentColor" fill-opacity=".65" style="font-family:var(--font-mono)">1 – 2 · IN THE OPEN, NOT INSIDE ANY PROOF</text>
+    <rect x="40" y="42" width="140" height="46" rx="4" style="fill:var(--gap-soft);stroke:var(--gap);stroke-dasharray:4 3"/>
+    <text x="110" y="61" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Prompt</text>
+    <text x="110" y="76" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity=".75">text from the user</text>
+    <line x1="180" y1="65" x2="268" y2="65" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="224" y="57" text-anchor="middle" font-size="9.5" fill="currentColor">tokeniser + template</text>
+    <text x="224" y="80" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".7">(not proved)</text>
+    <rect x="270" y="42" width="140" height="46" rx="4" style="fill:var(--public-soft);stroke:var(--public)"/>
+    <text x="340" y="61" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Token ids</text>
+    <text x="340" y="76" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity=".75">public input of every proof</text>
+    <text x="430" y="58" font-size="10.5" fill="currentColor">The verifier is handed these ids.</text>
+    <text x="430" y="73" font-size="10.5" fill="currentColor" fill-opacity=".75">The text itself is never inside a proof.</text>
+
+    <!-- ids down into the model, and the feedback from argmax -->
+    <line x1="300" y1="88" x2="300" y2="140" stroke="currentColor" marker-end="url(#ar)"/>
+    <path d="M902,142 V106 H380 V90" fill="none" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="640" y="101" text-anchor="middle" font-size="9.5" fill="currentColor">next id appended, one per step, 512 steps</text>
+
+    <!-- ===== band 3-4 ===== -->
+    <text x="40" y="124" font-size="10" letter-spacing="1" fill="currentColor" fill-opacity=".65" style="font-family:var(--font-mono)">3 – 4 · THE MODEL, RERUN IN FIXED ARITHMETIC, EVERY STEP RECORDED</text>
+    <text x="940" y="138" text-anchor="end" font-size="9.5" fill="currentColor" fill-opacity=".7">residual stream flows left to right →</text>
+    <text x="40" y="152" font-size="10.5" fill="currentColor">Every op is written out:</text>
+    <text x="40" y="166" font-size="10.5" fill="currentColor" fill-opacity=".8">int8 matmul, exact int32 sum,</text>
+    <text x="40" y="180" font-size="10.5" fill="currentColor" fill-opacity=".8">bf16 norm and SwiGLU,</text>
+    <text x="40" y="194" font-size="10.5" fill="currentColor" fill-opacity=".8">integer softmax, RoPE tables.</text>
+    <text x="40" y="208" font-size="10.5" fill="currentColor" fill-opacity=".8">No fused kernel hides an order.</text>
+
+    <rect x="270" y="142" width="90" height="46" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="315" y="161" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Embedding</text>
+    <text x="315" y="176" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".75">row lookup</text>
+    <line x1="360" y1="165" x2="380" y2="165" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="382" y="142" width="90" height="46" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="427" y="161" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Layer 0</text>
+    <text x="427" y="176" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".75">norm · attn · mlp</text>
+    <line x1="472" y1="165" x2="492" y2="165" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="494" y="142" width="90" height="46" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="539" y="161" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Layer 1</text>
+    <text x="539" y="176" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".75">same constraints</text>
+    <line x1="584" y1="165" x2="598" y2="165" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="612" y="170" text-anchor="middle" font-size="14" fill="currentColor">…</text>
+    <line x1="626" y1="165" x2="638" y2="165" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="640" y="142" width="90" height="46" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="685" y="161" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Layer 31</text>
+    <text x="685" y="176" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".75">32 layers in all</text>
+    <line x1="730" y1="165" x2="750" y2="165" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="752" y="142" width="90" height="46" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="797" y="161" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Head</text>
+    <text x="797" y="176" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".75">logits, 128k wide</text>
+    <line x1="842" y1="165" x2="862" y2="165" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="864" y="142" width="76" height="46" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="902" y="161" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">argmax</text>
+    <text x="902" y="176" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".75">greedy</text>
+
+    <!-- dumps -->
+    <line x1="315" y1="188" x2="315" y2="220" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+    <line x1="427" y1="188" x2="427" y2="220" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+    <line x1="539" y1="188" x2="539" y2="220" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+    <line x1="685" y1="188" x2="685" y2="220" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+    <line x1="797" y1="188" x2="797" y2="220" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+    <line x1="902" y1="188" x2="902" y2="220" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+    <text x="328" y="209" font-size="9.5" fill="currentColor" fill-opacity=".75">dump</text>
+
+    <rect x="40" y="222" width="900" height="46" rx="4" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="490" y="241" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Witness: every intermediate value, per layer, per 512-token block</text>
+    <text x="490" y="257" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity=".8">int8 activations · int32 accumulators · bf16 bit patterns · attention scores · K/V · residual in and out  —  your step 4, kept rather than thrown away</text>
+
+    <!-- ===== band 5 ===== -->
+    <line x1="92" y1="268" x2="92" y2="314" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="120" y="300" font-size="10" letter-spacing="1" fill="currentColor" fill-opacity=".65" style="font-family:var(--font-mono)">5 · ONE SEGMENT (ONE LAYER × 512 POSITIONS) BECOMES ONE PROOF, 290 TIMES</text>
+
+    <rect x="40" y="316" width="95" height="52" rx="4" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="87" y="334" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">Witness tables</text>
+    <text x="87" y="348" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">one layer</text>
+    <text x="87" y="361" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">one block</text>
+    <line x1="135" y1="342" x2="173" y2="342" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="155" y="336" text-anchor="middle" font-size="9" fill="currentColor">encode</text>
+
+    <rect x="175" y="316" width="95" height="52" rx="4" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="222" y="334" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">Columns</text>
+    <text x="222" y="348" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">rows × cols over M31</text>
+    <text x="222" y="361" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">the polynomial table</text>
+    <line x1="270" y1="342" x2="308" y2="342" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="290" y="336" text-anchor="middle" font-size="9" fill="currentColor">commit</text>
+
+    <rect x="310" y="316" width="95" height="52" rx="4" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="357" y="334" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">Merkle trees</text>
+    <text x="357" y="348" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">5 trees → 5 roots</text>
+    <text x="357" y="361" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">32 bytes each</text>
+    <text x="357" y="384" text-anchor="middle" font-size="9" fill="currentColor" fill-opacity=".7">shape · model · trace</text>
+    <text x="357" y="395" text-anchor="middle" font-size="9" fill="currentColor" fill-opacity=".7">interaction · boundary</text>
+    <line x1="405" y1="342" x2="443" y2="342" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="425" y="336" text-anchor="middle" font-size="9" fill="currentColor">mix</text>
+
+    <rect x="445" y="316" width="95" height="52" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="492" y="334" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">Hash channel</text>
+    <text x="492" y="348" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">Blake2s</text>
+    <text x="492" y="361" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">Fiat–Shamir</text>
+    <line x1="540" y1="342" x2="578" y2="342" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="560" y="336" text-anchor="middle" font-size="9" fill="currentColor">draw</text>
+
+    <rect x="580" y="316" width="95" height="52" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="627" y="334" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">Challenges</text>
+    <text x="627" y="348" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">random r, s, z, α</text>
+    <text x="627" y="361" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">after commitment</text>
+    <line x1="675" y1="342" x2="713" y2="342" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="695" y="336" text-anchor="middle" font-size="9" fill="currentColor">check</text>
+
+    <rect x="715" y="316" width="95" height="52" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="762" y="334" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">Constraints</text>
+    <text x="762" y="348" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">lookups · Freivalds</text>
+    <text x="762" y="361" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">softmax · roundings</text>
+    <line x1="810" y1="342" x2="848" y2="342" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="830" y="336" text-anchor="middle" font-size="9" fill="currentColor">prove</text>
+
+    <rect x="850" y="316" width="95" height="52" rx="4" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="897" y="334" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">STARK proof</text>
+    <text x="897" y="348" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">OODS + FRI</text>
+    <text x="897" y="361" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".8">~65 MiB</text>
+
+    <text x="40" y="414" font-size="10.5" fill="currentColor">Order is the point: each challenge is a hash of everything committed before it, so the prover cannot fit its values to the randomness.</text>
+
+    <!-- ===== band 6 ===== -->
+    <text x="40" y="446" font-size="10" letter-spacing="1" fill="currentColor" fill-opacity=".65" style="font-family:var(--font-mono)">6 · VERIFY EACH PROOF, THEN CHECK THE DEPENDENCIES BETWEEN PROOFS</text>
+
+    <rect x="40" y="462" width="120" height="22" rx="3" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="100" y="477" text-anchor="middle" font-size="10.5" fill="currentColor">proof</text>
+    <line x1="160" y1="473" x2="198" y2="473" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="40" y="492" width="120" height="22" rx="3" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="100" y="507" text-anchor="middle" font-size="10.5" fill="currentColor">statement + claims</text>
+    <line x1="160" y1="503" x2="198" y2="503" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="40" y="522" width="120" height="22" rx="3" style="fill:var(--public-soft);stroke:var(--public)"/>
+    <text x="100" y="537" text-anchor="middle" font-size="10.5" fill="currentColor">token ids</text>
+    <line x1="160" y1="533" x2="198" y2="533" stroke="currentColor" marker-end="url(#ar)"/>
+    <rect x="40" y="552" width="120" height="22" rx="3" style="fill:var(--public-soft);stroke:var(--public)"/>
+    <text x="100" y="567" text-anchor="middle" font-size="10.5" fill="currentColor">calibration + roots</text>
+    <line x1="160" y1="563" x2="198" y2="563" stroke="currentColor" marker-end="url(#ar)"/>
+
+    <rect x="200" y="462" width="250" height="120" rx="4" style="fill:var(--public-soft);stroke:var(--public)"/>
+    <text x="325" y="482" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Verifier</text>
+    <text x="325" y="496" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity=".8">CPU only, holds no weights</text>
+    <text x="212" y="516" font-size="10" fill="currentColor">· replays the hash channel</text>
+    <text x="212" y="530" font-size="10" fill="currentColor">· rebuilds the shape tree, root must match</text>
+    <text x="212" y="544" font-size="10" fill="currentColor">· model root = published commitment</text>
+    <text x="212" y="558" font-size="10" fill="currentColor">· stwo verify, then the application identities</text>
+    <text x="212" y="572" font-size="10" fill="currentColor">· argmax id = the next published id</text>
+    <line x1="325" y1="582" x2="325" y2="606" stroke="currentColor" marker-end="url(#ar)"/>
+    <text x="325" y="622" text-anchor="middle" font-size="10.5" fill="currentColor">accept or reject, per segment</text>
+    <text x="325" y="636" text-anchor="middle" font-size="10.5" fill="currentColor" fill-opacity=".8">then every root equality between neighbours</text>
+
+    <!-- the DAG of segments -->
+    <text x="540" y="464" font-size="10.5" font-weight="600" fill="currentColor">The dependency graph between segments</text>
+    <!-- head row -->
+    <rect x="690" y="476" width="54" height="24" rx="3" style="fill:var(--public-soft);stroke:var(--public)"/>
+    <text x="717" y="492" text-anchor="middle" font-size="9.5" fill="currentColor">head</text>
+    <rect x="780" y="476" width="54" height="24" rx="3" style="fill:var(--public-soft);stroke:var(--public)"/>
+    <text x="807" y="492" text-anchor="middle" font-size="9.5" fill="currentColor">head</text>
+    <!-- L2 row -->
+    <rect x="600" y="514" width="54" height="24" rx="3" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="627" y="530" text-anchor="middle" font-size="9.5" fill="currentColor">L2 · B0</text>
+    <rect x="690" y="514" width="54" height="24" rx="3" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="717" y="530" text-anchor="middle" font-size="9.5" fill="currentColor">L2 · B1</text>
+    <rect x="780" y="514" width="54" height="24" rx="3" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="807" y="530" text-anchor="middle" font-size="9.5" fill="currentColor">L2 · B2</text>
+    <!-- L1 row -->
+    <rect x="600" y="552" width="54" height="24" rx="3" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="627" y="568" text-anchor="middle" font-size="9.5" fill="currentColor">L1 · B0</text>
+    <rect x="690" y="552" width="54" height="24" rx="3" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="717" y="568" text-anchor="middle" font-size="9.5" fill="currentColor">L1 · B1</text>
+    <rect x="780" y="552" width="54" height="24" rx="3" style="fill:var(--surface);stroke:currentColor"/>
+    <text x="807" y="568" text-anchor="middle" font-size="9.5" fill="currentColor">L1 · B2</text>
+    <!-- L0 row -->
+    <rect x="600" y="590" width="54" height="24" rx="3" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="627" y="606" text-anchor="middle" font-size="9.5" fill="currentColor">L0 · B0</text>
+    <rect x="690" y="590" width="54" height="24" rx="3" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="717" y="606" text-anchor="middle" font-size="9.5" fill="currentColor">L0 · B1</text>
+    <rect x="780" y="590" width="54" height="24" rx="3" style="fill:var(--prover-soft);stroke:var(--prover)"/>
+    <text x="807" y="606" text-anchor="middle" font-size="9.5" fill="currentColor">L0 · B2</text>
+    <!-- vertical arrows: residual root -->
+    <line x1="627" y1="590" x2="627" y2="578" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="717" y1="590" x2="717" y2="578" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="807" y1="590" x2="807" y2="578" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="627" y1="552" x2="627" y2="540" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="717" y1="552" x2="717" y2="540" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="807" y1="552" x2="807" y2="540" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="717" y1="514" x2="717" y2="502" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="807" y1="514" x2="807" y2="502" stroke="currentColor" marker-end="url(#ar)"/>
+    <!-- horizontal arrows: K/V root -->
+    <line x1="654" y1="526" x2="688" y2="526" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="744" y1="526" x2="778" y2="526" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="654" y1="564" x2="688" y2="564" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="744" y1="564" x2="778" y2="564" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="654" y1="602" x2="688" y2="602" stroke="currentColor" marker-end="url(#ar)"/>
+    <line x1="744" y1="602" x2="778" y2="602" stroke="currentColor" marker-end="url(#ar)"/>
+    <!-- labels -->
+    <text x="592" y="566" text-anchor="end" font-size="9" fill="currentColor">residual</text>
+    <text x="592" y="577" text-anchor="end" font-size="9" fill="currentColor">root =</text>
+    <text x="671" y="509" text-anchor="middle" font-size="9" fill="currentColor">K/V root =</text>
+    <text x="842" y="494" font-size="9" fill="currentColor">→ emitted ids</text>
+    <text x="842" y="530" font-size="9" fill="currentColor" fill-opacity=".7">layer 2</text>
+    <text x="842" y="568" font-size="9" fill="currentColor" fill-opacity=".7">layer 1</text>
+    <text x="842" y="606" font-size="9" fill="currentColor" fill-opacity=".7">layer 0 + embed</text>
+    <text x="627" y="628" text-anchor="middle" font-size="9" fill="currentColor" fill-opacity=".7">block 0</text>
+    <text x="717" y="628" text-anchor="middle" font-size="9" fill="currentColor" fill-opacity=".7">block 1</text>
+    <text x="807" y="628" text-anchor="middle" font-size="9" fill="currentColor" fill-opacity=".7">block 2 (generated)</text>
+    <text x="540" y="650" font-size="10" fill="currentColor">Every arrow is one Merkle-root equality the grid checks.</text>
+    <text x="540" y="663" font-size="10" fill="currentColor" fill-opacity=".8">Acyclic by construction: layers go up, blocks go right. 32 × 9 in the real run.</text>
+  </svg>
+  <figcaption class="note-line">One request end to end. The prompt is tokenised outside the proof; the ids are the public input. The model is rerun in explicit fixed arithmetic and every intermediate value is kept as the witness. Each layer-by-block segment becomes a table of columns over the Mersenne-31 field, committed as Merkle trees; the roots seed the challenges, the constraints are checked, and a STARK proof is written. A CPU verifier checks each proof alone, then checks that neighbouring segments agree on their boundary roots, and that each emitted id is the argmax the head proved for the position before it.</figcaption>
+  </figure>
+  <h3>Your six steps, mapped onto the picture</h3>
+  <ol>
+    <li><strong>The user sends the prompt.</strong> Top-left plum box. Text never enters a proof.</li>
+    <li><strong>It creates the tokens.</strong> The teal box. The ids are the one public input the verifier is handed; the tokeniser itself is unproved.</li>
+    <li><strong>It goes to the model.</strong> The row of boxes: embedding, 32 layers, head, argmax. Each emitted id is appended and the row runs again, 512 times.</li>
+    <li><strong>The model has many intermediate steps.</strong> Every one of them is dumped into the amber witness bar. That is what makes the next band possible.</li>
+    <li><strong>The table and the Merkle tree.</strong> Band 5. The witness becomes columns over the field (the "polynomial table"), committed as five Merkle trees. The roots are hashed into challenges, the constraints are checked under those challenges, and the STARK compresses the result. This happens once per segment, 290 times.</li>
+    <li><strong>Verify the dependencies.</strong> Band 6. Each proof is checked on its own, and then the grid: every vertical arrow is a residual-stream root equality, every horizontal arrow a K/V root equality, and the head's argmax must equal the next published id. That graph is acyclic by construction, so there is no recursion anywhere.</li>
+  </ol>
+</section>
+
+<!-- ============================================================ -->
+<section id="intuition">
+  <div class="eyebrow">1 · The intuition in one paragraph</div>
+  <h2>A proof that a specific arithmetic happened, not that a model is smart</h2>
+  <p>A ZK inference proof is a receipt for a computation. The provider says: "with these token ids, under this committed model, I ran a greedy decode and got these 512 tokens." The verifier wants to check that claim without rerunning an 8-billion-parameter model and without seeing the weights. The whole machine exists to turn "I ran the model honestly" into a set of polynomial equations that a dishonest prover cannot satisfy, plus a short randomised test that those equations hold.</p>
+  <p>Three ideas carry everything:</p>
+  <ul>
+    <li><strong>Commit first, then get challenged.</strong> The prover writes every intermediate value of the forward pass into tables, hashes them into Merkle trees, and only then receives random challenges derived from those hashes. Nothing can be changed after the fact.</li>
+    <li><strong>Constrain every row.</strong> Each table row must satisfy small algebraic rules (an int8 times int8 accumulates correctly, a bf16 rounding is the correctly rounded one, a softmax numerator comes from the exp table). Rules are the "circuit", here called the AIR.</li>
+    <li><strong>Check at random points.</strong> A STARK does not check every row. It checks that the constraint polynomials are low-degree at a handful of random points. If the prover cheated on even one row, the polynomial is no longer low-degree and the test fails with overwhelming probability.</li>
+  </ul>
+  <div class="callout">
+    <div class="eyebrow">What "zero knowledge" means here</div>
+    <p>The repository is honest that it is <em>not</em> hiding in the cryptographic sense: no random blinding is added to the committed trace. What is hidden is only the weights behind a Merkle root. So the word "ZK" in the name is the proof-system family, not a privacy guarantee. Keep that distinction sharp in an interview.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="questions">
+  <div class="eyebrow">2 · Your six questions, placed</div>
+  <h2>Where each thing you named actually lives</h2>
+  <div class="qa wide">
+    <div class="qa-row gap">
+      <div class="q">Formal verification<small>not present</small></div>
+      <div class="a">There is <strong>no formal verification</strong> in this system. Nothing machine-checks that the constraint system equals the model's arithmetic. What exists instead is empirical: a digest gate (every change must reproduce byte-identical proofs on both backends), negative controls (tamper one value, confirm the verifier rejects), and self-tests that rebuild cell counts from the layout. SASH lists "machine-checked constraint systems" as a public good they <em>want</em>. If you say "formal verification" about this code, that is a weak spot.</div>
+    </div>
+    <div class="qa-row">
+      <div class="q">The ZK proof system<small>stage 6 · prover/</small></div>
+      <div class="a">The proof system is the thing that turns a committed trace plus constraints into a short argument. Here it is a <strong>Circle STARK</strong> from StarkWare's stwo, vendored as <code>nitroo/</code> with a CUDA backend. The prover crate (<code>compose.rs</code>) states one segment as an AIR over it. "Proof system" and "STARK" are the same component seen at two levels.</div>
+    </div>
+    <div class="qa-row">
+      <div class="q">STARK<small>stage 6, last step</small></div>
+      <div class="a">The STARK is the last thing that happens in a segment proof: after every tree is committed and every challenge drawn, stwo's <code>prove()</code> does out-of-domain sampling and FRI over the whole constraint set. It is about 4.6 percent of loop time. The expensive part is building the trace the STARK proves, not the STARK itself.</div>
+    </div>
+    <div class="qa-row">
+      <div class="q">Merkle trees<small>everywhere, five roles</small></div>
+      <div class="a">A Merkle tree is how a table of field elements becomes one 32-byte commitment. One segment commits <strong>five kinds</strong> of tree: the shape tree, the model tree, the base trace, the interaction columns, and the boundary trees. Two of those roots have a life outside the proof: the model root is the publisher's weight commitment, and the boundary roots are what make adjacent segments chain. See section 5.</div>
+    </div>
+    <div class="qa-row">
+      <div class="q">Prefill and precomputation<small>stages 1 to 3, and tree 0</small></div>
+      <div class="a">Two different things hide behind this word. (a) <strong>Prefill</strong> in the LLM sense: the prompt's 4,096 positions are proved too, as 8 blocks of 32 layer segments; nothing is "just cached". (b) <strong>Preprocessed trees</strong> in the STARK sense: the shape tree and the model tree hold columns that do not depend on the input (selectors, lookup tables, quantised weights). They are committed once per (layer, shape) and reused across segments via a device-side cache.</div>
+    </div>
+    <div class="qa-row">
+      <div class="q">The proving part<small>stage 6 · compose-chunks</small></div>
+      <div class="a">"Proving" is one Rust process looping over a plan file, one segment per line. Each segment is <code>generate()</code> (build every column, on GPU where a kernel exists) then <code>prove_gen()</code> (commit, challenge, interaction, GKR, boundary, STARK). 290 segments for the c4096 request; 61 minutes of loop on one H100.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="flow">
+  <div class="eyebrow">3 · The flowchart, as the sequence job runs it</div>
+  <h2>Seven stages from prompt to verdict</h2>
+  <p class="note-line">This is the order <code>tools/drivers/lib/sequence-job.sh</code> executes on the GPU host. Amber stages are the prover's side (they choose values and commit to them). Teal stages are the verifier's side or are derivable by anyone from public data.</p>
+  <figure class="flow wide fig">
+    <div class="stage harness">
+      <div class="n">1</div>
+      <div class="who"><b>Harness</b>python · GPU</div>
+      <div class="what">
+        <div><strong>Generate the statement's token ids.</strong> Take a 4,096-token prompt from the fixed corpus, run the quantised model greedily for 512 new tokens, write <code>prompt ∥ continuation</code>. This decode is itself the thing being proved. Greedy means argmax, so the emitted token is a deterministic function of the logits.</div>
+        <div class="cmd">python -m harness.witness.gen_ids --prefix 4096 --new 512 --spec y-delay-vw12</div>
+        <div class="out"><span class="p">ids_512.npy</span></div>
+      </div>
+    </div>
+    <div class="stage harness">
+      <div class="n">2</div>
+      <div class="who"><b>Harness</b>python · GPU</div>
+      <div class="what">
+        <div><strong>Extract the witness.</strong> Rerun the forward pass in explicit fixed arithmetic (every op written out, no fused kernels) and dump, per layer and per 512-token block, every value a constraint will read: int8 activations, exact int32 accumulators, bf16 scales and patterns, attention scores, K/V tiles, the residual stream in and out. Layer 0 also dumps the embedding rows. This is the single most expensive host step and the data is ~27 GB for a 14B model.</div>
+        <div class="cmd">python -m harness.witness.extract --tokens 4608 --chunk 512 --layers 0..31 --blocks all --residual-stream --diagonal-block</div>
+        <div class="out"><span class="p">witness_B&lt;b&gt;_L&lt;k&gt;/ (arrays + manifest.json)</span><span class="p">shared/ (weights, tables)</span></div>
+      </div>
+    </div>
+    <div class="stage harness">
+      <div class="n">3</div>
+      <div class="who"><b>Harness</b>python · CPU</div>
+      <div class="what">
+        <div><strong>Shape table and plan file.</strong> Read every dump's manifest, compute the model-wide worst case for the pins every segment must share (<code>--kmax</code>, <code>--ao-rem-bits</code>, fold widths), refuse early if a layer would not fit the field's 31 bits, and write one plan line per segment: 9 blocks × 32 layers + 2 head segments = 290 lines.</div>
+        <div class="cmd">python -m harness.witness.shapes … ; python -m harness.witness.plan --dir W --blocks 9 --head-blocks 7,8</div>
+        <div class="out"><span class="p">shapes_all.json</span><span class="p">plan.txt</span></div>
+      </div>
+    </div>
+    <div class="stage setup">
+      <div class="n">4</div>
+      <div class="who"><b>Setup</b>rust · once per shape</div>
+      <div class="what">
+        <div><strong>Emit and install CUDA kernels.</strong> For each distinct constraint shape in the plan, lower the AIR to straight-line IR, check that lowering against the CPU evaluator on random data, generate <code>.cu</code> files, and rebuild the CUDA backend with them. Without this step the GPU build still works but evaluates constraints on the CPU, and the proof digest does not change either way.</div>
+        <div class="cmd">zk-prover cudaemit … ; zk-prover genemit … ; python kernels/install_constraint_kernels.py</div>
+        <div class="out"><span class="v">prover/kernels/ store (fingerprinted)</span></div>
+      </div>
+    </div>
+    <div class="stage setup">
+      <div class="n">5</div>
+      <div class="who"><b>Publisher</b>rust · once per model</div>
+      <div class="what">
+        <div><strong>Commit the model.</strong> For every (layer, context) cell, build only the preprocessed trees and read off two roots: the <span class="public">shape root</span> (verifier can recompute it) and the <span class="prover">model root</span> (commits the int8 weights and per-channel scales; only the publisher can make it, anyone can compare against it). The manifest also carries the per-layer attention calibration the verifier needs.</div>
+        <div class="cmd">zk-prover model-roots --out model-roots.json</div>
+        <div class="out"><span class="v">model-roots.json (shape root, model root, frac_per_head per layer)</span></div>
+      </div>
+    </div>
+    <div class="stage prover">
+      <div class="n">6</div>
+      <div class="who"><b>Prover</b>rust · GPU · the loop</div>
+      <div class="what">
+        <div><strong>Prove every segment.</strong> One process per 64 plan lines, pipelined so segment k+1 is generated while segment k is proved. Each segment: load and decode its dump → build every gadget's columns → commit the five trees → draw challenges → build LogUp interaction columns and run the five GKR sumchecks → commit boundary trees → stwo STARK prove → serialise three files. Section 5 opens this box.</div>
+        <div class="cmd">ZK_PIPELINE=1 zk-prover compose-chunks $SHARED --plan plan.txt --plan-slice 0:64 --ser-dir SER</div>
+        <div class="out"><span class="p">&lt;tag&gt;.fixed.json (statement)</span><span class="p">&lt;tag&gt;.claims.json</span><span class="p">&lt;tag&gt;.proof.json (~65 MiB)</span></div>
+      </div>
+    </div>
+    <div class="stage verifier">
+      <div class="n">7</div>
+      <div class="who"><b>Verifier</b>rust · CPU only</div>
+      <div class="what">
+        <div><strong>Boundary grid: verify and chain.</strong> On the SIMD build, with no card: for each segment replay the transcript, rebuild the shape tree from public parameters and compare its root, compare the model root with the manifest, run stwo's <code>verify()</code>, and check every application identity. Then check every link: residual-stream roots between consecutive layers (layer axis) and K/V roots between consecutive blocks (token axis). Finally chain the ids: each prompt id against the published prompt, each generated id against the argmax a head segment proved for the previous position.</div>
+        <div class="cmd">zk-prover boundary-grid --dir SER --plan plan.txt --verify --prompt prompt.json --verify-calibration model-roots.json --expect-layer-links 281 --expect-token-links 256</div>
+        <div class="out"><span class="v">grid.json: links_passed / links_run, all_chain, per-segment verify_secs</span></div>
+      </div>
+    </div>
+    <figcaption>The seven stages of a headline run, in the order <code>sequence-job.sh</code> executes them. Stages 1 to 3 and 6 are the prover's side; 4, 5 and 7 are derivable or checkable by anyone holding the public inputs.</figcaption>
+  </figure>
+  <p class="note-line">A gate script then refuses the run if any segment lists an <code>--unsound-skip</code>, any edge is unbound, any kernel fell back to the CPU, or any link failed. Only then does the run become a row in <code>constants.json</code>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="grid">
+  <div class="eyebrow">4 · The unit of proof</div>
+  <h2>A request is a grid, not one proof</h2>
+  <p>There is no recursion and no single proof of the whole request. The statement is cut into <strong>segments</strong>: one transformer layer applied to one block of S = 512 positions, against a context of C earlier positions. The c4096 request below is 9 token blocks (8 prompt blocks and 1 generated block) times 32 layers, plus the output head proved twice.</p>
+  <figure class="grid-fig fig">
+    <div class="seggrid" aria-label="segments as a 32 by 9 grid">
+      <div class="rl"></div>
+      <div class="hd">B0</div><div class="hd">B1</div><div class="hd">B2</div><div class="hd">B3</div><div class="hd">B4</div><div class="hd">B5</div><div class="hd">B6</div><div class="hd">B7</div><div class="hd">B8</div>
+      <div class="rl">head</div>
+      <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c hd2">argmax</div><div class="c hd2 gen">argmax</div>
+      <div class="rl">L31</div>
+      <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c gen"></div>
+      <div class="rl">…</div>
+      <div class="c dots"></div><div class="c dots"></div><div class="c dots"></div><div class="c dots"></div><div class="c dots"></div><div class="c dots"></div><div class="c dots"></div><div class="c dots"></div><div class="c dots gen"></div>
+      <div class="rl">L1</div>
+      <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c gen"></div>
+      <div class="rl">L0</div>
+      <div class="c l0">emb</div><div class="c l0">emb</div><div class="c l0">emb</div><div class="c l0">emb</div><div class="c l0">emb</div><div class="c l0">emb</div><div class="c l0">emb</div><div class="c l0">emb</div><div class="c l0 gen">emb</div>
+    </div>
+    <div class="gridkey">
+      <span><i class="l0"></i>layer 0 also binds the embedding row (edge 15)</span>
+      <span><i class="gen"></i>B8 is the 512 generated positions</span>
+      <span><i class="hd2"></i>head segment binds logits to the emitted id (edge 16)</span>
+    </div>
+    <figcaption class="note-line">Columns are token blocks of 512 positions; rows are layers. Vertical neighbours share a residual-stream boundary root (layer links: 9 × 31 + 2 = 281, which the driver computes as <code>NBLOCK × (NLAY−1) + NHEAD</code>). Horizontal neighbours share a K/V boundary root at that layer (token links: 8 × 32 = 256). The head sits on B7 as well as B8 because the first generated token's argmax was computed at the last prompt position.</figcaption>
+  </figure>
+  <p>Why this shape? Attention at block b reads keys from blocks 0 to b. So every segment proves "my 512 queries against the C committed keys", and the K/V boundary root is what ties "the keys I attended over" to "the keys the previous block actually wrote". Without that root each segment could be honest while the sequence lies.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="segment">
+  <div class="eyebrow">5 · Inside one segment proof</div>
+  <h2>The transcript: five trees, then challenges, then the STARK</h2>
+  <p>This is <code>compose::generate</code> followed by <code>compose::prove_gen_to</code>. The order matters because it <em>is</em> the Fiat-Shamir transcript: each root is mixed into a Blake2s channel, and every random challenge is drawn from that channel after the things it must not be able to influence have been committed. The serialised proof's SHA-256 is the digest gate, so even the column order inside a tree is load-bearing.</p>
+  <figure class="trees wide fig">
+    <div class="tree pub">
+      <div class="id">tree 0</div>
+      <div class="nm">Shape tree<small>preprocessed · verifier rebuilds it</small></div>
+      <div class="ds">Every column the AIR reads as a <em>fact</em>: selectors, the causal mask, the marker for real key-grid rows, range-table row indices, the exp and norm and fraction lookup tables, RoPE cos/sin for this block's absolute positions. A pure function of the statement's <code>params</code> plus the per-layer calibration. No weight enters, so the verifier derives the root itself and rejects on mismatch (decision of 2026-09-09).</div>
+    </div>
+    <div class="tree prv">
+      <div class="id">tree 1</div>
+      <div class="nm">Model tree<small>preprocessed · publisher's commitment</small></div>
+      <div class="ds">The int8 weights of this layer's seven matmuls (and the lm_head and embedding matrix on the segments that need them), plus per-channel scales. The verifier cannot derive this root; it compares it with the published manifest. Cached on the device per (layer, shape) so the loop pays the commit once per layer, not once per segment.</div>
+    </div>
+    <div class="tree prv">
+      <div class="id">tree 2</div>
+      <div class="nm">Base trace<small>committed · the witness</small></div>
+      <div class="ds">Everything the prover chose: int8 activations, accumulators, bf16 patterns of the residual stream, attention scores and numerators, requantised K/Q/V, the token ids, the lookup multiplicities for every table. This is where the 79 million cells per position mostly live. Committed <em>before</em> any challenge, which is what makes the lookups and the Freivalds checks binding.</div>
+    </div>
+    <div class="tree ch">
+      <div class="id">draw</div>
+      <div class="nm">Challenges<small>from the channel</small></div>
+      <div class="ds">Relation elements for every lookup table (the z and α of each LogUp relation), then the Horner weights <code>r, s, rv</code> that compress whole matrices into one field element, the binding challenge for the residual-stream claims, and the diagonal-block challenge. Only now can the prover compute interaction columns.</div>
+    </div>
+    <div class="tree prv">
+      <div class="id">GKR</div>
+      <div class="nm">Five sumcheck reductions<small>proved, not committed</small></div>
+      <div class="ds">The LogUp running sums for the key tiles, dequant, residual stream, Freivalds and attention output are proved with a GKR sumcheck instead of being committed as columns. It shrinks the interaction tree from 93,184 columns to 5,600 at C = 16,384. The <code>gkrlink</code> module then ties the GKR's final claims to the committed base columns with one MLE-evaluation IOP per distinct height, so the sumcheck is about the real data and not about numbers the prover made up.</div>
+    </div>
+    <div class="tree prv">
+      <div class="id">tree 3</div>
+      <div class="nm">Interaction tree<small>committed · LogUp columns</small></div>
+      <div class="ds">What remains of the lookup argument after GKR: the fractions and partial sums that make every table lookup (range checks, exp table, bf16 unary tables, the (q, nz) pair table, the embedding scan) a sound multiset argument. 41.8 percent of loop time is spent building this plus the GKR.</div>
+    </div>
+    <div class="tree prv">
+      <div class="id">tree 4+</div>
+      <div class="nm">Boundary trees<small>committed · the chain links</small></div>
+      <div class="ds">Two small trees per axis: residual stream in and out, K/V written by this block. Bound to the base columns by a plain equality constraint (no lookup, no challenge), which is why they can be committed after the interaction tree. Their roots are the only thing another segment's proof ever compares against. A shared challenge would have been unsound, because knowing the challenge before committing makes "my image equals yours" one linear equation to solve.</div>
+    </div>
+    <div class="tree ch">
+      <div class="id">STARK</div>
+      <div class="nm">stwo prove()<small>OODS + FRI · 4.6 % of loop</small></div>
+      <div class="ds">Draw the out-of-domain point, evaluate every constraint's quotient there (the generated CUDA kernels do this), commit the composition polynomial, then FRI with log blowup 1, 100 queries, 0 proof-of-work bits = 100 conjectured bits of security. Output: ~65 MiB per segment, serialised with the <code>Fixed</code> statement and the prover's <code>Claims</code>.</div>
+    </div>
+    <figcaption>The transcript of one segment proof, top to bottom. Each root is mixed into the Blake2s channel before the next challenge is drawn, so the serialised byte order is the soundness argument and the proof's SHA-256 is the gate.</figcaption>
+  </figure>
+  <p>The verifier (<code>verify_composed</code>) takes exactly three byte strings, replays this transcript, recomputes every challenge from its own channel, runs stwo's <code>verify()</code>, checks the claimed LogUp sums cancel to zero, and then checks the <strong>application identities</strong>: for each key tile the Q·Kᵀ and denominator claims, for the attention output the A·V fold, and for each matmul the Freivalds equality <code>h_m == acc_m</code>. No prover-side struct ever crosses into the accept path.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="layer">
+  <div class="eyebrow">6 · What is inside the base trace</div>
+  <h2>One layer, as gadgets and the seams between them</h2>
+  <p>A gadget is one step of the decode stated on its own: it owns its column layout, its constraints and the claims it publishes. Composition is the act of comparing one gadget's published output claim with the next gadget's input claim, under the same challenge. Edge numbers are the binding table in <code>docs/statement.md</code>.</p>
+  <figure class="layer wide fig">
+    <div class="op"><div class="e">13 in</div><div class="o">residual stream in</div><div class="g">boundary tree, equality to gn1 leaves</div><div class="b edge">root link</div></div>
+    <div class="op"><div class="e">1</div><div class="o">RMSNorm 1</div><div class="g">residual_stream: bf16 square, tree-sum, rsqrt table, mul</div><div class="b bound">bound</div></div>
+    <div class="op"><div class="e">2</div><div class="o">requantise → int8</div><div class="g">requant: max argument + ceil-divide table + division table</div><div class="b bound">seam</div></div>
+    <div class="op hl"><div class="e">12</div><div class="o">q, k, v matmuls</div><div class="g">freivalds: rᵀW·x check against tree-1 weights, shared input</div><div class="b self">own AIR</div></div>
+    <div class="op"><div class="e">—</div><div class="o">dequantise → bf16</div><div class="g">dequant: NORM + FRAC lookups, correctly rounded chain</div><div class="b bound">bound</div></div>
+    <div class="op"><div class="e">3</div><div class="o">RoPE + quantise</div><div class="g">rope: bf16 rotate with preprocessed cos/sin, pow-2 requantise per head</div><div class="b bound">seam</div></div>
+    <div class="op hl"><div class="e">4</div><div class="o">attention</div><div class="g">attention: Q·Kᵀ over key tiles, integer softmax via exp table, causal mask from tree 0; grows with C</div><div class="b self">own AIR</div></div>
+    <div class="op"><div class="e">5</div><div class="o">attention out → int8</div><div class="g">attn_out: A·V fold, rounding identity with ao_rem_bits window</div><div class="b bound">seam</div></div>
+    <div class="op hl"><div class="e">12</div><div class="o">o matmul</div><div class="g">freivalds</div><div class="b self">own AIR</div></div>
+    <div class="op"><div class="e">6</div><div class="o">residual add 1</div><div class="g">residual_stream: bf16 add (POW, NORM, FRAC)</div><div class="b bound">bound</div></div>
+    <div class="op"><div class="e">7, 8</div><div class="o">RMSNorm 2 → int8</div><div class="g">residual_stream + requant</div><div class="b bound">seam</div></div>
+    <div class="op hl"><div class="e">12</div><div class="o">gate, up matmuls</div><div class="g">freivalds, shared input</div><div class="b self">own AIR</div></div>
+    <div class="op"><div class="e">9</div><div class="o">SwiGLU</div><div class="g">residual_stream: silu unary table × bf16 mul</div><div class="b bound">bound</div></div>
+    <div class="op"><div class="e">10</div><div class="o">requantise → int8</div><div class="g">requant</div><div class="b bound">seam</div></div>
+    <div class="op hl"><div class="e">12</div><div class="o">down matmul</div><div class="g">freivalds</div><div class="b self">own AIR</div></div>
+    <div class="op"><div class="e">11</div><div class="o">residual add 2</div><div class="g">residual_stream</div><div class="b bound">bound</div></div>
+    <div class="op"><div class="e">13 out</div><div class="o">residual stream out</div><div class="g">boundary tree, equality to gn2 outputs</div><div class="b edge">root link</div></div>
+    <div class="op"><div class="e">14</div><div class="o">K, V written</div><div class="g">boundary tree on the token axis (diagonal block only)</div><div class="b edge">root link</div></div>
+    <figcaption>One layer segment as the gadgets that state it and the seams between them. Highlighted rows are the matmuls, each proved by a Freivalds check against the weights in the model tree. Edge numbers follow the binding table in <code>docs/statement.md</code>.</figcaption>
+  </figure>
+  <p class="note-line">Layer 0 adds edge 15 (<code>embed</code>: a lookup scan over the whole V × d embedding matrix in tree 1, binding the residual-stream input to the committed ids). The head segment adds edge 16 (<code>argmax</code>: a monotone indicator proving the emitted id is the <em>lowest-indexed</em> maximum, which is what torch.argmax returns; 15 of 512 rows have ties, so lax vs strict is not academic).</p>
+
+  <h3>The Freivalds trick, because it is the one most worth being able to derive on a whiteboard</h3>
+  <p>Proving <code>Y = W·X</code> cell by cell for an 8B model would be hopeless. Instead the verifier draws random <code>r</code> after everything is committed, and the prover shows <code>rᵀ·Y == (rᵀ·W)·X</code>. The left side is a Horner fold of the committed accumulators (the dequant gadget already holds them, so nothing is committed twice). The right side is computed in the Freivalds gadget from the preprocessed weights and the committed int8 activations. If <code>Y ≠ W·X</code> anywhere, the two sides agree with probability about 1/p over the choice of <code>r</code>. The cost is linear in the number of weights rather than cubic, which is why the cost model charges a fixed number of cells per weight.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="boundary">
+  <div class="eyebrow">7 · The trust boundary</div>
+  <h2>What this proof says, and what it does not</h2>
+  <p>A proof here says: "these prompt ids, under the model whose root is R, produce these 512 ids under greedy decoding in the y-delay-vw12 quantised arithmetic." Everything in the plum column is outside that sentence. <code>zk-inference-results/docs/statement-gap.md</code> has the row-by-row version.</p>
+  <div class="terms wide">
+    <div class="term"><b>Arithmetic<small>gap</small></b><span>Proved: int8 weights, int8 activations, bf16 nonlinearities, integer softmax. Served: bf16 or fp8 on whatever kernels vLLM picks. Cost of the gap: +6.96 % perplexity on 8B. No one has counted what a bf16 statement would cost.</span></div>
+    <div class="term"><b>Decoding<small>gap</small></b><span>Proved: greedy, no stop at EOS. Served: temperature and top-p sampling with early stop.</span></div>
+    <div class="term"><b>Determinism<small>gap · issue #126</small></b><span>The proof is about one decode. Rerunning the same prompt on the HF backend did not reproduce the same ids three times out of three. So "verify by rerunning" is not a check anyone can make.</span></div>
+    <div class="term"><b>Tokenisation<small>gap</small></b><span>The public input is ids, not text. Tokeniser and chat template are outside every proof.</span></div>
+    <div class="term"><b>Batching<small>gap</small></b><span>No batch index in the statement. A provider batches 16 requests and pages the KV cache.</span></div>
+    <div class="term"><b>Traffic binding<small>gap</small></b><span>No proof names a request, a client, or a time. It proves that ids map to ids under a commitment, not that anyone was served this.</span></div>
+    <div class="term"><b>Architecture<small>gap · issue #174</small></b><span>Dense Llama only. No site for a projection bias (Qwen has one), no sliding window, no QK-norm, no MoE. The shape is public, so the architecture cannot be hidden.</span></div>
+  </div>
+  <div class="callout warn">
+    <div class="eyebrow">How to say this in an interview</div>
+    <p>"The prototype proves a quantised stand-in for the model, segment by segment, and chains the segments by Merkle roots. It is sound about that statement and silent about the serving stack around it. The two biggest open problems are closing the arithmetic gap and moving witness generation off the host."</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="numbers">
+  <div class="eyebrow">8 · The numbers that anchor the story</div>
+  <h2>Llama-3.1-8B, one H100, 4,096 prompt + 512 generated</h2>
+  <div class="tabwrap">
+  <table class="numtab">
+    <thead><tr><th>Quantity</th><th>Value</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td>Segments</td><td class="n">290</td><td>9 blocks × 32 layers + 2 head segments</td></tr>
+      <tr><td>Proving loop</td><td class="n">3,683 s</td><td>61 min; whole wall 91 min with extraction</td></tr>
+      <tr><td>Throughput</td><td class="n">1.25 pos/s</td><td>vs ~1,340 pos/s unproved on vLLM: 400 to 1,100× overhead</td></tr>
+      <tr><td>Cost per request</td><td class="n">$3.37 – $5.01</td><td>at $3.29 per GPU-hour</td></tr>
+      <tr><td>Cells per position</td><td class="n">~79 M</td><td>committed field elements; 105 M at C = 16,384</td></tr>
+      <tr><td>LogUp + GKR share</td><td class="n">41.8 %</td><td>the largest phase; base trace 35.4 %; STARK itself 4.6 %</td></tr>
+      <tr><td>Proof size</td><td class="n">18.5 GiB</td><td>~65 MiB per segment; 7.2 GiB compressed</td></tr>
+      <tr><td>Verify per segment</td><td class="n">43 s</td><td>on 4 consumer cores; dominated by rebuilding the shape tree</td></tr>
+      <tr><td>Security</td><td class="n">100 bits</td><td>conjectured; blowup 2, 100 queries, 0 PoW</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note-line">Every number above is graded in <code>zk-inference-results/constants.json</code> as measured, derived, projected, external or asserted, and names the run that produced it. Quote the grade with the number.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="glossary">
+  <div class="eyebrow">9 · Words that collide</div>
+  <h2>Terms with a precise local meaning</h2>
+  <div class="terms wide">
+    <div class="term"><b>Segment / chunk</b><span>One layer (or the head) over 512 positions at context C, proved as one STARK. "Chunk" is the identifier the code kept.</span></div>
+    <div class="term"><b>Cell</b><span>One committed field element in one column at one row. The unit of prover work.</span></div>
+    <div class="term"><b>Statement</b><span>Two serialised documents: <code>Fixed</code> (shape and gadget parameters, security config, tree sizes, the two preprocessed roots) and <code>Claims</code> (every Horner claim and LogUp sum the prover publishes).</span></div>
+    <div class="term"><b>Seam</b><span>A requantise step between a bf16 producer and an int8 consumer, proved as its own component so the matmul multiplies exactly the integers the producer made.</span></div>
+    <div class="term"><b>Binding / edge</b><span>A verifier-side equality between two gadgets' claims. 16 edges per layer segment; each <code>--unsound-skip-*</code> flag unbinds one and marks the run a control.</span></div>
+    <div class="term"><b>Key tile</b><span>A group of attention heads packed onto one column set, over a slice of the C keys. The attention AIR is instantiated per key tile.</span></div>
+    <div class="term"><b>Diagonal block</b><span>The 512 × 512 block where queries attend to keys in their own block, so the causal mask applies. Only this block writes K/V to the token-axis boundary tree.</span></div>
+    <div class="term"><b>Pin</b><span>A flag that must take one value across the whole loop (kmax, ao-rem-bits, fold widths) and is set to the model-wide worst case by the shape table.</span></div>
+    <div class="term"><b>Digest gate</b><span>SHA-256 of the proof bytes must reproduce on SIMD and CUDA before any change merges. The one place "correctness" is enforced mechanically.</span></div>
+    <div class="term"><b>Negative control</b><span>A tamper (one row flipped, one byte of proof changed, a skip flag) that the verifier must reject. A control that is accepted fails the run.</span></div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="assess">
+  <div class="eyebrow">10 · Where you stand</div>
+  <h2>Self-check: which of these can you explain without the page?</h2>
+  <p class="note-line">Tick what you can reconstruct from memory. Ticks are stored in this browser only, so this is for you. Untouched items are the next reading list.</p>
+  <div class="check-tools">
+    <span class="score" id="score">0 / 14 ticked</span>
+    <button class="small" id="clear" type="button">Clear all</button>
+  </div>
+  <div class="check" id="checks">
+    <label><input type="checkbox" id="c01"><span>Why challenges must be drawn after commitment, and what breaks if they are not (the boundary-tree argument).</span></label>
+    <label><input type="checkbox" id="c02"><span>The Freivalds identity, and why it costs linear rather than cubic work.</span></label>
+    <label><input type="checkbox" id="c03"><span>What a LogUp lookup is and why a "running sum" column exists.</span></label>
+    <label><input type="checkbox" id="c04"><span>What the five GKR reductions replace, and what <code>gkrlink</code> must do to keep that sound.</span></label>
+    <label><input type="checkbox" id="c05"><span>The difference between the shape tree and the model tree, and who can derive each root.</span></label>
+    <label><input type="checkbox" id="c06"><span>Why the request is a grid of segments and what the two kinds of boundary link are.</span></label>
+    <label><input type="checkbox" id="c07"><span>What "edge 3 refuses Qwen" means and where a bias site would go.</span></label>
+    <label><input type="checkbox" id="c08"><span>Why the argmax gadget needs the strict (lowest-indexed) form.</span></label>
+    <label><input type="checkbox" id="c09"><span>What the witness extractor dumps and why it reruns the model instead of reading the real forward pass.</span></label>
+    <label><input type="checkbox" id="c10"><span>What a pin is, why ao-rem-bits is model-wide, and how that caused issue #13's miscount.</span></label>
+    <label><input type="checkbox" id="c11"><span>What OODS and FRI do inside stwo's prove(), at the level of one sentence each.</span></label>
+    <label><input type="checkbox" id="c12"><span>Why the proof is not hiding, and what would have to change for it to be.</span></label>
+    <label><input type="checkbox" id="c13"><span>Why "formal verification" is the wrong phrase here and what the digest gate gives instead.</span></label>
+    <label><input type="checkbox" id="c14"><span>The phase split, and why host witness generation is the ceiling (issue #2).</span></label>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="deeper">
+  <div class="eyebrow">11 · Extension slots</div>
+  <h2>Open questions to fill in later sessions</h2>
+  <p class="note-line">Each block below is a placeholder with the file to read. When a later conversation answers one, replace the slot body with the answer and add a line to the version log at the end of the page.</p>
+
+  <details id="x-logup">
+    <summary>LogUp from scratch: what the fraction, the multiplicity and the cancellation are</summary>
+    <div class="body">
+      <div class="slot"><b>to read:</b> prover/src/plogup.rs (229 lines), prover/src/logup_run.rs, prover/src/relations.rs<br><b>answer:</b> not yet written</div>
+    </div>
+  </details>
+
+  <details id="x-gkr">
+    <summary>How the GKR sumcheck is linked back to the committed columns</summary>
+    <div class="body">
+      <div class="slot"><b>to read:</b> prover/src/gkr_key_tile.rs (2,011 lines), prover/src/gkrlink.rs (2,213 lines); what <code>claimed_h</code> is (issue #30)<br><b>answer:</b> not yet written</div>
+    </div>
+  </details>
+
+  <details id="x-attention">
+    <summary>The attention gadget's three row axes and the integer softmax</summary>
+    <div class="body">
+      <div class="slot"><b>to read:</b> prover/src/gadgets/attention/layout.rs, witness.rs, air.rs; docs/quantization.md in the results repo<br><b>answer:</b> not yet written</div>
+    </div>
+  </details>
+
+  <details id="x-stark">
+    <summary>Circle STARK specifics: M31, the circle domain, why log blowup 1 forces degree-2 constraints</summary>
+    <div class="body">
+      <div class="slot"><b>to read:</b> nitroo/README.md (the four local changes), prover/src/util.rs, the residual_stream docstring on degree<br><b>answer:</b> not yet written</div>
+    </div>
+  </details>
+
+  <details id="x-device">
+    <summary>Device witness generation: which gadgets build columns on the GPU and why the rest are the ceiling</summary>
+    <div class="body">
+      <div class="slot"><b>to read:</b> prover/src/device_witness.rs, devpre.rs, devlogup.rs, cudagen.rs; issue #2<br><b>answer:</b> not yet written</div>
+    </div>
+  </details>
+
+  <details id="x-cells">
+    <summary>Exact cell counting and the issue #13 miscount</summary>
+    <div class="body">
+      <div class="slot"><b>to read:</b> harness/costmodel/exact_cells.py (1,903 lines), harness/eval/predict/witness_fields.py; the fix text at the end of issue #13<br><b>answer:</b> not yet written</div>
+    </div>
+  </details>
+
+  <details id="x-interview">
+    <summary>Interview answers drafted from this page</summary>
+    <div class="body">
+      <div class="slot"><b>status:</b> empty. Candidate prompts: "walk me through one segment", "why no recursion", "what would you fix first", "where does soundness come from".</div>
+    </div>
+  </details>
+</section>
+
+<section id="colophon">
+  <div class="eyebrow">Version log</div>
+  <div class="verlog">
+    <span><b>v2 · 7 Oct 2026</b> paper layout: wide sheet, figures break out to full width, sticky top nav, abstract, numbered figures</span>
+    <span><b>v1.2 · 7 Oct 2026</b> section 0: one-screen flow map and segment dependency graph; white ground in light mode</span>
+    <span><b>v1 · 7 Oct 2026</b> first pass: flow, transcript, gadgets, gaps, self-check, seven empty slots</span>
+  </div>
+  <p class="note-line">Companion page: the Berrang primer covers the person and the research programme; this page covers the machine.</p>
+</section>
+
+<footer style="padding-top:26px;border-top:1px solid var(--line)" class="note-line">
+  Sources: the two repositories on disk at <code>~/work/SASH/</code> (prover commit as of 7 Oct 2026), <code>docs/statement.md</code>, <code>prover/README.md</code>, <code>harness/README.md</code>, the module docstrings of <code>compose.rs</code>, <code>boundary.rs</code>, <code>shaperoot.rs</code>, <code>gkr_key_tile.rs</code>, <code>gkrlink.rs</code>, each gadget's <code>mod.rs</code>, and <code>tools/drivers/lib/sequence-job.sh</code> in the results repository. SASH's research note and ZKP intro post for the roadmap and the "not hiding" statement.
+</footer>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var KEY='zkflow.checks.v1';
+  var boxes=Array.prototype.slice.call(document.querySelectorAll('#checks input[type=checkbox]'));
+  var score=document.getElementById('score');
+  function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'{}');boxes.forEach(function(b){b.checked=!!s[b.id];});}catch(e){}}
+  function save(){try{var s={};boxes.forEach(function(b){s[b.id]=b.checked;});localStorage.setItem(KEY,JSON.stringify(s));}catch(e){}}
+  function paint(){var n=0;boxes.forEach(function(b){b.parentNode.classList.toggle('on',b.checked);if(b.checked)n++;});score.textContent=n+' / '+boxes.length+' ticked';}
+  boxes.forEach(function(b){b.addEventListener('change',function(){save();paint();});});
+  document.getElementById('clear').addEventListener('click',function(){boxes.forEach(function(b){b.checked=false;});save();paint();});
+  load();paint();
+
+  var links=Array.prototype.slice.call(document.querySelectorAll('#nav a'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+  function onScroll(){var y=window.scrollY+120;var cur=0;secs.forEach(function(s,i){if(s&&s.offsetTop<=y)cur=i;});links.forEach(function(a,i){a.classList.toggle('on',i===cur);});}
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+
+  if(location.hash){var d=document.querySelector(location.hash);if(d&&d.tagName==='DETAILS')d.open=true;}
+})();
+</script>
+</body>
+</html>
