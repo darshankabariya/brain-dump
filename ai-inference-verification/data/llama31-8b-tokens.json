@@ -1,0 +1,67 @@
+[
+ {
+  "text": "The capital of France is",
+  "ids": [
+   128000,
+   791,
+   6864,
+   315,
+   9822,
+   374
+  ],
+  "pieces": [
+   "<|begin_of_text|>",
+   "The",
+   " capital",
+   " of",
+   " France",
+   " is"
+  ]
+ },
+ {
+  "text": "2 + 2 =",
+  "ids": [
+   128000,
+   17,
+   489,
+   220,
+   17,
+   284
+  ],
+  "pieces": [
+   "<|begin_of_text|>",
+   "2",
+   " +",
+   " ",
+   "2",
+   " ="
+  ]
+ },
+ {
+  "text": "Roses are red, violets are",
+  "ids": [
+   128000,
+   49,
+   20274,
+   527,
+   2579,
+   11,
+   348,
+   822,
+   10145,
+   527
+  ],
+  "pieces": [
+   "<|begin_of_text|>",
+   "R",
+   "oses",
+   " are",
+   " red",
+   ",",
+   " v",
+   "io",
+   "lets",
+   " are"
+  ]
+ }
+]

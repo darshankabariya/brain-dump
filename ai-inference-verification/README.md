@@ -25,6 +25,17 @@ claude.ai; elsewhere it saves notes locally and says so.
 - **[handoff.md](./handoff.md)** — working notes: repo layout, reading order, what is
   established, measured numbers, repo rules, open issues grouped, SASH's stated roadmap, and
   what is not yet understood.
+- **[data/](./data/)** — the real numbers behind the animation. `llama31-8b-tokens.json` is
+  the three prompts tokenised with the Llama-3.1 tokenizer; `llama31-8b-decode-run.json` is
+  the output of running `unsloth/Llama-3.1-8B-Instruct` in bf16 (Apple M4 Pro, MPS, 7 Oct
+  2026): four greedy tokens per prompt with top-5 logits, per-layer residual RMS, attention
+  rows for layers 0, 15 and 31 head 0, and the layer-0 norm output with its int8
+  requantisation under the harness's rule.
+- **[tools/](./tools/)** — how those numbers and the animation were made. `tokenize.py` and
+  `infer.py` produce the two data files (they need `torch`, `transformers` and
+  `huggingface_hub`, and download the 16 GB weights into `HF_HOME`); `build.py` injects the
+  run data into `decode-and-prove.template.html` and writes `decode-and-prove.html`. Run all
+  three from this directory.
 
 ## Where to start
 
