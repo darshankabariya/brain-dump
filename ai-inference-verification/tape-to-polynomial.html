@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Tape to Polynomial</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400&display=swap">
+<style>
+/* Layout: one reading column, each step a numbered section with one live
+   figure that reacts to the same editable tape at the top. Palette shared
+   with the other SASH study pages: teal = honest/public, plum = tampered,
+   amber = the prover's committed data. */
+:root{
+  --bg:#ffffff; --surface:#f6f7f9; --ink:#141d27; --muted:#566371; --line:#d6dce3;
+  --ok:#0b6f66; --ok-soft:#d3ebe7;
+  --bad:#7b2d76; --bad-soft:#f0dcee;
+  --prover:#9a5b0a; --prover-soft:#f6e6cc;
+  --accent:#27408b; --accent-soft:#dbe2f4; --on-accent:#ffffff;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --font-body:"Newsreader",Georgia,"Times New Roman",serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f151b; --surface:#171f28; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+    --ok:#58cfc0; --ok-soft:#143531; --bad:#dd9ad8; --bad-soft:#3a2238;
+    --prover:#f0b45a; --prover-soft:#3a2a12;
+    --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#171f28; --ink:#e7ecf1; --muted:#9aa7b4; --line:#2e3a46;
+  --ok:#58cfc0; --ok-soft:#143531; --bad:#dd9ad8; --bad-soft:#3a2238;
+  --prover:#f0b45a; --prover-soft:#3a2a12;
+  --accent:#9db4ff; --accent-soft:#1f2a47; --on-accent:#0f151b; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:18px;line-height:1.55}
+.page{max-width:1080px;margin-inline:auto;padding-inline:24px;padding-block:36px 90px;display:flex;flex-direction:column;gap:30px}
+p,h1,h2,h3,ul,ol,figure,dl{margin:0}
+ul,ol{padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+code,.mono{font-family:var(--font-mono);font-size:.84em}
+.eyebrow{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:750;font-size:clamp(2rem,4.5vw,3rem);line-height:1.05;letter-spacing:-.02em;text-wrap:balance}
+h2{font-family:var(--font-display);font-weight:700;font-size:1.5rem;line-height:1.15;letter-spacing:-.01em;text-wrap:balance}
+.deck{font-size:1.15rem;color:var(--muted);max-width:40em}
+section{display:flex;flex-direction:column;gap:14px;padding-top:26px;border-top:1px solid var(--line);scroll-margin-top:16px}
+section p{max-width:72ch}
+.fig{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow-x:auto}
+.fig .cap{font-size:.9rem;color:var(--muted);line-height:1.45}
+button{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.03em;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:7px 11px;border-radius:4px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+button.on{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ok{color:var(--ok);font-weight:600} .bad{color:var(--bad);font-weight:600}
+
+/* the tape */
+.tapebar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding-block:10px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.tape{display:flex;gap:4px;align-items:flex-end;flex-wrap:wrap}
+.cell{display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--font-mono)}
+.cell small{font-size:.62rem;color:var(--muted);letter-spacing:.04em}
+.cell input{width:58px;text-align:center;font-family:var(--font-mono);font-size:.95rem;padding:7px 4px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums}
+.cell.changed input{border-color:var(--bad);background:var(--bad-soft);color:var(--bad)}
+.status{font-family:var(--font-mono);font-size:.74rem;margin-left:auto}
+
+/* hop strip */
+.hops{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.hop{border:1px solid var(--line);border-radius:4px;background:var(--bg);padding:8px 9px;font-family:var(--font-mono);font-size:.72rem;line-height:1.5;display:flex;flex-direction:column;gap:2px}
+.hop b{font-weight:500;color:var(--muted)}
+.hop.good{border-color:var(--ok)} .hop.good .v{color:var(--ok)}
+.hop.badhop{border-color:var(--bad);background:var(--bad-soft)} .hop.badhop .v{color:var(--bad)}
+canvas{width:100%;height:auto;display:block;max-width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-family:var(--font-mono);font-size:.7rem;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid;margin-right:6px;vertical-align:middle}
+.formula{font-family:var(--font-mono);font-size:.82rem;line-height:1.65;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:12px 14px}
+.formula b{color:var(--accent);font-weight:500}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 16px;font-size:.95rem;align-items:baseline}
+.kv dt{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;padding-top:3px}
+.kv dd{margin:0;min-width:0}
+table{border-collapse:collapse;font-family:var(--font-mono);font-size:.74rem;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:500;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-size:.64rem}
+td:first-child,th:first-child{text-align:left}
+tr.miss td{color:var(--bad)}
+.dots{display:flex;flex-wrap:wrap;gap:3px}
+.dots i{display:block;width:12px;height:12px;border-radius:2px;background:var(--line)}
+.dots i.g{background:var(--ok)} .dots i.r{background:var(--bad)} .dots i.a{background:var(--accent)}
+.map{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.map .r{display:grid;grid-template-columns:200px minmax(0,1fr);gap:4px 14px;border:1px solid var(--line);border-radius:4px;background:var(--bg);padding:9px 12px;font-size:.92rem;line-height:1.45}
+.map .r b{font-family:var(--font-display);font-weight:650}
+.map .r span{min-width:0}
+@media (max-width:760px){
+  .hops{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .map .r{grid-template-columns:minmax(0,1fr)}
+  .status{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="page">
+<header style="display:flex;flex-direction:column;gap:12px">
+  <span class="eyebrow">Vitalik's STARKs Part I, "Going further", made editable</span>
+  <h1>What a tape is, and why it becomes one polynomial</h1>
+  <p class="deck">An eight-cell Fibonacci tape you can edit. Every figure below is computed live from it. Change one cell and watch the curve move everywhere, the division fail, and the audit catch it. Then watch the one cheat that the audit cannot catch, which is the problem FRI exists for.</p>
+</header>
+
+<div class="tapebar">
+  <span class="eyebrow">The tape</span>
+  <div class="tape" id="tape"></div>
+  <div class="row">
+    <button id="tamper" type="button">Tamper cell 3 (3 → 4)</button>
+    <button id="reset" type="button">Reset to Fibonacci</button>
+  </div>
+  <span class="status" id="status"></span>
+</div>
+
+<section id="s1">
+  <span class="eyebrow">1 · The tape</span>
+  <h2>A tape is the list of values a computation writes down, one cell per step</h2>
+  <p>The word comes from a Turing machine's tape, but all it means here is a column of numbers. Cell x holds the value after step x. For the Fibonacci computation, cell x is the x-th Fibonacci number. A computation is correct if every cell follows from the ones before it by the rule, and if the first cells hold the right starting values.</p>
+  <p>The rule relates a cell to its neighbours. Fibonacci's rule touches three cells: cell x+2 must equal cell x+1 plus cell x. Vitalik writes it as a function of three inputs, C(x1, x2, x3) = x3 − x2 − x1, and the computation is correct when C is zero at every place it is applied.</p>
+  <div class="fig">
+    <span class="eyebrow">the hop, checked at every position it applies to (x = 0 … 5)</span>
+    <div class="hops" id="hops"></div>
+    <span class="cap">Green: the three cells satisfy the rule. Plum: they do not. The rule is applied six times on an eight-cell tape, because the last two cells have no "two cells after them".</span>
+  </div>
+  <p>In the SASH prover the tape is the base trace: one row per step, and instead of one number per row there are many columns, one per quantity the gadget needs. A row of the dequant gadget is one accumulator with its limbs and its rounded output; a row of the Freivalds gadget is one input channel with its running sums. The rules relate a row to the next row, exactly like the hop here.</p>
+</section>
+
+<section id="s2">
+  <span class="eyebrow">2 · The curve</span>
+  <h2>Through any N cells there is exactly one polynomial of degree below N</h2>
+  <p>Eight points fix one polynomial of degree at most seven; this is Lagrange interpolation. So the tape and the polynomial P are the same object seen two ways: the tape is P's values at x = 0 … 7, and P is the one smooth curve through the tape.</p>
+  <p>Why bother? Because polynomials have a property lists do not: two different polynomials of degree at most d can agree on at most d points. Change one cell, and the curve through the cells changes almost everywhere, not just at that cell. The figure shows it: the grey dashed curve is the honest tape's polynomial, the blue curve is the current one.</p>
+  <div class="fig">
+    <canvas id="plot" width="1000" height="300" role="img" aria-label="the eight tape values as points and the polynomial through them, with the honest curve for comparison"></canvas>
+    <div class="legend"><span><i style="border-color:var(--accent)"></i>current tape's polynomial</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>honest Fibonacci polynomial</span><span><i style="border-color:var(--bad)"></i>a changed cell</span></div>
+    <span class="cap" id="plotcap"></span>
+  </div>
+</section>
+
+<section id="s3">
+  <span class="eyebrow">3 · The hop as a polynomial</span>
+  <h2>Apply the rule to the polynomial and you get another polynomial</h2>
+  <p>P(x+1) and P(x+2) are polynomials too, the same curve shifted. So C(P(x), P(x+1), P(x+2)) = P(x+2) − P(x+1) − P(x) is one polynomial in x. Call it C(x). The six hop checks in section 1 are the statement "C(x) = 0 at x = 0, 1, 2, 3, 4, 5".</p>
+  <div class="fig">
+    <span class="eyebrow">C(x) = P(x+2) − P(x+1) − P(x), evaluated at the six positions</span>
+    <div class="formula" id="cvals"></div>
+    <span class="cap">Zero at all six means the tape obeys the rule everywhere. One nonzero value means one broken hop. From here on the arithmetic is done modulo the prime 65,537, for the reason section 5 gives.</span>
+  </div>
+</section>
+
+<section id="s4">
+  <span class="eyebrow">4 · Z and D</span>
+  <h2>Six separate facts become one divisibility</h2>
+  <p>The verifier cannot afford to check six positions when the real tape has a million. Polynomials turn the N facts into one. Let Z(x) = x(x−1)(x−2)(x−3)(x−4)(x−5), the polynomial whose roots are exactly the positions where the rule applies. A polynomial that is zero at a point has (x − that point) as a factor. So "C is zero at all six positions" is the same statement as "C has every factor of Z", which is the same as "C is a multiple of Z": there is a polynomial D with C(x) = Z(x) · D(x).</p>
+  <p>D is the certificate. The prover finds it by ordinary polynomial long division. If even one hop is broken, the division leaves a remainder and no polynomial D exists at all.</p>
+  <div class="fig">
+    <div class="formula" id="divbox"></div>
+    <span class="cap">The degrees matter: P has degree at most 7, so C has degree at most 7, Z has degree 6, so D has degree at most 1. A prover who claims a D of degree 1 has committed to a line.</span>
+  </div>
+</section>
+
+<section id="s5">
+  <span class="eyebrow">5 · The audit</span>
+  <h2>The verifier checks the identity at a few random positions, far outside the tape</h2>
+  <p>If C = Z · D holds as polynomials, it holds at every x. If it does not, the committed D is some line that differs from the true quotient, and C − Z·D is a nonzero polynomial of degree at most 7, so it has at most 7 roots. A random x out of 65,537 lands on one of them with probability under 1 in 9,000. Sixteen independent draws miss with probability about 1 in 10^63. The verifier computes Z(x) itself, since Z is public, and needs only four committed numbers per draw: P(x), P(x+1), P(x+2) and D(x).</p>
+  <p>Why modulo a prime? The millionth Fibonacci number has 208,988 digits; polynomial arithmetic on integers that size is hopeless. In a prime field every number has a fixed size and the two facts the proof relies on still hold: a polynomial that vanishes at a point has that linear factor, and a degree-d polynomial has at most d roots. The price is that the proof is now about numbers modulo the prime, which is why the SASH prover needs limbs, range checks and 31-bit windows to say anything about real integers.</p>
+  <div class="fig">
+    <div class="row"><button id="audit" type="button" class="primary">Audit 16 random positions</button><button id="cheat" type="button">Cheat: commit D pointwise</button><span class="mono" id="auditsum" style="font-size:.78rem"></span></div>
+    <div style="overflow-x:auto"><table id="audittab"><thead><tr><th>x</th><th>P(x)</th><th>P(x+1)</th><th>P(x+2)</th><th>C = P(x+2)−P(x+1)−P(x)</th><th>Z(x)·D(x)</th><th>match</th></tr></thead><tbody></tbody></table></div>
+    <span class="cap" id="auditcap"></span>
+  </div>
+</section>
+
+<section id="s6">
+  <span class="eyebrow">6 · The hole, and proximity</span>
+  <h2>A Merkle root commits to a list, not to a polynomial</h2>
+  <p>Everything in section 5 assumed the committed D really is a line. Nothing forces that. A cheater with a broken tape can define D position by position: at each x, set d = C(x) / Z(x) as a plain division of two numbers. Then C(x) = Z(x) · d holds at every audited x by construction, and the audit passes. Press the cheat button above with a tampered tape and watch 16 of 16 match. The 1-in-9,000 argument never applied, because it needs D to be a polynomial, and this D is just numbers.</p>
+  <p>So the verifier needs a second, separate test: that the committed list of D values is the evaluation of a polynomial of the claimed degree. The list of all evaluations of a low-degree polynomial is a codeword of a Reed-Solomon code; a list that is not one is "far" from the code, measured by how many entries you would have to change. The protocol that tests closeness with a few openings is FRI, Part II of the series. Here is a toy stand-in for what it concludes: fit the claimed degree through the first few committed positions, then see whether the rest of the list agrees.</p>
+  <div class="fig">
+    <span class="eyebrow">toy low-degree test on the committed D list: a line through positions 8 and 9, checked at 64 more positions</span>
+    <div class="dots" id="ldt"></div>
+    <span class="cap" id="ldtcap"></span>
+  </div>
+  <p>Why "proximity" and not exactness: no test that reads a few random positions can tell a true polynomial from one with two entries changed, because the draws almost never land on those two entries. The strongest guarantee available is "agrees with some low-degree polynomial on all but a small fraction of positions". That is enough, because the audit then runs on that underlying polynomial, with two catches.</p>
+  <ul>
+    <li><b>More queries.</b> Each draw can now also miss by landing on a tampered entry, so the error per query is larger and more draws are needed for the same security. In the SASH prover this is the line "100 queries, blowup 2, 100 conjectured bits".</li>
+    <li><b>Boundary values by divisibility.</b> The starting values P(0) = P(1) = 1 cannot be read off a committed entry, since that entry could be one of the few tampered ones. Instead the prover shows that (P(x) − 1) / (x − 0) is itself a low-degree polynomial, the same trick as D. A boundary claim becomes a statement about the underlying polynomial, which the proximity test can see.</li>
+  </ul>
+</section>
+
+<section id="s7">
+  <span class="eyebrow">7 · In the SASH prover</span>
+  <h2>Every piece above has a name in the code</h2>
+  <div class="map">
+    <div class="r"><b>the tape</b><span>the base trace: rows are steps, columns are the committed quantities of a gadget; committed as a Merkle tree (tree 2)</span></div>
+    <div class="r"><b>the hop C</b><span>the AIR constraints, each kept at degree 2, relating a row to the next; every <code>add_constraint</code> in <code>prover/src/gadgets/</code></span></div>
+    <div class="r"><b>the starting values</b><span>constraints multiplied by a <code>nofirst</code> or <code>last</code> selector: a running sum must start at zero and end at the claimed value</span></div>
+    <div class="r"><b>Z</b><span>the vanishing polynomial of the row domain, which the verifier evaluates itself</span></div>
+    <div class="r"><b>D</b><span>the composition polynomial, built from all constraints at once; the generated CUDA kernels in <code>cudagen.rs</code> evaluate it</span></div>
+    <div class="r"><b>the 16 draws</b><span>out-of-domain sampling, then 100 FRI queries at a blowup of 2, in <code>util.rs</code></span></div>
+    <div class="r"><b>the prime</b><span>M31 = 2^31 − 1, which is why every integer identity must fit in 31 bits: the no-wrap windows and <code>--ao-rem-bits</code></span></div>
+    <div class="r"><b>the low-degree test</b><span>stwo's FRI, called once per segment after every tree is committed</span></div>
+  </div>
+</section>
+</div>
+
+<script>
+/* ---------- arithmetic modulo a small prime ---------- */
+const PM = 65537;
+const md = a => ((a % PM) + PM) % PM;
+const mul = (a, b) => md(md(a) * md(b));
+function pw(a, e){ let r = 1, b = md(a); while(e > 0){ if(e & 1) r = mul(r, b); b = mul(b, b); e >>= 1; } return r; }
+const inv = a => pw(a, PM - 2);
+const trim = p => { while(p.length > 1 && p[p.length-1] === 0) p.pop(); return p; };
+const padd = (a, b) => { const n = Math.max(a.length, b.length), r = []; for(let i = 0; i < n; i++) r.push(md((a[i]||0) + (b[i]||0))); return trim(r); };
+const psub = (a, b) => { const n = Math.max(a.length, b.length), r = []; for(let i = 0; i < n; i++) r.push(md((a[i]||0) - (b[i]||0))); return trim(r); };
+const pmul = (a, b) => { const r = new Array(a.length + b.length - 1).fill(0); for(let i = 0; i < a.length; i++) for(let j = 0; j < b.length; j++) r[i+j] = md(r[i+j] + mul(a[i], b[j])); return trim(r); };
+const pscale = (a, s) => trim(a.map(c => mul(c, s)));
+const peval = (a, x) => { let r = 0; x = md(x); for(let i = a.length - 1; i >= 0; i--) r = md(mul(r, x) + a[i]); return r; };
+const pdeg = a => { a = trim(a.slice()); return (a.length === 1 && a[0] === 0) ? -1 : a.length - 1; };
+function interp(xs, ys){ let acc = [0]; for(let i = 0; i < xs.length; i++){ let num = [1], den = 1; for(let j = 0; j < xs.length; j++){ if(j === i) continue; num = pmul(num, [md(-xs[j]), 1]); den = mul(den, md(xs[i] - xs[j])); } acc = padd(acc, pscale(num, mul(md(ys[i]), inv(den)))); } return acc; }
+function pshift(a, k){ let r = [0]; for(let i = a.length - 1; i >= 0; i--) r = padd(pmul(r, [md(k), 1]), [a[i]]); return r; }
+function pdiv(a, b){ a = trim(a.slice()); b = trim(b.slice()); if(a.length < b.length) return [[0], a]; const q = new Array(a.length - b.length + 1).fill(0); const lb = inv(b[b.length-1]); for(let i = a.length - b.length; i >= 0; i--){ const c = mul(a[i + b.length - 1], lb); q[i] = c; if(c !== 0) for(let j = 0; j < b.length; j++) a[i+j] = md(a[i+j] - mul(c, b[j])); } return [trim(q), trim(a.slice(0, Math.max(1, b.length - 1)))]; }
+const signed = v => (v > PM/2 ? v - PM : v);        // show small negatives as negatives
+function lagrangeReal(xs, ys, x){ let s = 0; for(let i = 0; i < xs.length; i++){ let t = ys[i]; for(let j = 0; j < xs.length; j++) if(j !== i) t *= (x - xs[j]) / (xs[i] - xs[j]); s += t; } return s; }
+
+/* ---------- state ---------- */
+const N = 8, HOPS = 6;
+const FIB = [1, 1, 2, 3, 5, 8, 13, 21];
+let tape = FIB.slice();
+let cheat = false;
+const XS = Array.from({length: N}, (_, i) => i);
+const Z = XS.slice(0, HOPS).reduce((acc, i) => pmul(acc, [md(-i), 1]), [1]);
+const $ = id => document.getElementById(id);
+
+function model(){
+  const P = interp(XS, tape.map(md));
+  const C = psub(psub(pshift(P, 2), pshift(P, 1)), P);
+  const [D, R] = pdiv(C, Z);
+  return {P, C, D, R, honest: tape.every((v, i) => v === FIB[i])};
+}
+
+/* ---------- render ---------- */
+function renderTape(){
+  $("tape").innerHTML = tape.map((v, i) => `<div class="cell ${v !== FIB[i] ? "changed" : ""}"><small>cell ${i}</small><input type="number" id="c${i}" value="${v}" min="0" max="9999" step="1" aria-label="cell ${i}"></div>`).join("");
+  document.querySelectorAll("#tape input").forEach(inp => inp.addEventListener("input", e => { const i = +e.target.id.slice(1); const v = parseInt(e.target.value, 10); if(Number.isFinite(v)){ tape[i] = Math.max(0, Math.min(9999, v)); update(false); } }));
+}
+function renderHops(m){
+  $("hops").innerHTML = XS.slice(0, HOPS).map(x => { const v = tape[x+2] - tape[x+1] - tape[x]; return `<div class="hop ${v === 0 ? "good" : "badhop"}"><b>x = ${x}</b><span>${tape[x+2]} − ${tape[x+1]} − ${tape[x]}</span><span class="v">= ${v} ${v === 0 ? "✓" : "✗"}</span></div>`; }).join("");
+}
+function renderPlot(m){
+  const cv = $("plot"), ctx = cv.getContext("2d"); const W = cv.width, H = cv.height;
+  const cs = getComputedStyle(document.documentElement);
+  const col = n => cs.getPropertyValue(n).trim();
+  ctx.clearRect(0, 0, W, H);
+  const x0 = -0.4, x1 = 7.4, steps = 220;
+  const cur = [], hon = [];
+  for(let k = 0; k <= steps; k++){ const x = x0 + (x1 - x0) * k / steps; cur.push([x, lagrangeReal(XS, tape, x)]); hon.push([x, lagrangeReal(XS, FIB, x)]); }
+  let ymin = Math.min(...cur.map(p => p[1]), ...hon.map(p => p[1]), 0), ymax = Math.max(...cur.map(p => p[1]), ...hon.map(p => p[1]));
+  if(ymax - ymin < 1) ymax = ymin + 1;
+  const pad = (ymax - ymin) * 0.08; ymin -= pad; ymax += pad;
+  const L = 52, Rr = 16, T = 14, B = 34;
+  const sx = x => L + (x - x0) / (x1 - x0) * (W - L - Rr), sy = y => T + (ymax - y) / (ymax - ymin) * (H - T - B);
+  ctx.strokeStyle = col("--line"); ctx.lineWidth = 1; ctx.fillStyle = col("--muted"); ctx.font = "11px IBM Plex Mono, monospace"; ctx.textAlign = "center";
+  for(let x = 0; x < N; x++){ ctx.beginPath(); ctx.moveTo(sx(x), T); ctx.lineTo(sx(x), H - B); ctx.stroke(); ctx.fillText("x=" + x, sx(x), H - B + 16); }
+  ctx.textAlign = "right"; const yt = [ymin + pad, 0, ymax - pad].filter((v, i, a) => a.indexOf(v) === i);
+  for(const y of [Math.round(ymax - pad), 0, Math.round(ymin + pad)]){ if(y < ymin || y > ymax) continue; ctx.beginPath(); ctx.moveTo(L, sy(y)); ctx.lineTo(W - Rr, sy(y)); ctx.stroke(); ctx.fillText(String(y), L - 6, sy(y) + 4); }
+  const line = (pts, color, dash) => { ctx.beginPath(); ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = 2; pts.forEach((p, i) => { const X = sx(p[0]), Y = Math.max(-50, Math.min(H + 50, sy(p[1]))); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke(); ctx.setLineDash([]); };
+  if(!m.honest) line(hon, col("--muted"), [6, 5]);
+  line(cur, col("--accent"), []);
+  for(let x = 0; x < N; x++){ ctx.beginPath(); ctx.arc(sx(x), sy(tape[x]), 5, 0, Math.PI * 2); ctx.fillStyle = tape[x] === FIB[x] ? col("--accent") : col("--bad"); ctx.fill(); ctx.strokeStyle = col("--bg"); ctx.lineWidth = 2; ctx.stroke(); }
+  $("plotcap").textContent = m.honest ? "The honest tape: a degree-7 curve through 1, 1, 2, 3, 5, 8, 13, 21. Edit a cell above to see what one change does." : "One cell differs from Fibonacci. The blue curve now disagrees with the grey one at almost every x, not only at the changed cell. That is the amplification the audit in section 5 relies on.";
+}
+function renderC(m){
+  const vals = XS.slice(0, HOPS).map(x => peval(m.C, x));
+  $("cvals").innerHTML = vals.map((v, x) => `C(${x}) = <b>${signed(v)}</b>${signed(v) === 0 ? "" : "   ← broken hop"}`).join("\n") + `\n\ndegree of P: ${pdeg(m.P)}    degree of C: ${pdeg(m.C)}`;
+}
+function renderDiv(m){
+  const degD = pdeg(m.D), degR = pdeg(m.R);
+  const rem = degR < 0 ? "0" : m.R.map(signed).map((c, i) => c === 0 ? "" : `${c}${i ? "·x" + (i > 1 ? "^" + i : "") : ""}`).filter(Boolean).join(" + ").replace(/\+ -/g, "− ");
+  const dstr = m.D.map(signed).map((c, i) => `${c}${i ? "·x" + (i > 1 ? "^" + i : "") : ""}`).join(" + ").replace(/\+ -/g, "− ");
+  $("divbox").innerHTML = `Z(x) = x(x−1)(x−2)(x−3)(x−4)(x−5)        degree 6\n\nC(x) ÷ Z(x):\n   quotient  D(x) = <b>${dstr}</b>        degree ${degD < 0 ? "−∞ (zero)" : degD}\n   remainder R(x) = <b>${rem}</b>        ${degR < 0 ? '<span class="ok">zero: C = Z·D exactly, the certificate exists</span>' : '<span class="bad">not zero: no polynomial D exists; whatever the prover commits as D is a lie</span>'}`;
+}
+let auditRows = null;
+function doAudit(m){
+  auditRows = [];
+  for(let k = 0; k < 16; k++){
+    const x = 8 + Math.floor(Math.random() * (PM - 11));
+    const p0 = peval(m.P, x), p1 = peval(m.P, x + 1), p2 = peval(m.P, x + 2);
+    const lhs = md(p2 - p1 - p0);
+    const zx = peval(Z, x);
+    const rhs = cheat ? lhs : mul(zx, peval(m.D, x));
+    auditRows.push({x, p0, p1, p2, lhs, rhs, ok: lhs === rhs});
+  }
+}
+function renderAudit(m){
+  const tb = $("audittab").querySelector("tbody");
+  if(!auditRows){ tb.innerHTML = `<tr><td colspan="7" style="text-align:left;color:var(--muted)">press the button to draw 16 positions in [8, 65,536]</td></tr>`; $("auditsum").textContent = ""; }
+  else {
+    tb.innerHTML = auditRows.map(r => `<tr class="${r.ok ? "" : "miss"}"><td>${r.x}</td><td>${r.p0}</td><td>${r.p1}</td><td>${r.p2}</td><td>${r.lhs}</td><td>${r.rhs}</td><td>${r.ok ? "✓" : "✗"}</td></tr>`).join("");
+    const n = auditRows.filter(r => r.ok).length;
+    $("auditsum").innerHTML = `${n} / 16 match · ` + (n === 16 ? (m.honest ? '<span class="ok">honest tape, as expected</span>' : '<span class="bad">tampered tape, yet every check passes: the pointwise cheat</span>') : '<span class="ok">caught</span>');
+  }
+  $("cheat").classList.toggle("on", cheat); $("cheat").textContent = cheat ? "Cheat is on: D committed pointwise" : "Cheat: commit D pointwise";
+  $("auditcap").textContent = cheat
+    ? "Cheat mode: at every position the committed d is simply C(x) divided by Z(x) as numbers, so the identity holds by construction wherever Z(x) is not zero. Nothing about the tape was proved. Section 6 shows what catches this."
+    : (m.honest ? "Honest tape: D is the true quotient, so C(x) = Z(x)·D(x) at every x, and every draw matches." : "Tampered tape: the prover committed the best line it could (the quotient with the remainder dropped). C − Z·D is a nonzero polynomial of degree at most 7, so at most 7 of the 65,537 positions can match. The draws land elsewhere.");
+}
+function renderLDT(m){
+  const dAt = x => cheat ? mul(md(peval(m.C, x)), inv(peval(Z, x))) : peval(m.D, x);
+  const d8 = dAt(8), d9 = dAt(9), slope = md(d9 - d8);
+  const fit = x => md(d8 + mul(slope, md(x - 8)));
+  let agree = 0; const dots = [];
+  for(let x = 10; x < 74; x++){ const ok = dAt(x) === fit(x); if(ok) agree++; dots.push(`<i class="${ok ? "g" : "r"}" title="x=${x}"></i>`); }
+  $("ldt").innerHTML = `<i class="a" title="x=8, used for the fit"></i><i class="a" title="x=9, used for the fit"></i>` + dots.join("");
+  $("ldtcap").innerHTML = (cheat && !m.honest)
+    ? `<span class="bad">${agree} of 64 positions agree with the line through the first two.</span> The committed D list is nowhere near a degree-1 polynomial. A real low-degree test (FRI) reaches this verdict with a logarithmic number of openings instead of reading the whole list.`
+    : `<span class="ok">${agree} of 64 positions agree with the line through the first two.</span> The committed D list is the evaluation of a degree-1 polynomial, as claimed.` + (cheat ? " With an honest tape the pointwise d equals the true D anyway, so there is nothing for the test to catch; tamper a cell to see the cheat fail." : "");
+}
+function update(redrawTape){
+  const m = model();
+  if(redrawTape) renderTape();
+  document.querySelectorAll("#tape .cell").forEach((c, i) => c.classList.toggle("changed", tape[i] !== FIB[i]));
+  $("status").innerHTML = m.honest ? '<span class="ok">tape is honest Fibonacci</span>' : `<span class="bad">${tape.filter((v, i) => v !== FIB[i]).length} cell(s) differ from Fibonacci</span>`;
+  renderHops(m); renderPlot(m); renderC(m); renderDiv(m); renderAudit(m); renderLDT(m);
+}
+$("tamper").addEventListener("click", () => { tape[3] = tape[3] === 3 ? 4 : 3; auditRows = null; update(true); });
+$("reset").addEventListener("click", () => { tape = FIB.slice(); cheat = false; auditRows = null; update(true); });
+$("audit").addEventListener("click", () => { doAudit(model()); update(false); });
+$("cheat").addEventListener("click", () => { cheat = !cheat; if(auditRows) doAudit(model()); update(false); });
+window.addEventListener("resize", () => renderPlot(model()));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderPlot(model()));
+update(true);
+</script>
+</body>
+</html>

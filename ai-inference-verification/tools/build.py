@@ -25,3 +25,9 @@ TAIL = '</body>\n</html>\n'
 dst = os.path.join(root, "decode-and-prove.html")
 open(dst, "w", encoding="utf-8").write(HEAD + body + TAIL)
 print("wrote", dst, "runs:", [r["text"] for r in runs])
+# --bare PATH also writes the unwrapped page, which is what the claude.ai
+# artifact viewer takes (it adds its own skeleton).
+if "--bare" in sys.argv:
+    bare = sys.argv[sys.argv.index("--bare") + 1]
+    open(bare, "w", encoding="utf-8").write(body)
+    print("wrote", bare, "(bare)")

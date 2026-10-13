@@ -1,0 +1,682 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Polynomial Agreement Bound</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap">
+<style>
+/* Layout: one 880px column on cool graph-paper grey; the animation stage is the only framed object, proof and playground sit on the open page */
+:root{
+  --paper:#edf1f6;
+  --surface:#fbfcfe;
+  --raised:#e3e9f1;
+  --ink:#121c29;
+  --muted:#536074;
+  --rule:#ccd5e1;
+  --grid:#e2e8ef;
+  --axis:#98a5b6;
+  --f:#1f4fc9;
+  --g:#c0306a;
+  --h:#0b7c61;
+  --hit:#d08700;
+  --hit-soft:#fbeed3;
+  --focus:#1f4fc9;
+  --font-math:"STIX Two Text", Cambria, "Times New Roman", serif;
+  --font-body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d141e; --surface:#121b28; --raised:#1a2536; --ink:#e3e9f1; --muted:#94a2b6;
+    --rule:#26344a; --grid:#1a2535; --axis:#475870;
+    --f:#7fa5ff; --g:#ff7fac; --h:#4fd2a5; --hit:#ffc240; --hit-soft:#2e2511; --focus:#7fa5ff;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d141e; --surface:#121b28; --raised:#1a2536; --ink:#e3e9f1; --muted:#94a2b6;
+  --rule:#26344a; --grid:#1a2535; --axis:#475870;
+  --f:#7fa5ff; --g:#ff7fac; --h:#4fd2a5; --hit:#ffc240; --hit-soft:#2e2511; --focus:#7fa5ff;
+  color-scheme:dark;
+}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.55}
+.wrap{max-width:880px;margin:0 auto;padding-inline:20px;padding-block:44px 72px;display:grid;gap:56px}
+@media (max-width:520px){.wrap{padding-inline:16px;padding-block:28px 52px;gap:40px}}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.eyebrow{font:500 12px/1 var(--font-mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
+h1{font-family:var(--font-math);font-weight:600;font-size:clamp(28px,4.8vw,46px);line-height:1.14;letter-spacing:-.005em;text-wrap:balance;margin:0;max-width:22ch}
+h1 i{font-weight:400}
+.note{max-width:62ch;color:var(--muted);margin:18px 0 0}
+.m{font-family:var(--font-math);font-style:italic;font-size:1.1em;line-height:1}
+.mu{font-family:var(--font-math);font-size:1.06em;line-height:1}
+
+/* stage */
+.stage{background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--rule)}
+.tab{appearance:none;background:none;border:0;border-right:1px solid var(--rule);padding:12px 14px 15px;font:inherit;color:var(--muted);cursor:pointer;position:relative;display:flex;gap:8px;align-items:baseline;min-width:0;text-align:left}
+.tab:last-child{border-right:0}
+.tab:hover{color:var(--ink)}
+.tab .n{font:500 12px var(--font-mono)}
+.tab .t{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--raised)}
+.tab .prog{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--f)}
+@media (max-width:560px){.tab{padding:11px 6px 14px;justify-content:center}.tab .n{display:none}.tab .t{font-size:13px}}
+.cv-box{position:relative;aspect-ratio:16/10;max-width:100%}
+.cv-box canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+@media (max-width:560px){.cv-box{aspect-ratio:4/5}}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--rule)}
+.ctrls{display:flex;gap:8px}
+.readout{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:500 13px/1.2 var(--font-mono);padding:7px 11px;border:1px solid var(--rule);border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
+.chip b{color:var(--ink);font-weight:600}
+.chip.live{border-color:var(--hit);background:var(--hit-soft);color:var(--ink)}
+.chip.bump{animation:bump .45s ease}
+@keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.09)}100%{transform:scale(1)}}
+.caption{padding:6px 20px 24px;min-height:9.5em}
+@media (max-width:560px){.caption{min-height:13em;padding:6px 16px 20px}}
+.cap-meta{font:500 12px var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:10px 0 8px}
+.caption h2{font-family:var(--font-math);font-weight:600;font-size:23px;line-height:1.25;margin:0 0 8px;text-wrap:balance}
+.caption p.body{margin:0;max-width:62ch}
+
+.btn{appearance:none;font:500 14px var(--font-body);color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:8px 14px;min-height:38px;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.btn:hover{background:var(--raised)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:disabled:hover{background:var(--surface)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink);min-width:92px;justify-content:center}
+.btn.primary:hover{background:var(--ink);opacity:.88}
+.btn.icon{padding:8px 11px}
+.btn svg{width:14px;height:14px;fill:currentColor;flex:none}
+
+/* proof */
+section > h2{font-family:var(--font-math);font-weight:600;font-size:30px;line-height:1.2;margin:0 0 20px;text-wrap:balance}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:22px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:2.25rem minmax(0,1fr);gap:14px;counter-increment:s;align-items:start}
+.steps li::before{content:counter(s);font:500 13px var(--font-mono);color:var(--muted);border:1px solid var(--rule);border-radius:50%;width:2rem;height:2rem;display:grid;place-items:center;margin-top:-2px}
+.steps p{margin:0;max-width:64ch}
+.steps strong{font-weight:600}
+.more{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 32px;margin-top:32px;padding-top:24px;border-top:1px solid var(--rule)}
+@media (max-width:640px){.more{grid-template-columns:minmax(0,1fr)}}
+.more h3{font:600 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.more p{margin:0}
+
+/* playground */
+.play .lede{margin:0 0 18px;max-width:64ch}
+.pg-top{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-bottom:12px}
+.pg-top label{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{appearance:none;border:0;border-right:1px solid var(--rule);background:none;color:var(--ink);font:500 14px var(--font-mono);padding:7px 13px;min-height:36px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--raised)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.pg-frame{border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--surface)}
+.pg-frame .cv-box canvas{touch-action:none;cursor:ns-resize}
+@media (max-width:560px){.pg-frame .cv-box{aspect-ratio:1/1}}
+.pg-msg{margin:14px 0 0;max-width:64ch;min-height:3.2em}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+</style>
+
+<main class="wrap">
+  <header>
+    <p class="eyebrow">Polynomials · agreement points</p>
+    <h1>Two different polynomials of degree below <i>d</i> agree on at most <i>d</i>&nbsp;−&nbsp;1 points.</h1>
+    <p class="note">You’ll also see this written as “at most <span class="m">d</span> points.” That’s true, but it’s one more than needed. Two different lines have degree below 2, and they cross at most once, not twice.</p>
+  </header>
+
+  <section class="stage" aria-label="Animated explanation">
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-i="0"><span class="n">1</span><span class="t">Lines</span><span class="prog"></span></button>
+      <button class="tab" role="tab" data-i="1"><span class="n">2</span><span class="t">Parabolas</span><span class="prog"></span></button>
+      <button class="tab" role="tab" data-i="2"><span class="n">3</span><span class="t">The reason</span><span class="prog"></span></button>
+      <button class="tab" role="tab" data-i="3"><span class="n">4</span><span class="t">Pinned</span><span class="prog"></span></button>
+    </div>
+    <div class="cv-box"><canvas id="stage" role="img" aria-label="Animation"></canvas></div>
+    <div class="bar">
+      <div class="ctrls">
+        <button class="btn icon" id="prev" aria-label="Previous scene"><svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg></button>
+        <button class="btn primary" id="play"><svg viewBox="0 0 16 16" id="play-ico"><path d="M4 2l10 6-10 6z"/></svg><span id="play-txt">Play</span></button>
+        <button class="btn icon" id="next" aria-label="Next scene"><svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg></button>
+      </div>
+      <div class="readout">
+        <span class="chip live" id="ro-chip"><b id="ro-main">1</b> <span id="ro-label">shared point</span></span>
+        <span class="chip" id="ro-side">most possible: d − 1 = 1</span>
+      </div>
+    </div>
+    <div class="caption">
+      <p class="cap-meta" id="cap-meta"></p>
+      <h2 id="cap-title"></h2>
+      <p class="body" id="cap-body"></p>
+    </div>
+  </section>
+
+  <section class="proof">
+    <h2>Why it’s true</h2>
+    <ol class="steps">
+      <li><p><strong>Subtract.</strong> Let <span class="m">h</span> = <span class="m">f</span> − <span class="m">g</span>. Because <span class="m">f</span> ≠ <span class="m">g</span>, <span class="m">h</span> is not the zero polynomial. Subtracting can’t raise the degree, so <span class="m">h</span> also has degree below <span class="m">d</span>.</p></li>
+      <li><p><strong>Agreement means a root.</strong> If <span class="m">f</span>(<span class="m">r</span>) = <span class="m">g</span>(<span class="m">r</span>), then <span class="m">h</span>(<span class="m">r</span>) = 0. The points where <span class="m">f</span> and <span class="m">g</span> agree are exactly the roots of <span class="m">h</span>.</p></li>
+      <li><p><strong>Count the roots.</strong> Each root <span class="m">r</span> splits off a factor (<span class="m">x</span> − <span class="m">r</span>). With <span class="m">k</span> different roots, <span class="m">h</span> contains (<span class="m">x</span> − <span class="m">r</span><sub>1</sub>)···(<span class="m">x</span> − <span class="m">r<sub>k</sub></span>), which has degree <span class="m">k</span>. That can’t exceed the degree of <span class="m">h</span>, which is at most <span class="m">d</span> − 1. So <span class="m">h</span> has at most <span class="m">d</span> − 1 roots, and <span class="m">f</span> and <span class="m">g</span> agree at most <span class="m">d</span> − 1 times.</p></li>
+    </ol>
+    <div class="more">
+      <div>
+        <h3>Read it the other way</h3>
+        <p>Through <span class="m">d</span> points with different <span class="m">x</span>-values there is at most one polynomial of degree below <span class="m">d</span>, because two of them would agree on <span class="m">d</span> points. Lagrange interpolation shows there is always exactly one. Scene 4 shows this.</p>
+      </div>
+      <div>
+        <h3>Not only for curves</h3>
+        <p>The proof uses factoring, never the picture, so it holds over any field, including the finite fields used in Reed–Solomon codes, secret sharing and polynomial commitments. Pick <span class="m">r</span> at random from <span class="m">q</span> field elements and two different polynomials of degree below <span class="m">d</span> agree at <span class="m">r</span> with probability at most (<span class="m">d</span> − 1)/<span class="m">q</span>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="play">
+    <h2>Try to beat it</h2>
+    <p class="lede"><span class="m">f</span> stays fixed. <span class="m">g</span> is the polynomial of degree below <span class="m">d</span> that passes through the <span class="m">d</span> square handles. Drag the handles up and down and try to make <span class="m">f</span> and <span class="m">g</span> meet <span class="m">d</span> times while keeping them different.</p>
+    <div class="pg-top">
+      <label for="seg-d" id="seg-label">Degree below d =</label>
+      <div class="seg" id="seg-d" role="group" aria-labelledby="seg-label">
+        <button data-d="2" aria-pressed="false">2</button>
+        <button data-d="3" aria-pressed="false">3</button>
+        <button data-d="4" aria-pressed="true">4</button>
+        <button data-d="5" aria-pressed="false">5</button>
+        <button data-d="6" aria-pressed="false">6</button>
+      </div>
+    </div>
+    <div class="pg-frame">
+      <div class="cv-box"><canvas id="pg" tabindex="0" aria-label="Playground. Use left and right arrows to pick a handle, up and down to move it, Enter to put it on f."></canvas></div>
+      <div class="bar">
+        <div class="ctrls">
+          <button class="btn" id="pg-next">Put next handle on <span class="m">f</span></button>
+          <button class="btn" id="pg-reset">Scatter handles</button>
+        </div>
+        <div class="readout" aria-live="polite">
+          <span class="chip live"><b id="pg-n">0</b> <span id="pg-nl">shared points</span></span>
+          <span class="chip" id="pg-bound">most possible: d − 1 = 3</span>
+          <span class="chip" id="pg-on">handles on f: 0 of 4</span>
+        </div>
+      </div>
+    </div>
+    <p class="pg-msg" id="pg-msg"></p>
+    <p class="hint">Handles snap onto <span class="m">f</span> when you get close. Keyboard: focus the graph, then use the arrow keys and Enter.</p>
+  </section>
+</main>
+
+<script id="core">
+window.AGREE = (function(){
+  "use strict";
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const smooth=u=>{u=clamp(u,0,1);return u*u*(3-2*u);};
+  const lerp=(a,b,u)=>a+(b-a)*u;
+  const seg=(t,t0,t1)=>smooth((t-t0)/(t1-t0));
+  function keys(t,ks){
+    if(t<=ks[0][0]) return ks[0][1];
+    for(let i=0;i<ks.length-1;i++){
+      const a=ks[i], b=ks[i+1];
+      if(t<=b[0]) return lerp(a[1],b[1],smooth((t-a[0])/(b[0]-a[0])));
+    }
+    return ks[ks.length-1][1];
+  }
+  function lagrange(xs,ys){
+    return x=>{
+      let s=0;
+      for(let i=0;i<xs.length;i++){
+        let L=1;
+        for(let j=0;j<xs.length;j++) if(j!==i) L*=(x-xs[j])/(xs[i]-xs[j]);
+        s+=ys[i]*L;
+      }
+      return s;
+    };
+  }
+  // Points in [x0,x1] where h = 0: sign changes (bisected), exact zeros, and touches (double roots).
+  function findAgreements(h,x0,x1,N){
+    N=N||900;
+    const xs=new Float64Array(N+1), ys=new Float64Array(N+1);
+    let maxAbs=0;
+    for(let i=0;i<=N;i++){
+      const x=x0+(x1-x0)*i/N, y=h(x);
+      xs[i]=x; ys[i]=y;
+      const a=Math.abs(y); if(a>maxAbs) maxAbs=a;
+    }
+    if(maxAbs<1e-9) return {identical:true,pts:[]};
+    const pts=[], used=new Uint8Array(N+1), Z=1e-12;
+    for(let i=0;i<=N;i++){
+      if(Math.abs(ys[i])<Z){ if(!used[i]){pts.push(xs[i]);used[i]=1;} continue; }
+      if(i<N && Math.abs(ys[i+1])>=Z && ys[i]*ys[i+1]<0){
+        let a=xs[i], b=xs[i+1], fa=ys[i];
+        for(let k=0;k<48;k++){ const m=(a+b)/2, fm=h(m); if(fa*fm<=0) b=m; else {a=m;fa=fm;} }
+        pts.push((a+b)/2); used[i]=used[i+1]=1;
+      }
+    }
+    const tol=Math.min(0.02,0.01*maxAbs);
+    const W=Math.max(2,Math.ceil(0.15/((x1-x0)/N)));
+    for(let i=1;i<N;i++){
+      const v=Math.abs(ys[i]);
+      if(v>=tol||used[i]) continue;
+      if(!(v<=Math.abs(ys[i-1]) && v<Math.abs(ys[i+1]))) continue;
+      let clean=true;
+      for(let k=Math.max(0,i-W);k<Math.min(N,i+W);k++){ if(ys[k]*ys[k+1]<=0){clean=false;break;} }
+      if(clean){ pts.push(xs[i]); used[i]=1; }
+    }
+    pts.sort((a,b)=>a-b);
+    return {identical:false,pts};
+  }
+
+  // Scene 1: lines. g = f - h, h linear.
+  function S1(t){
+    const f=x=>0.45*x+0.4;
+    const r=keys(t,[[0,-2.6],[4,2.2]]);
+    const m=keys(t,[[0,0.9],[4,0.9],[6.5,0],[8.5,0],[11,-0.75],[12,-0.75]]);
+    const k=t<=4 ? -0.9*r : keys(t,[[4,-1.98],[6.5,-1.3],[8.5,-1.3],[11,0.6],[12,0.6]]);
+    const h=x=>m*x+k;
+    return {f,h,g:x=>f(x)-h(x),d:2};
+  }
+  // Scene 2: parabolas. h = a((x-p)^2 - s): two roots, a touch, none.
+  function S2(t){
+    const f=x=>0.22*x*x-1.3;
+    const p=keys(t,[[0,-0.4],[3,0.5],[6.5,0.2],[9,-0.3],[12,-0.4]]);
+    const s=keys(t,[[0,2.4],[2.5,2.4],[4.8,0],[6.6,0],[8.3,-0.9],[9.6,-0.9],[11.6,2.4],[12,2.4]]);
+    const h=x=>0.55*((x-p)*(x-p)-s);
+    return {f,h,g:x=>f(x)-h(x),d:3};
+  }
+  // Scene 3: cubics. h = 0.45(u^3 - 3u) - e, u = x/1.4: three roots, a touch, one.
+  function S3(t){
+    const f=x=>0.12*x*x*x-0.15*x*x-0.7*x+0.6;
+    const e=keys(t,[[0,0.15],[3.2,0.15],[5.2,0.9],[6.8,0.9],[8.6,1.45],[10,1.45],[12,-0.3],[13,0.15]]);
+    const h=x=>{const u=x/1.4; return 0.45*(u*u*u-3*u)-e;};
+    return {f,h,g:x=>f(x)-h(x),d:4};
+  }
+  // Scene 4: four points pin down a cubic. g = f + c(x-x1)(x-x2)(x-x3).
+  const N4X=[-2.4,-0.8,0.9,2.3], N4Y=[0.9,-1.0,0.8,-0.4];
+  const f4=lagrange(N4X,N4Y);
+  const q4=x=>(x-N4X[0])*(x-N4X[1])*(x-N4X[2]);
+  function S4(t){
+    const c=keys(t,[[0,0.075],[4.6,0.075],[6.2,-0.045],[7.5,0.022],[8.7,0],[12,0]]);
+    return {f:f4,c,g:x=>f4(x)+c*q4(x),d:4};
+  }
+  const PRESETS={2:[-0.6,0.9],3:[0.8,-0.7,0.6],4:[-0.4,0.9,-0.8,0.5],5:[0.6,-0.5,0.8,-0.7,0.3],6:[-0.5,0.7,-0.3,0.8,-0.9,0.4]};
+  const OFFS=[0.9,-0.8,0.75,-0.9,0.8,-0.7];
+  const nodesX=d=>Array.from({length:d},(_,i)=>-2.4+4.8*i/(d-1));
+  return {clamp,smooth,lerp,seg,keys,lagrange,findAgreements,S1,S2,S3,S4,N4X,N4Y,f4,q4,PRESETS,OFFS,nodesX};
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+const A=window.AGREE, {clamp,lerp,seg}=A;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const TAU=Math.PI*2;
+
+let C={};
+function readColors(){
+  const cs=getComputedStyle(document.documentElement);
+  const v=n=>cs.getPropertyValue(n).trim();
+  C={surface:v('--surface'),ink:v('--ink'),muted:v('--muted'),rule:v('--rule'),grid:v('--grid'),axis:v('--axis'),
+     f:v('--f'),g:v('--g'),h:v('--h'),hit:v('--hit'),math:v('--font-math'),mono:v('--font-mono'),body:v('--font-body')};
+}
+readColors();
+
+function setupCanvas(cv,onResize){
+  const st={cv,ctx:cv.getContext('2d'),w:0,h:0};
+  new ResizeObserver(()=>{
+    const r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
+    st.w=r.width; st.h=r.height;
+    cv.width=Math.max(1,Math.round(r.width*dpr)); cv.height=Math.max(1,Math.round(r.height*dpr));
+    st.ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(onResize) onResize();
+  }).observe(cv);
+  return st;
+}
+function makePlot(rect,xr,yr){
+  return {rect,xr,yr,
+    X:x=>rect.x+(x-xr[0])/(xr[1]-xr[0])*rect.w,
+    Y:y=>rect.y+rect.h-(y-yr[0])/(yr[1]-yr[0])*rect.h,
+    invY:Y=>yr[0]+(rect.y+rect.h-Y)/rect.h*(yr[1]-yr[0])};
+}
+
+/* ---------- drawing ---------- */
+function drawPanel(ctx,p,label){
+  const {x,y,w,h}=p.rect;
+  ctx.save();
+  ctx.fillStyle=C.surface; ctx.fillRect(x,y,w,h);
+  ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  ctx.lineWidth=1; ctx.strokeStyle=C.grid; ctx.beginPath();
+  for(let gx=Math.ceil(p.xr[0]);gx<=p.xr[1];gx++){ if(!gx) continue; const X=Math.round(p.X(gx))+.5; ctx.moveTo(X,y); ctx.lineTo(X,y+h); }
+  for(let gy=Math.ceil(p.yr[0]);gy<=p.yr[1];gy++){ if(!gy) continue; const Y=Math.round(p.Y(gy))+.5; ctx.moveTo(x,Y); ctx.lineTo(x+w,Y); }
+  ctx.stroke();
+  const X0=Math.round(p.X(0))+.5, Y0=Math.round(p.Y(0))+.5;
+  ctx.strokeStyle=C.axis; ctx.beginPath(); ctx.moveTo(x,Y0); ctx.lineTo(x+w,Y0); ctx.moveTo(X0,y); ctx.lineTo(X0,y+h); ctx.stroke();
+  ctx.fillStyle=C.muted; ctx.font=`10.5px ${C.mono}`; ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let gx=Math.ceil(p.xr[0]);gx<=p.xr[1];gx++){
+    if(!gx) continue; const X=p.X(gx); if(X<x+12||X>x+w-12) continue;
+    ctx.fillText(String(gx).replace('-','−'),X,clamp(Y0+5,y+4,y+h-16));
+  }
+  ctx.restore();
+  if(label){
+    ctx.save(); ctx.font=`italic 16px ${C.math}`; ctx.fillStyle=C.muted; ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.fillText(label,x+14,y+12); ctx.restore();
+  }
+}
+function drawCurve(ctx,p,fn,color,o){
+  o=o||{}; const {x,y,w,h}=p.rect; const rev=o.reveal==null?1:o.reveal; if(rev<=0) return;
+  const x1=p.xr[0]+(p.xr[1]-p.xr[0])*rev, N=Math.max(60,Math.ceil(w*rev/2));
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); ctx.beginPath();
+  for(let i=0;i<=N;i++){
+    const xx=p.xr[0]+(x1-p.xr[0])*i/N, Y=clamp(p.Y(fn(xx)),y-400,y+h+400);
+    if(i===0) ctx.moveTo(p.X(xx),Y); else ctx.lineTo(p.X(xx),Y);
+  }
+  ctx.globalAlpha=o.alpha==null?1:o.alpha; ctx.strokeStyle=color; ctx.lineWidth=o.width||2.75;
+  ctx.lineJoin='round'; ctx.lineCap='round'; if(o.dash) ctx.setLineDash(o.dash);
+  ctx.stroke(); ctx.restore();
+}
+function drawHit(ctx,X,Y,pulse,alpha){
+  const a=alpha==null?1:alpha; if(a<=0) return;
+  ctx.save();
+  if(pulse!=null){
+    const u=pulse%1; ctx.globalAlpha=a*(1-u)*0.7;
+    ctx.beginPath(); ctx.arc(X,Y,7+11*u,0,TAU); ctx.strokeStyle=C.hit; ctx.lineWidth=2; ctx.stroke();
+  }
+  ctx.globalAlpha=a;
+  ctx.beginPath(); ctx.arc(X,Y,6.5,0,TAU); ctx.fillStyle=C.hit; ctx.fill();
+  ctx.lineWidth=2.5; ctx.strokeStyle=C.surface; ctx.stroke();
+  ctx.restore();
+}
+function halo(ctx,text,X,Y){ ctx.lineWidth=5; ctx.strokeStyle=C.surface; ctx.lineJoin='round'; ctx.strokeText(text,X,Y); ctx.fillText(text,X,Y); }
+function labelCurve(ctx,p,fn,text,color,xPref,avoid,dir){
+  dir=dir||-1;
+  const span=p.yr[1]-p.yr[0], lo=p.yr[0]+span*0.1, hi=p.yr[1]-span*0.12;
+  let xx=xPref;
+  for(let k=0;k<240;k++){ const yy=fn(xx); if(yy>lo&&yy<hi) break; xx+=0.04*dir; }
+  const X=p.X(xx); let Y=p.Y(fn(xx))-13;
+  if(avoid!=null && Math.abs(Y-avoid)<22) Y=avoid+(Y<avoid?-22:22);
+  ctx.save(); ctx.font=`italic 600 21px ${C.math}`; ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  halo(ctx,text,X,Y); ctx.restore();
+  return Y;
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function tag(ctx,rect,text,a){
+  if(a<=0.01) return;
+  ctx.save(); ctx.globalAlpha=a;
+  let fs=13; ctx.font=`500 ${fs}px ${C.body}`;
+  let tw=ctx.measureText(text).width; const maxW=rect.w-130;
+  if(tw>maxW){ fs=Math.max(10,fs*maxW/tw); ctx.font=`500 ${fs}px ${C.body}`; tw=ctx.measureText(text).width; }
+  const px=10, ht=fs+13, X=rect.x+rect.w-12-tw-2*px, Y=rect.y+10;
+  ctx.fillStyle=C.surface; ctx.strokeStyle=C.hit; ctx.lineWidth=1.25;
+  roundRect(ctx,X,Y,tw+2*px,ht,ht/2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle=C.ink; ctx.textBaseline='middle'; ctx.textAlign='left'; ctx.fillText(text,X+px,Y+ht/2+0.5);
+  ctx.restore();
+}
+const win=(t,t0,t1,fd=0.35)=>Math.min(seg(t,t0,t0+fd),1-seg(t,t1-fd,t1));
+
+/* ---------- stage ---------- */
+const stage=setupCanvas($('stage'),()=>{dirty=true;});
+let clock=0;
+const pulse=()=> (playing&&!reduce) ? clock*0.85 : null;
+function viewX(w){ return w<520 ? [-3.3,3.3] : [-4.2,4.2]; }
+function singlePlot(){
+  const r={x:0,y:0,w:stage.w,h:stage.h}, xr=viewX(stage.w), ys=(xr[1]-xr[0])*r.h/r.w;
+  return makePlot(r,xr,[-ys/2,ys/2]);
+}
+
+const SCENES=[
+{ d:2, dur:12, still:2.2,
+  meta:'d = 2 · degree below 2 · lines',
+  title:'Two different lines meet at most once.',
+  body:'Slide one line past the other. They cross once, or never when they’re parallel. Two points already fix a line, so two <em>different</em> lines can’t share two.',
+  draw(ctx,t){
+    const p=singlePlot(); drawPanel(ctx,p);
+    const {f,g,h}=A.S1(t);
+    drawCurve(ctx,p,f,C.f); drawCurve(ctx,p,g,C.g);
+    const R=A.findAgreements(h,p.xr[0],p.xr[1]);
+    R.pts.forEach(x=>drawHit(ctx,p.X(x),p.Y(f(x)),pulse()));
+    const yf=labelCurve(ctx,p,f,'f',C.f,p.xr[1]-0.45); labelCurve(ctx,p,g,'g',C.g,p.xr[1]-0.45,yf);
+    tag(ctx,p.rect,'parallel, so they never meet',win(t,6.3,8.7));
+    return R;
+  }},
+{ d:3, dur:12, still:1.5,
+  meta:'d = 3 · degree below 3 · parabolas',
+  title:'Two different parabolas meet at most twice.',
+  body:'They can cross twice, touch once, or miss each other completely. A touch still counts as a shared point. No pair of different parabolas ever shares three.',
+  draw(ctx,t){
+    const p=singlePlot(); drawPanel(ctx,p);
+    const {f,g,h}=A.S2(t);
+    drawCurve(ctx,p,f,C.f); drawCurve(ctx,p,g,C.g);
+    const R=A.findAgreements(h,p.xr[0],p.xr[1]);
+    R.pts.forEach(x=>drawHit(ctx,p.X(x),p.Y(f(x)),pulse()));
+    const yf=labelCurve(ctx,p,f,'f',C.f,p.xr[1]-0.45); labelCurve(ctx,p,g,'g',C.g,p.xr[1]-0.45,yf);
+    tag(ctx,p.rect,'touching counts as one shared point',win(t,4.7,6.8));
+    tag(ctx,p.rect,'no shared points',win(t,8.2,9.8));
+    return R;
+  }},
+{ d:4, dur:13, still:2.8,
+  meta:'d = 4 · degree below 4 · the reason',
+  title:'Subtract them, and agreement points turn into roots.',
+  body:'Let <span class="m">h</span> = <span class="m">f</span> − <span class="m">g</span>. Wherever <span class="m">f</span> and <span class="m">g</span> agree, <span class="m">h</span> is zero. <span class="m">h</span> has degree below <span class="m">d</span> and isn’t the zero polynomial (because <span class="m">f</span> ≠ <span class="m">g</span>), so it has at most <span class="m">d</span> − 1 roots.',
+  draw(ctx,t){
+    const W=stage.w, H=stage.h, hh=(H-1)/2, xr=viewX(W);
+    const top=makePlot({x:0,y:0,w:W,h:hh},xr,[-3,3]);
+    const bot=makePlot({x:0,y:hh+1,w:W,h:hh},xr,[-2.4,2.4]);
+    drawPanel(ctx,top,'f and g'); drawPanel(ctx,bot,'h = f − g');
+    ctx.fillStyle=C.rule; ctx.fillRect(0,hh,W,1);
+    const {f,g,h}=A.S3(t);
+    drawCurve(ctx,top,f,C.f); drawCurve(ctx,top,g,C.g);
+    const rev=seg(t,0.2,1.8);
+    drawCurve(ctx,bot,h,C.h,{reveal:rev});
+    const R=A.findAgreements(h,xr[0],xr[1]);
+    const la=seg(t,1.6,2.4), xEdge=xr[0]+(xr[1]-xr[0])*rev, pl=pulse();
+    R.pts.forEach(x=>{
+      const X=top.X(x), Yt=top.Y(f(x)), Yb=bot.Y(0);
+      drawHit(ctx,X,Yt,pl);
+      if(x>xEdge) return;
+      ctx.save(); ctx.globalAlpha=la*0.85; ctx.setLineDash([3,4]); ctx.strokeStyle=C.hit; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(X,Yt+8); ctx.lineTo(X,Yb-8); ctx.stroke(); ctx.restore();
+      drawHit(ctx,X,Yb,pl);
+    });
+    const yf=labelCurve(ctx,top,f,'f',C.f,xr[1]-0.45); labelCurve(ctx,top,g,'g',C.g,xr[1]-0.45,yf);
+    if(rev>0.9) labelCurve(ctx,bot,h,'h',C.h,xr[1]-0.45);
+    tag(ctx,bot.rect,'a touch is still one root',win(t,5.1,7.0));
+    tag(ctx,bot.rect,'one root, one shared point',win(t,8.5,10.2));
+    return R;
+  }},
+{ d:4, dur:12, still:3.6, custom:true,
+  meta:'d = 4 · four points',
+  title:'Four points leave room for just one polynomial of degree below 4.',
+  body:'Every polynomial of degree below 4 through the first three points equals <span class="m">f</span> + <span class="m">c</span>·(<span class="m">x</span> + 2.4)(<span class="m">x</span> + 0.8)(<span class="m">x</span> − 0.9) for some number <span class="m">c</span>. It reaches the fourth point only when <span class="m">c</span> = 0, and then it is <span class="m">f</span>.',
+  draw(ctx,t){
+    const p=singlePlot(); drawPanel(ctx,p);
+    const {f,g,c}=A.S4(t);
+    const merged=Math.abs(c)<1e-6, ga=seg(t,1.5,2.4);
+    drawCurve(ctx,p,f,C.f,{reveal:seg(t,0.3,1.5)});
+    drawCurve(ctx,p,g,C.g,{alpha:ga,dash:merged?[8,8]:null});
+    const x4=A.N4X[3], y4=A.N4Y[3], miss=g(x4)-y4;
+    if(Math.abs(miss)>0.03 && ga>0){
+      const Xb=p.X(x4)+16, Ya=p.Y(y4), Yb=clamp(p.Y(g(x4)),4,stage.h-4);
+      ctx.save(); ctx.globalAlpha=ga; ctx.strokeStyle=C.ink; ctx.lineWidth=1.25;
+      ctx.beginPath(); ctx.moveTo(Xb-5,Ya); ctx.lineTo(Xb,Ya); ctx.lineTo(Xb,Yb); ctx.lineTo(Xb-5,Yb); ctx.stroke();
+      ctx.font=`500 12px ${C.mono}`; ctx.fillStyle=C.ink; ctx.textBaseline='middle';
+      const txt=`miss ${Math.abs(miss).toFixed(2)}`, tw=ctx.measureText(txt).width;
+      if(Xb+8+tw<stage.w-8){ ctx.textAlign='left'; halo(ctx,txt,Xb+8,(Ya+Yb)/2); }
+      else { ctx.textAlign='right'; halo(ctx,txt,stage.w-10,Math.max(Ya,Yb)+18); }
+      ctx.restore();
+    }
+    const pl=pulse();
+    A.N4X.forEach((x,i)=>{
+      const s=seg(t,0.15+0.22*i,0.45+0.22*i); if(s<=0) return;
+      const X=p.X(x), Y=p.Y(A.N4Y[i]), filled=ga>0.5&&(i<3||merged);
+      if(filled&&i===3&&pl!=null){ const u=pl%1; ctx.save(); ctx.globalAlpha=(1-u)*0.7; ctx.beginPath(); ctx.arc(X,Y,8+12*u,0,TAU); ctx.strokeStyle=C.hit; ctx.lineWidth=2; ctx.stroke(); ctx.restore(); }
+      ctx.save(); ctx.beginPath(); ctx.arc(X,Y,7*s,0,TAU); ctx.fillStyle=filled?C.hit:C.surface; ctx.fill();
+      ctx.lineWidth=2.25; ctx.strokeStyle=C.ink; ctx.stroke(); ctx.restore();
+    });
+    const yf=labelCurve(ctx,p,f,'f',C.f,p.xr[0]+0.35,null,1);
+    if(ga>0.5 && !merged) labelCurve(ctx,p,g,'g',C.g,p.xr[0]+0.35,yf,1);
+    ctx.save(); ctx.font=`500 13px ${C.mono}`; ctx.fillStyle=C.ink; ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.globalAlpha=ga;
+    halo(ctx,`c = ${c<0?'−':'+'}${Math.abs(c).toFixed(3)}`,14,stage.h-16); ctx.restore();
+    tag(ctx,p.rect,'g passes through 3 of the 4 points',win(t,2.4,4.6));
+    tag(ctx,p.rect,'to close the gap, c has to shrink',win(t,4.6,8.7));
+    tag(ctx,p.rect,'c = 0, so g is f',win(t,8.7,12.2));
+    return {main:(merged?'4':'3')+' of 4',label:'points on g',side:merged?'g has become f':'only f hits all 4'};
+  }}
+];
+
+const tabs=[...document.querySelectorAll('#tabs .tab')];
+const progs=tabs.map(b=>b.querySelector('.prog'));
+let si=0, t=reduce?SCENES[0].still:0, playing=!reduce, dirty=true, last=performance.now();
+
+function setCaption(){
+  const s=SCENES[si];
+  $('cap-meta').textContent=s.meta; $('cap-title').textContent=s.title; $('cap-body').innerHTML=s.body;
+  $('stage').setAttribute('aria-label',s.title);
+  tabs.forEach((b,i)=>{ b.setAttribute('aria-selected',i===si?'true':'false'); b.tabIndex=i===si?0:-1; progs[i].style.width=i<si?'100%':'0%'; });
+}
+function goTo(i){ si=(i+SCENES.length)%SCENES.length; t=playing?0:SCENES[si].still; setCaption(); dirty=true; }
+function setPlaying(v){
+  playing=v;
+  $('play-txt').textContent=v?'Pause':'Play';
+  $('play-ico').innerHTML=v?'<path d="M3 2h3.5v12H3zM9.5 2H13v12H9.5z"/>':'<path d="M4 2l10 6-10 6z"/>';
+  dirty=true;
+}
+tabs.forEach((b,i)=>b.addEventListener('click',()=>goTo(i)));
+$('tabs').addEventListener('keydown',e=>{
+  if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft') return;
+  goTo(si+(e.key==='ArrowRight'?1:-1)); tabs[si].focus(); e.preventDefault();
+});
+$('prev').addEventListener('click',()=>goTo(si-1));
+$('next').addEventListener('click',()=>goTo(si+1));
+$('play').addEventListener('click',()=>setPlaying(!playing));
+
+let lastRO='';
+function setReadout(main,label,side){
+  const key=main+'|'+label+'|'+side; if(key===lastRO) return;
+  const prevMain=lastRO.split('|')[0]; lastRO=key;
+  $('ro-main').textContent=main; $('ro-label').textContent=label; $('ro-side').textContent=side;
+  if(prevMain&&prevMain!==main&&!reduce){ const c=$('ro-chip'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+}
+function render(){
+  if(!stage.w) return;
+  const ctx=stage.ctx; ctx.clearRect(0,0,stage.w,stage.h);
+  const s=SCENES[si], R=s.draw(ctx,t);
+  if(s.custom) setReadout(R.main,R.label,R.side);
+  else { const n=R.pts.length; setReadout(String(n),n===1?'shared point':'shared points',`most possible: d − 1 = ${s.d-1}`); }
+  progs[si].style.width=(clamp(t/s.dur,0,1)*100).toFixed(2)+'%';
+}
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(playing){
+    clock+=dt; t+=dt;
+    if(t>=SCENES[si].dur){ si=(si+1)%SCENES.length; t=0; setCaption(); }
+    render();
+  } else if(dirty){ render(); }
+  dirty=false;
+  requestAnimationFrame(frame);
+}
+setCaption(); setPlaying(playing);
+requestAnimationFrame(frame);
+
+/* ---------- playground ---------- */
+const pg=setupCanvas($('pg'),()=>pgDraw());
+let PGd=4, PGx=[], PGfy=[], PGgy=[], PGf=null, PGsel=0, PGfocus=false, drag=null, busy=false;
+function pgPlot(){
+  const r={x:0,y:0,w:pg.w,h:pg.h}, xr=pg.w<520?[-3.0,3.0]:[-3.5,3.5], ys=(xr[1]-xr[0])*r.h/r.w;
+  return makePlot(r,xr,[-ys/2,ys/2]);
+}
+function scatter(){ PGgy=PGfy.map((y,i)=>y+A.OFFS[i%A.OFFS.length]); }
+function pgSet(d){
+  PGd=d; PGx=A.nodesX(d); PGfy=A.PRESETS[d].slice(); PGf=A.lagrange(PGx,PGfy); PGsel=0; scatter();
+  document.querySelectorAll('#seg-d button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.d===d)));
+  pgDraw();
+}
+function drawHandle(ctx,X,Y,on,sel){
+  ctx.save();
+  if(sel){ roundRect(ctx,X-12,Y-12,24,24,6); ctx.strokeStyle=C.ink; ctx.lineWidth=2; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]); }
+  roundRect(ctx,X-7.5,Y-7.5,15,15,3.5);
+  ctx.fillStyle=on?C.hit:C.g; ctx.fill(); ctx.lineWidth=on?2.5:2; ctx.strokeStyle=on?C.g:C.surface; ctx.stroke();
+  ctx.restore();
+}
+function pgDraw(){
+  if(!pg.w||!PGf) return;
+  const ctx=pg.ctx; ctx.clearRect(0,0,pg.w,pg.h);
+  const p=pgPlot(); drawPanel(ctx,p);
+  const g=A.lagrange(PGx,PGgy), h=x=>PGf(x)-g(x);
+  const onF=PGgy.reduce((n,y,i)=>n+(y===PGfy[i]?1:0),0), same=onF===PGd;
+  drawCurve(ctx,p,PGf,C.f);
+  drawCurve(ctx,p,g,C.g,{dash:same?[8,8]:null});
+  ctx.save(); ctx.setLineDash([2,4]); ctx.strokeStyle=C.muted; ctx.lineWidth=1.25; ctx.globalAlpha=0.8;
+  PGx.forEach((x,i)=>{ if(PGgy[i]===PGfy[i]) return; const X=p.X(x); ctx.beginPath(); ctx.moveTo(X,p.Y(PGfy[i])); ctx.lineTo(X,p.Y(PGgy[i])); ctx.stroke(); });
+  ctx.restore();
+  const R=same?{identical:true,pts:[]}:A.findAgreements(h,p.xr[0],p.xr[1]);
+  R.pts.forEach(x=>drawHit(ctx,p.X(x),p.Y(PGf(x))));
+  PGx.forEach((x,i)=>drawHandle(ctx,p.X(x),p.Y(PGgy[i]),PGgy[i]===PGfy[i],PGfocus&&i===PGsel));
+  const yf=labelCurve(ctx,p,PGf,'f',C.f,p.xr[1]-0.35);
+  if(!same) labelCurve(ctx,p,g,'g',C.g,p.xr[1]-0.35,yf);
+  // readout
+  const n=R.pts.length;
+  $('pg-n').textContent=same?'every':String(n);
+  $('pg-nl').textContent=same?'point shared':(n===1?'shared point':'shared points');
+  $('pg-bound').textContent=`most possible: d − 1 = ${PGd-1}`;
+  $('pg-on').textContent=`handles on f: ${onF} of ${PGd}`;
+  $('pg-next').disabled=same;
+  const msg=$('pg-msg');
+  if(same) msg.innerHTML=`All ${PGd} handles sit on <span class="m">f</span>, so <span class="m">g</span> <em>is</em> <span class="m">f</span>. They agree everywhere because they are the same polynomial, which is the only way past ${PGd-1}.`;
+  else if(onF===PGd-1) msg.innerHTML=`${PGd-1} handles on <span class="m">f</span> gives ${PGd-1} shared points, the most two different polynomials of degree below ${PGd} can have. Move the last handle onto <span class="m">f</span> and <span class="m">g</span> turns into <span class="m">f</span>.`;
+  else msg.innerHTML=`Right now <span class="m">f</span> and <span class="m">g</span> share ${n} point${n===1?'':'s'}. However you drag, the count stays at ${PGd-1} or below while <span class="m">g</span> differs from <span class="m">f</span>.`;
+}
+function setHandle(i,y,tolUnits){
+  const p=pgPlot();
+  y=clamp(y,p.yr[0]+0.05,p.yr[1]-0.05);
+  if(Math.abs(y-PGfy[i])<tolUnits) y=PGfy[i];
+  PGgy[i]=y; pgDraw();
+}
+const cvp=$('pg');
+function localY(e){ return e.clientY-cvp.getBoundingClientRect().top; }
+cvp.addEventListener('pointerdown',e=>{
+  if(busy) return;
+  const p=pgPlot(), x=e.clientX-cvp.getBoundingClientRect().left;
+  let best=-1, bd=1e9;
+  PGx.forEach((nx,i)=>{ const dx=Math.abs(p.X(nx)-x); if(dx<bd){bd=dx;best=i;} });
+  const spacing=Math.abs(p.X(PGx[1])-p.X(PGx[0]));
+  if(bd>Math.max(28,spacing/2)) return;
+  drag=best; PGsel=best; cvp.setPointerCapture(e.pointerId);
+  setHandle(best,p.invY(localY(e)),12*(p.yr[1]-p.yr[0])/p.rect.h);
+  e.preventDefault();
+});
+cvp.addEventListener('pointermove',e=>{ if(drag==null) return; const p=pgPlot(); setHandle(drag,p.invY(localY(e)),12*(p.yr[1]-p.yr[0])/p.rect.h); });
+['pointerup','pointercancel','lostpointercapture'].forEach(n=>cvp.addEventListener(n,()=>{drag=null;}));
+cvp.addEventListener('focus',()=>{PGfocus=true;pgDraw();});
+cvp.addEventListener('blur',()=>{PGfocus=false;pgDraw();});
+cvp.addEventListener('keydown',e=>{
+  if(busy) return;
+  if(e.key==='ArrowLeft') PGsel=(PGsel-1+PGd)%PGd;
+  else if(e.key==='ArrowRight') PGsel=(PGsel+1)%PGd;
+  else if(e.key==='ArrowUp'||e.key==='ArrowDown'){ const st=e.shiftKey?0.02:0.1; setHandle(PGsel,PGgy[PGsel]+(e.key==='ArrowUp'?st:-st),0.045); e.preventDefault(); return; }
+  else if(e.key==='Enter'||e.key===' ') PGgy[PGsel]=PGfy[PGsel];
+  else return;
+  e.preventDefault(); pgDraw();
+});
+$('pg-next').addEventListener('click',()=>{
+  if(busy) return;
+  const i=PGgy.findIndex((y,k)=>y!==PGfy[k]); if(i<0) return;
+  PGsel=i;
+  if(reduce){ PGgy[i]=PGfy[i]; pgDraw(); return; }
+  busy=true; const y0=PGgy[i], y1=PGfy[i], t0=performance.now();
+  (function step(now){
+    const u=Math.min(1,(now-t0)/420);
+    PGgy[i]=u<1?lerp(y0,y1,A.smooth(u)):y1; pgDraw();
+    if(u<1) requestAnimationFrame(step); else busy=false;
+  })(t0);
+});
+$('pg-reset').addEventListener('click',()=>{ if(busy) return; scatter(); pgDraw(); });
+document.querySelectorAll('#seg-d button').forEach(b=>b.addEventListener('click',()=>{ if(!busy) pgSet(+b.dataset.d); }));
+pgSet(4);
+
+/* ---------- theme + fonts ---------- */
+function refresh(){ readColors(); dirty=true; pgDraw(); }
+const mq=matchMedia('(prefers-color-scheme: dark)');
+if(mq.addEventListener) mq.addEventListener('change',refresh);
+new MutationObserver(refresh).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme','class','style']});
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(refresh);
+})();
+</script>
+
+</body></html>

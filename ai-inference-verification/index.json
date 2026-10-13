@@ -1,0 +1,242 @@
+{
+  "_about": "Registry of every page, animation, video and source document made while studying SASH's zk-inference-prover. tools/build_index.py reads this file and writes index.html and the block between the index markers in README.md. Edit this file, run the script, commit all three.",
+  "updated": "2026-10-13",
+  "sections": [
+    {
+      "id": "background",
+      "title": "Background: who is building this and why",
+      "entries": [
+        {
+          "title": "Berrang Research Primer",
+          "kind": "study page",
+          "file": "berrang-primer.html",
+          "published": "https://claude.ai/artifact/KmBRGQDSRaoUVx3UymADet",
+          "first": "2026-10-06",
+          "updated": "2026-10-07",
+          "version": "v1",
+          "status": "current",
+          "learn": "The problem (who needs to verify an AI system, and when), what SASH is, why proving is slow, formal verification as a black box, the paper's sealed non-membership proof, Farkas' lemma and folding, and where the work is heading.",
+          "notes": "The \"Ask Claude\" box works only inside claude.ai; elsewhere it saves notes locally and says so."
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "title": "The model side: what a Llama decode step actually does",
+      "entries": [
+        {
+          "title": "Llama Decode Walkthrough",
+          "kind": "step animation",
+          "file": "llama-decode-walkthrough.html",
+          "published": "https://claude.ai/artifact/BhiYSkK4fedbxyf1uZNDXu",
+          "first": "2026-10-08",
+          "updated": "2026-10-08",
+          "version": "v1",
+          "status": "current",
+          "learn": "A toy copy of Llama with the same steps as the real one (8-wide notebooks instead of 4,096, 2 heads sharing 1 key/value head, a 16-wide MLP, a 12-word dictionary, all 32 layers), computed live, stepped with the arrow keys.",
+          "notes": "Source recovered from the published page on 13 Oct 2026; it is a standalone file."
+        },
+        {
+          "title": "Decode and Prove",
+          "kind": "step animation",
+          "file": "decode-and-prove.html",
+          "published": "https://claude.ai/artifact/Uec519WSekizajup7LUE3o",
+          "first": "2026-10-07",
+          "updated": "2026-10-09",
+          "version": "local build 9 Oct; published page 8 Oct",
+          "status": "current",
+          "learn": "An LLM decoding on the left, the prover on the right, over three real Llama-3.1-8B prompts, twenty steps each, with the gadget, the edge and the five-tree status at every step.",
+          "notes": "Generated: tools/build.py injects data/llama31-8b-decode-run.json into tools/decode-and-prove.template.html. Do not hand-edit the output."
+        }
+      ]
+    },
+    {
+      "id": "proof",
+      "title": "The proof side, from zero: why a random spot check is enough",
+      "entries": [
+        {
+          "title": "Polynomial Agreement Bound",
+          "kind": "interactive explainer",
+          "file": "polynomial-agreement-bound.html",
+          "published": "https://claude.ai/artifact/JFcjo6q35HqfY2Ckyqpp3Z",
+          "first": "2026-10-10",
+          "updated": "2026-10-10",
+          "version": "v1",
+          "status": "current",
+          "learn": "Two different polynomials of degree below d agree on fewer than d points. Why it is true (factoring, so it holds over any field) and a \"try to beat it\" box.",
+          "notes": "Source recovered from the published page on 13 Oct 2026."
+        },
+        {
+          "title": "The One-Cell Amplifier",
+          "kind": "interactive explainer",
+          "file": "one-cell-amplifier.html",
+          "published": "https://claude.ai/artifact/FLCxSQQnAdy5G1FQCZdS3s",
+          "first": "2026-10-10",
+          "updated": "2026-10-10",
+          "version": "v1",
+          "status": "current",
+          "learn": "Change one cell of the tape and the curve through the cells changes almost everywhere: the agreement bound put to work, which is why a checker reading a few random points catches a single wrong cell. Flip cells yourself.",
+          "notes": "Source recovered from the published page on 13 Oct 2026."
+        },
+        {
+          "title": "Tape to Polynomial",
+          "kind": "interactive explainer",
+          "file": "tape-to-polynomial.html",
+          "published": "https://claude.ai/artifact/VJziCq1Q2kFgJ7bGHnUQnK",
+          "first": "2026-10-10",
+          "updated": "2026-10-10",
+          "version": "v1",
+          "status": "current",
+          "learn": "The STARK idea on an editable eight-cell Fibonacci tape: the tape as one polynomial, the hop rule, division by the vanishing polynomial, a random audit in a prime field, the pointwise cheat the audit cannot see, and a toy low-degree test standing in for FRI. Follows the \"Going further\" section of Vitalik's STARKs Part I.",
+          "notes": "Next extension: a real FRI folding demo (Part II)."
+        },
+        {
+          "title": "One Proof, Step by Step",
+          "kind": "interactive explainer",
+          "file": "one-proof-step-by-step.html",
+          "published": "https://claude.ai/artifact/1KdPsja3fHkxYBKpuasnqt",
+          "first": "2026-10-08",
+          "updated": "2026-10-08",
+          "version": "v1",
+          "status": "current",
+          "learn": "Watch a real proof get built, sent and checked over a 97-element field: the prover's secret table, the three objects, who holds what, and what a real system adds on top.",
+          "notes": "Source recovered from the published page on 13 Oct 2026."
+        }
+      ]
+    },
+    {
+      "id": "prover",
+      "title": "The prover end to end",
+      "entries": [
+        {
+          "title": "ZK Inference Prover Flow",
+          "kind": "study page",
+          "file": "zk-inference-flow.html",
+          "published": "https://claude.ai/artifact/8F2qanpMugxKgX2eU9YZJE",
+          "first": "2026-10-07",
+          "updated": "2026-10-07",
+          "version": "v1",
+          "status": "one label to fix",
+          "learn": "From the witness dump through the grid of segments, the five committed trees, the gadgets and seams of one layer, the trust boundary and the numbers, with a glossary, a self-check and seven extension slots.",
+          "notes": "Calls 7.2 GiB the \"compressed\" proof size; it is the in-memory size before serialisation (18.46 GiB serialised)."
+        },
+        {
+          "title": "Prover Compute Phases",
+          "kind": "study page + animation",
+          "file": "prover-compute-phases.html",
+          "published": "https://claude.ai/artifact/1SjnBwyD7TTSDuGH4Goik5",
+          "first": "2026-10-13",
+          "updated": "2026-10-13",
+          "version": "v2",
+          "status": "current",
+          "learn": "Where the prover's hour goes: a playable animation of one segment being proved at the measured speeds, the seven stages from ids to verdict, the twelve phases that partition the loop (with and without the GPU rule checkers), the per-gadget costs, the commit-versus-prove split inside the STARK, the checker's steps, and the scaling to the long context. Every number graded.",
+          "notes": "v2 (13 Oct) added the canvas player and plain-words captions."
+        }
+      ]
+    },
+    {
+      "id": "longform",
+      "title": "Long-form: sources for NotebookLM and the explainer video",
+      "entries": [
+        {
+          "title": "NotebookLM source (raw content)",
+          "kind": "NotebookLM source",
+          "file": "notebooklm-source.md",
+          "published": "",
+          "first": "2026-10-10",
+          "updated": "2026-10-10",
+          "version": "v1",
+          "status": "one label to fix",
+          "learn": "One Markdown file with the raw content behind the flow page and the decode animation: every step card and proof mechanic, the real run data, the repo's statement, quantisation, gap and decision documents, and the working notes.",
+          "notes": "Carries the same \"7.2 GiB compressed\" label as the flow page."
+        },
+        {
+          "title": "How the prover works, taught for intuition",
+          "kind": "NotebookLM source",
+          "file": "zk-prover-notebooklm.md",
+          "published": "",
+          "first": "2026-10-12",
+          "updated": "2026-10-12",
+          "version": "v1",
+          "status": "current",
+          "learn": "Intuition first: how to use it with NotebookLM, the focus text to paste, the one principle (seal first, roll the dice after), seven chapters that each start from a question and a picture and work a toy example by hand, the numbers with grades, the honesty points, misconceptions, Q&A and a glossary.",
+          "notes": ""
+        },
+        {
+          "title": "Video brief",
+          "kind": "brief",
+          "file": "zk-prover-video-brief.md",
+          "published": "",
+          "first": "2026-10-12",
+          "updated": "2026-10-12",
+          "version": "v1",
+          "status": "current",
+          "learn": "What to hand to Claude for a 3Blue1Brown-style explainer: the prompt, a seven-act arc with scenes and minutes, the facts and numbers with grades, worked toy examples, the real decode data, a glossary, the honesty points and the visual motifs.",
+          "notes": "Corrected 12 Oct: cells per segment is about 1.25 billion, not tens of millions."
+        },
+        {
+          "title": "Explainer video (Manim source)",
+          "kind": "video",
+          "file": "video/",
+          "published": "",
+          "first": "2026-10-12",
+          "updated": "2026-10-12",
+          "version": "27.4 min, 39 scenes",
+          "status": "mp4 not committed",
+          "learn": "The narration script, seven act files, the render and assemble scripts, and the per-scene audio lengths. video/README.md says how to rebuild it on a Mac.",
+          "notes": "The rendered files live only locally: zk-prover-explainer-1080p.mp4 (93 MB) and a 480p preview (45 MB)."
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "title": "Supporting notes, data and tools",
+      "entries": [
+        {
+          "title": "Handoff notes",
+          "kind": "notes",
+          "file": "handoff.md",
+          "published": "",
+          "first": "2026-10-07",
+          "updated": "2026-10-07",
+          "version": "",
+          "status": "current",
+          "learn": "Repo layout, reading order, what is established, measured numbers, repo rules, open issues grouped, SASH's stated roadmap, and what is not yet understood.",
+          "notes": ""
+        },
+        {
+          "title": "Real run data",
+          "kind": "data",
+          "file": "data/",
+          "published": "",
+          "first": "2026-10-07",
+          "updated": "2026-10-07",
+          "version": "",
+          "status": "one value to fix",
+          "learn": "Three prompts tokenised with the Llama-3.1 tokenizer, and the output of running Llama-3.1-8B-Instruct in bf16 on an Apple M4 Pro: four greedy tokens per prompt with top-5 logits, per-layer residual RMS, attention rows, and the layer-0 norm output with its int8 requantisation.",
+          "notes": "tools/infer.py's bf16_ceil rounds to nearest, so the recorded layer-0 scale 0.03173828125 should be 0.031982421875 under a true ceiling; the int8 values are unchanged."
+        },
+        {
+          "title": "Build tools",
+          "kind": "tools",
+          "file": "tools/",
+          "published": "",
+          "first": "2026-10-07",
+          "updated": "2026-10-13",
+          "version": "",
+          "status": "current",
+          "learn": "tokenize.py and infer.py make the data files (they need torch, transformers and the 16 GB weights); build.py makes decode-and-prove.html from its template; build_index.py makes index.html and the README index from index.json.",
+          "notes": "Run everything from this directory."
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    "issue-13-notebooklm.md and the \"Issue 13 Primer\" page are about one pull request and are kept out of this index on purpose."
+  ],
+  "corrections": [
+    {"date": "2026-10-12", "what": "Cells per segment: \"tens of millions\" corrected to about 1.25 billion (363.9 billion over 290 proofs) in the video narration and the brief.", "state": "done"},
+    {"date": "2026-10-12", "what": "The flow page and the raw NotebookLM source call 7.2 GiB the \"compressed\" proof size; the constants say it is the in-memory size before serialisation (serialised total 18.46 GiB).", "state": "open"},
+    {"date": "2026-10-12", "what": "tools/infer.py bf16_ceil rounds to nearest, not up; the recorded layer-0 scale should be 0.031982421875. Regenerate data/ and rebuild decode-and-prove.html after fixing.", "state": "open"}
+  ]
+}

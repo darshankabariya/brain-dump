@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Inference Verification: Index</title>
+<style>
+:root{--bg:#f2f4f6;--fg:#1a222c;--muted:#5a6573;--rule:#d3d9df;--card:#fff;--card2:#e9edf1;--accent:#b5771c;--verify:#1f7878;
+--k-page:#6a4fb8;--k-anim:#c4512b;--k-doc:#2a8f8f;--k-video:#b5771c;--k-data:#7c8ba0;color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141a21;--fg:#e4e8ec;--muted:#98a3b1;--rule:#2a343f;--card:#1b232c;--card2:#222c37;--accent:#e0a040;--verify:#4fb3b3;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.5 Georgia,"Times New Roman",serif}
+.wrap{max-width:1040px;margin:0 auto;padding-block:28px 80px;padding-inline:20px}
+h1,h2,h3{font-family:"Helvetica Neue",Arial,sans-serif;line-height:1.15;margin:0}
+h1{font-size:clamp(28px,5vw,42px)}h2{font-size:22px;margin-top:44px;padding-top:14px;border-top:2px solid var(--fg)}
+h3{font-size:17px;margin:0 0 4px}
+p{max-width:70ch;margin:10px 0}.muted{color:var(--muted)}.small{font-size:14px}
+.eyebrow{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:14px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pill{display:inline-block;font:600 11px/1 "Helvetica Neue",Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#fff;padding:5px 8px;border-radius:4px}
+.pill.page{background:var(--k-page)}.pill.anim{background:var(--k-anim)}.pill.doc{background:var(--k-doc)}.pill.video{background:var(--k-video)}.pill.data{background:var(--k-data)}
+.card p{margin:0;font-size:15px}
+.meta{font:12.5px ui-monospace,Menlo,Consolas,monospace;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:6px}
+.links a{font:600 13px "Helvetica Neue",Arial,sans-serif;text-decoration:none;color:var(--fg);border:1px solid var(--rule);border-radius:5px;padding:5px 10px;background:var(--card2)}
+.links a.pub{border-color:var(--accent);color:var(--accent)}
+.status{font-size:13px;color:var(--muted)}.status.warn{color:var(--accent)}
+.notes{font-size:13.5px;color:var(--muted);border-left:2px solid var(--rule);padding-left:8px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--card);border:1px solid var(--rule);border-radius:6px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}th{font:600 12px "Helvetica Neue",Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--card2)}
+.tbl{overflow-x:auto;margin-top:12px}
+ol.path{max-width:70ch}ol.path li{margin:6px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">brain-dump · ai-inference-verification · registry updated 2026-10-13</div>
+  <h1>Everything made while studying the zk-inference-prover</h1>
+  <p>16 pages, animations, videos and source documents, in the order to read them. Each card opens the local file; the published page is the claude.ai copy, which is private unless shared. Built from <code>index.json</code> by <code>tools/build_index.py</code>.</p>
+  <h2>Where to start</h2>
+  <ol class="path">
+    <li>Read the <b>Berrang Research Primer</b>, sections 1 to 3, for the problem and the cost.</li>
+    <li>Step through the <b>Llama Decode Walkthrough</b>, then <b>Decode and Prove</b> for one real prompt.</li>
+    <li>Take the proof side in order: <b>Polynomial Agreement Bound</b>, <b>The One-Cell Amplifier</b>, <b>Tape to Polynomial</b>, <b>One Proof, Step by Step</b>.</li>
+    <li>Then the prover end to end: <b>ZK Inference Prover Flow</b> while reading the code, <b>Prover Compute Phases</b> for where the time goes.</li>
+    <li>For a listen or a watch: the two NotebookLM sources and the video.</li>
+  </ol>
+<h2 id="background">Background: who is building this and why</h2>
+<div class="cards">
+<div class="card">
+  <div><span class="pill page">study page</span></div>
+  <h3>Berrang Research Primer</h3>
+  <p>The problem (who needs to verify an AI system, and when), what SASH is, why proving is slow, formal verification as a black box, the paper&#x27;s sealed non-membership proof, Farkas&#x27; lemma and folding, and where the work is heading.</p>
+  <div class="notes">The &quot;Ask Claude&quot; box works only inside claude.ai; elsewhere it saves notes locally and says so.</div>
+  <div class="meta"><span>first 2026-10-06</span><span>updated 2026-10-07 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./berrang-primer.html">open local file</a><a class="pub" href="https://claude.ai/artifact/KmBRGQDSRaoUVx3UymADet" target="_blank" rel="noopener">published page</a></div>
+</div>
+</div>
+<h2 id="model">The model side: what a Llama decode step actually does</h2>
+<div class="cards">
+<div class="card">
+  <div><span class="pill anim">step animation</span></div>
+  <h3>Llama Decode Walkthrough</h3>
+  <p>A toy copy of Llama with the same steps as the real one (8-wide notebooks instead of 4,096, 2 heads sharing 1 key/value head, a 16-wide MLP, a 12-word dictionary, all 32 layers), computed live, stepped with the arrow keys.</p>
+  <div class="notes">Source recovered from the published page on 13 Oct 2026; it is a standalone file.</div>
+  <div class="meta"><span>first 2026-10-08</span><span>updated 2026-10-08 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./llama-decode-walkthrough.html">open local file</a><a class="pub" href="https://claude.ai/artifact/BhiYSkK4fedbxyf1uZNDXu" target="_blank" rel="noopener">published page</a></div>
+</div>
+<div class="card">
+  <div><span class="pill anim">step animation</span></div>
+  <h3>Decode and Prove</h3>
+  <p>An LLM decoding on the left, the prover on the right, over three real Llama-3.1-8B prompts, twenty steps each, with the gadget, the edge and the five-tree status at every step.</p>
+  <div class="notes">Generated: tools/build.py injects data/llama31-8b-decode-run.json into tools/decode-and-prove.template.html. Do not hand-edit the output.</div>
+  <div class="meta"><span>first 2026-10-07</span><span>updated 2026-10-09 · local build 9 Oct; published page 8 Oct</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./decode-and-prove.html">open local file</a><a class="pub" href="https://claude.ai/artifact/Uec519WSekizajup7LUE3o" target="_blank" rel="noopener">published page</a></div>
+</div>
+</div>
+<h2 id="proof">The proof side, from zero: why a random spot check is enough</h2>
+<div class="cards">
+<div class="card">
+  <div><span class="pill anim">interactive explainer</span></div>
+  <h3>Polynomial Agreement Bound</h3>
+  <p>Two different polynomials of degree below d agree on fewer than d points. Why it is true (factoring, so it holds over any field) and a &quot;try to beat it&quot; box.</p>
+  <div class="notes">Source recovered from the published page on 13 Oct 2026.</div>
+  <div class="meta"><span>first 2026-10-10</span><span>updated 2026-10-10 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./polynomial-agreement-bound.html">open local file</a><a class="pub" href="https://claude.ai/artifact/JFcjo6q35HqfY2Ckyqpp3Z" target="_blank" rel="noopener">published page</a></div>
+</div>
+<div class="card">
+  <div><span class="pill anim">interactive explainer</span></div>
+  <h3>The One-Cell Amplifier</h3>
+  <p>Change one cell of the tape and the curve through the cells changes almost everywhere: the agreement bound put to work, which is why a checker reading a few random points catches a single wrong cell. Flip cells yourself.</p>
+  <div class="notes">Source recovered from the published page on 13 Oct 2026.</div>
+  <div class="meta"><span>first 2026-10-10</span><span>updated 2026-10-10 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./one-cell-amplifier.html">open local file</a><a class="pub" href="https://claude.ai/artifact/FLCxSQQnAdy5G1FQCZdS3s" target="_blank" rel="noopener">published page</a></div>
+</div>
+<div class="card">
+  <div><span class="pill anim">interactive explainer</span></div>
+  <h3>Tape to Polynomial</h3>
+  <p>The STARK idea on an editable eight-cell Fibonacci tape: the tape as one polynomial, the hop rule, division by the vanishing polynomial, a random audit in a prime field, the pointwise cheat the audit cannot see, and a toy low-degree test standing in for FRI. Follows the &quot;Going further&quot; section of Vitalik&#x27;s STARKs Part I.</p>
+  <div class="notes">Next extension: a real FRI folding demo (Part II).</div>
+  <div class="meta"><span>first 2026-10-10</span><span>updated 2026-10-10 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./tape-to-polynomial.html">open local file</a><a class="pub" href="https://claude.ai/artifact/VJziCq1Q2kFgJ7bGHnUQnK" target="_blank" rel="noopener">published page</a></div>
+</div>
+<div class="card">
+  <div><span class="pill anim">interactive explainer</span></div>
+  <h3>One Proof, Step by Step</h3>
+  <p>Watch a real proof get built, sent and checked over a 97-element field: the prover&#x27;s secret table, the three objects, who holds what, and what a real system adds on top.</p>
+  <div class="notes">Source recovered from the published page on 13 Oct 2026.</div>
+  <div class="meta"><span>first 2026-10-08</span><span>updated 2026-10-08 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./one-proof-step-by-step.html">open local file</a><a class="pub" href="https://claude.ai/artifact/1KdPsja3fHkxYBKpuasnqt" target="_blank" rel="noopener">published page</a></div>
+</div>
+</div>
+<h2 id="prover">The prover end to end</h2>
+<div class="cards">
+<div class="card">
+  <div><span class="pill page">study page</span></div>
+  <h3>ZK Inference Prover Flow</h3>
+  <p>From the witness dump through the grid of segments, the five committed trees, the gadgets and seams of one layer, the trust boundary and the numbers, with a glossary, a self-check and seven extension slots.</p>
+  <div class="notes">Calls 7.2 GiB the &quot;compressed&quot; proof size; it is the in-memory size before serialisation (18.46 GiB serialised).</div>
+  <div class="meta"><span>first 2026-10-07</span><span>updated 2026-10-07 · v1</span></div>
+  <div class="status warn">status: one label to fix</div>
+  <div class="links"><a href="./zk-inference-flow.html">open local file</a><a class="pub" href="https://claude.ai/artifact/8F2qanpMugxKgX2eU9YZJE" target="_blank" rel="noopener">published page</a></div>
+</div>
+<div class="card">
+  <div><span class="pill anim">study page + animation</span></div>
+  <h3>Prover Compute Phases</h3>
+  <p>Where the prover&#x27;s hour goes: a playable animation of one segment being proved at the measured speeds, the seven stages from ids to verdict, the twelve phases that partition the loop (with and without the GPU rule checkers), the per-gadget costs, the commit-versus-prove split inside the STARK, the checker&#x27;s steps, and the scaling to the long context. Every number graded.</p>
+  <div class="notes">v2 (13 Oct) added the canvas player and plain-words captions.</div>
+  <div class="meta"><span>first 2026-10-13</span><span>updated 2026-10-13 · v2</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./prover-compute-phases.html">open local file</a><a class="pub" href="https://claude.ai/artifact/1SjnBwyD7TTSDuGH4Goik5" target="_blank" rel="noopener">published page</a></div>
+</div>
+</div>
+<h2 id="longform">Long-form: sources for NotebookLM and the explainer video</h2>
+<div class="cards">
+<div class="card">
+  <div><span class="pill doc">NotebookLM source</span></div>
+  <h3>NotebookLM source (raw content)</h3>
+  <p>One Markdown file with the raw content behind the flow page and the decode animation: every step card and proof mechanic, the real run data, the repo&#x27;s statement, quantisation, gap and decision documents, and the working notes.</p>
+  <div class="notes">Carries the same &quot;7.2 GiB compressed&quot; label as the flow page.</div>
+  <div class="meta"><span>first 2026-10-10</span><span>updated 2026-10-10 · v1</span></div>
+  <div class="status warn">status: one label to fix</div>
+  <div class="links"><a href="./notebooklm-source.md">open local file</a></div>
+</div>
+<div class="card">
+  <div><span class="pill doc">NotebookLM source</span></div>
+  <h3>How the prover works, taught for intuition</h3>
+  <p>Intuition first: how to use it with NotebookLM, the focus text to paste, the one principle (seal first, roll the dice after), seven chapters that each start from a question and a picture and work a toy example by hand, the numbers with grades, the honesty points, misconceptions, Q&amp;A and a glossary.</p>
+  
+  <div class="meta"><span>first 2026-10-12</span><span>updated 2026-10-12 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./zk-prover-notebooklm.md">open local file</a></div>
+</div>
+<div class="card">
+  <div><span class="pill doc">brief</span></div>
+  <h3>Video brief</h3>
+  <p>What to hand to Claude for a 3Blue1Brown-style explainer: the prompt, a seven-act arc with scenes and minutes, the facts and numbers with grades, worked toy examples, the real decode data, a glossary, the honesty points and the visual motifs.</p>
+  <div class="notes">Corrected 12 Oct: cells per segment is about 1.25 billion, not tens of millions.</div>
+  <div class="meta"><span>first 2026-10-12</span><span>updated 2026-10-12 · v1</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./zk-prover-video-brief.md">open local file</a></div>
+</div>
+<div class="card">
+  <div><span class="pill video">video</span></div>
+  <h3>Explainer video (Manim source)</h3>
+  <p>The narration script, seven act files, the render and assemble scripts, and the per-scene audio lengths. video/README.md says how to rebuild it on a Mac.</p>
+  <div class="notes">The rendered files live only locally: zk-prover-explainer-1080p.mp4 (93 MB) and a 480p preview (45 MB).</div>
+  <div class="meta"><span>first 2026-10-12</span><span>updated 2026-10-12 · 27.4 min, 39 scenes</span></div>
+  <div class="status warn">status: mp4 not committed</div>
+  <div class="links"><a href="./video/">open folder</a></div>
+</div>
+</div>
+<h2 id="support">Supporting notes, data and tools</h2>
+<div class="cards">
+<div class="card">
+  <div><span class="pill doc">notes</span></div>
+  <h3>Handoff notes</h3>
+  <p>Repo layout, reading order, what is established, measured numbers, repo rules, open issues grouped, SASH&#x27;s stated roadmap, and what is not yet understood.</p>
+  
+  <div class="meta"><span>first 2026-10-07</span><span>updated 2026-10-07</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./handoff.md">open local file</a></div>
+</div>
+<div class="card">
+  <div><span class="pill data">data</span></div>
+  <h3>Real run data</h3>
+  <p>Three prompts tokenised with the Llama-3.1 tokenizer, and the output of running Llama-3.1-8B-Instruct in bf16 on an Apple M4 Pro: four greedy tokens per prompt with top-5 logits, per-layer residual RMS, attention rows, and the layer-0 norm output with its int8 requantisation.</p>
+  <div class="notes">tools/infer.py&#x27;s bf16_ceil rounds to nearest, so the recorded layer-0 scale 0.03173828125 should be 0.031982421875 under a true ceiling; the int8 values are unchanged.</div>
+  <div class="meta"><span>first 2026-10-07</span><span>updated 2026-10-07</span></div>
+  <div class="status warn">status: one value to fix</div>
+  <div class="links"><a href="./data/">open folder</a></div>
+</div>
+<div class="card">
+  <div><span class="pill data">tools</span></div>
+  <h3>Build tools</h3>
+  <p>tokenize.py and infer.py make the data files (they need torch, transformers and the 16 GB weights); build.py makes decode-and-prove.html from its template; build_index.py makes index.html and the README index from index.json.</p>
+  <div class="notes">Run everything from this directory.</div>
+  <div class="meta"><span>first 2026-10-07</span><span>updated 2026-10-13</span></div>
+  <div class="status">status: current</div>
+  <div class="links"><a href="./tools/">open folder</a></div>
+</div>
+</div>
+  <h2 id="corrections">Corrections log</h2>
+  <div class="tbl"><table><thead><tr><th>date</th><th>what</th><th>state</th></tr></thead><tbody>
+<tr><td>2026-10-12</td><td>Cells per segment: &quot;tens of millions&quot; corrected to about 1.25 billion (363.9 billion over 290 proofs) in the video narration and the brief.</td><td>done</td></tr>
+<tr><td>2026-10-12</td><td>The flow page and the raw NotebookLM source call 7.2 GiB the &quot;compressed&quot; proof size; the constants say it is the in-memory size before serialisation (serialised total 18.46 GiB).</td><td>open</td></tr>
+<tr><td>2026-10-12</td><td>tools/infer.py bf16_ceil rounds to nearest, not up; the recorded layer-0 scale should be 0.031982421875. Regenerate data/ and rebuild decode-and-prove.html after fixing.</td><td>open</td></tr>
+  </tbody></table></div>
+  <p class="small muted">issue-13-notebooklm.md and the &quot;Issue 13 Primer&quot; page are about one pull request and are kept out of this index on purpose.</p>
+</div>
+</body>
+</html>

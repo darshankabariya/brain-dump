@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Prover Compute Phases</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; the animation and the data tables go full width; every bar is drawn to scale with flex. */
+:root {
+  --bg: #f2f4f6;
+  --fg: #1a222c;
+  --muted: #5a6573;
+  --rule: #d3d9df;
+  --card: #ffffff;
+  --card2: #e9edf1;
+  --accent: #b5771c;      /* prover side */
+  --verify: #1f7878;      /* verifier side */
+  --ph-load: #7c8ba0;
+  --ph-trace: #d8962c;
+  --ph-inter: #c4512b;
+  --ph-stark: #6a4fb8;
+  --ph-ser: #2a8f8f;
+  --ph-rest: #a7afba;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Literata", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141a21; --fg: #e4e8ec; --muted: #98a3b1; --rule: #2a343f; --card: #1b232c; --card2: #222c37;
+    --accent: #e0a040; --verify: #4fb3b3;
+    --ph-load: #8d9cb0; --ph-trace: #e3a53f; --ph-inter: #d9673f; --ph-stark: #8f77d6; --ph-ser: #3fb0b0; --ph-rest: #6f7a87;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141a21; --fg: #e4e8ec; --muted: #98a3b1; --rule: #2a343f; --card: #1b232c; --card2: #222c37;
+  --accent: #e0a040; --verify: #4fb3b3;
+  --ph-load: #8d9cb0; --ph-trace: #e3a53f; --ph-inter: #d9673f; --ph-stark: #8f77d6; --ph-ser: #3fb0b0; --ph-rest: #6f7a87;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.55; margin: 0; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 80px; padding-inline: 20px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: clamp(22px, 3vw, 28px); font-weight: 600; margin-top: 56px; padding-top: 18px; border-top: 2px solid var(--fg); }
+h3 { font-size: 18px; font-weight: 600; margin-top: 28px; }
+p { max-width: 68ch; margin: 12px 0; }
+.lede { font-size: 19px; max-width: 64ch; }
+.eyebrow { font-family: var(--display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+.badge { font-family: var(--mono); font-size: 12.5px; padding: 4px 9px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); }
+.grades { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+.g { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--rule); color: var(--muted); white-space: nowrap; vertical-align: middle; }
+.g.m { border-color: var(--verify); color: var(--verify); }
+.g.d { border-color: var(--accent); color: var(--accent); }
+.g.p, .g.a { border-style: dashed; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 22px 0 0; font-family: var(--display); font-size: 14px; }
+nav.toc a { color: var(--fg); text-decoration: none; border-bottom: 1px solid var(--rule); }
+nav.toc a:hover, nav.toc a:focus-visible { border-bottom-color: var(--accent); outline: none; }
+a { color: var(--fg); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--card2); padding: 1px 5px; border-radius: 3px; }
+.tbl { overflow-x: auto; margin: 16px 0; border: 1px solid var(--rule); border-radius: 6px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--display); font-weight: 600; font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--card2); }
+tbody tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.k { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+tr.sum td { font-weight: 600; background: var(--card2); }
+.sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 7px; vertical-align: -1px; }
+.bar { display: flex; height: 44px; border-radius: 6px; overflow: hidden; border: 1px solid var(--rule); margin: 14px 0 6px; }
+.bar > div { display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; min-width: 0; text-shadow: 0 0 2px rgba(0,0,0,.35); }
+.bar > div span { padding: 0 4px; }
+.bar > div.thin span { display: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--muted); margin: 0 0 8px; }
+.note { font-size: 14px; color: var(--muted); max-width: 80ch; }
+.callout { border-left: 3px solid var(--accent); background: var(--card); padding: 12px 16px; margin: 18px 0; max-width: 76ch; border-radius: 0 6px 6px 0; }
+.callout.v { border-left-color: var(--verify); }
+.callout p { margin: 6px 0; }
+.steps { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
+.step { display: grid; grid-template-columns: 54px 1fr; gap: 0 14px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; }
+.step .num { font-family: var(--display); font-weight: 700; font-size: 22px; color: var(--accent); line-height: 1; }
+.step.v .num { color: var(--verify); }
+.step .who { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 6px; }
+.step h3 { margin: 0 0 4px; font-size: 17px; }
+.step p { margin: 4px 0; font-size: 15.5px; max-width: none; }
+.step .meta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13.5px; margin-top: 6px; }
+.step .meta b { font-family: var(--mono); font-weight: 500; }
+.ctl { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin: 14px 0 4px; font-size: 14px; }
+.ctl fieldset { border: 0; padding: 0; margin: 0; display: flex; gap: 4px; align-items: center; }
+.ctl legend { font-family: var(--display); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0; margin-right: 8px; float: left; }
+.ctl label { font-family: var(--mono); font-size: 13px; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 4px; cursor: pointer; background: var(--card); }
+.ctl label.on { border-color: var(--accent); color: var(--accent); }
+.ctl label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ctl input { position: absolute; opacity: 0; width: 0; height: 0; }
+.twocol { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.twocol > div { min-width: 0; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14.5px; margin: 8px 0; }
+.kv b { font-family: var(--mono); font-weight: 500; white-space: nowrap; }
+ul.plain { padding-left: 20px; max-width: 72ch; }
+ul.plain li { margin: 5px 0; }
+.src { font-size: 14px; color: var(--muted); }
+.src li { margin: 4px 0; }
+details { border: 1px solid var(--rule); border-radius: 6px; padding: 10px 14px; background: var(--card); margin: 10px 0; max-width: 80ch; }
+summary { cursor: pointer; font-family: var(--display); font-weight: 600; }
+
+/* the player */
+.player { border: 1px solid var(--rule); border-radius: 8px; background: var(--card); margin: 18px 0; overflow: hidden; }
+.scene { overflow-x: auto; }
+#seg-canvas { display: block; width: 100%; min-width: 720px; }
+.cap { padding: 12px 16px; border-top: 1px solid var(--rule); display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; min-height: 76px; }
+.cap .ph { font-family: var(--display); font-weight: 700; font-size: 16px; white-space: nowrap; }
+.cap .tx { font-size: 15px; }
+.cap .tm { grid-column: 1 / -1; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+.pctl { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 10px 16px 14px; border-top: 1px solid var(--rule); background: var(--card2); }
+.pctl button { font-family: var(--display); font-weight: 600; font-size: 14px; padding: 6px 14px; border: 1px solid var(--rule); border-radius: 5px; background: var(--card); color: var(--fg); cursor: pointer; }
+.pctl button.primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 84px; }
+.pctl button:focus-visible, .pctl select:focus-visible, .pctl input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pctl label { font-family: var(--mono); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.pctl select { font-family: var(--mono); font-size: 13px; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); color: var(--fg); }
+.pctl input[type=range] { flex: 1 1 200px; min-width: 140px; accent-color: var(--accent); }
+@media (max-width: 520px) { body { font-size: 16px; } .step { grid-template-columns: 40px 1fr; } .bar { height: 36px; } .cap { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: no-preference) { .bar > div { transition: flex-basis .35s ease; } }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">zk-inference-prover · one request, every phase, with the clock running</div>
+  <h1>Prover Compute Phases</h1>
+  <p class="lede">An hour of GPU time turns one Llama answer into a proof. This page shows where that hour goes: what the machine is doing in each phase, which part of the machine does it, and how long each part took on SASH's published runs.</p>
+  <div class="badges">
+    <span class="badge">Llama-3.1-8B · y-delay-vw12</span>
+    <span class="badge">one H100 80 GB</span>
+    <span class="badge">4,096 prompt + 512 new tokens</span>
+    <span class="badge">290 small proofs</span>
+    <span class="badge">numbers collected 13 Oct 2026</span>
+  </div>
+  <div class="grades">
+    <span><span class="g m">measured</span> a run in the results repo produced it</span>
+    <span><span class="g d">derived</span> simple arithmetic over measured numbers</span>
+    <span><span class="g p">projected</span> a cost model guess, never run</span>
+    <span><span class="g a">asserted</span> an assumption SASH names as one</span>
+    <span><span class="g">log</span> a line in a run's notes, not a published constant</span>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#watch">0 Watch one segment</a>
+    <a href="#run">1 The whole run</a>
+    <a href="#segment">2 One segment, step by step</a>
+    <a href="#twelve">3 The twelve phases</a>
+    <a href="#gadgets">4 Which gadget costs what</a>
+    <a href="#stark">5 The STARK second</a>
+    <a href="#verify">6 Checking the proof</a>
+    <a href="#cells">7 Cells and bytes</a>
+    <a href="#scale">8 Bigger contexts, the roadmap</a>
+    <a href="#sources">9 Sources</a>
+  </nav>
+
+  <div class="callout">
+    <p><b>The one-line version.</b> Most of the hour is the ordinary computer (the host CPU) writing a giant table of numbers and doing the bookkeeping for table lookups. The famous part, hashing and polynomials and FRI, is under five percent of the time, and it runs on the graphics card.</p>
+  </div>
+
+  <!-- ============ 0 ============ -->
+  <h2 id="watch">0 · Watch one segment get proved</h2>
+  <p>A request is cut into 290 segments: one layer of the model over 512 token positions. Each segment is proved on its own, in the same nine steps. Press play. The clock runs at the real measured speeds: one segment takes 23.4 seconds when proved on its own.</p>
+
+  <div class="player">
+    <div class="scene"><canvas id="seg-canvas" width="960" height="360" aria-label="Animation of one segment being proved: loading, writing the tape, sealing trees, rolling the dice, lookup bookkeeping, the STARK, and writing the proof file"></canvas></div>
+    <div class="cap"><span class="ph" id="seg-ph"></span><span class="tx" id="seg-tx"></span><span class="tm" id="seg-tm"></span></div>
+    <div class="pctl">
+      <button class="primary" id="seg-play" type="button">Play</button>
+      <button id="seg-prev" type="button" aria-label="previous step">◀ step</button>
+      <button id="seg-next" type="button" aria-label="next step">step ▶</button>
+      <label>speed <select id="seg-speed"><option value="1">real time</option><option value="0.5" selected>2× faster</option><option value="0.2">5× faster</option></select></label>
+      <input type="range" id="seg-scrub" min="0" max="2338" value="2338" aria-label="scrub through the segment">
+    </div>
+  </div>
+  <p class="note">What the picture shows. Left: the saved numbers come off the disk. Middle: the tape, a big table where every number the rules will check gets its own cell; the smaller table under it holds the lookup fractions. Right: the five Merkle trees that seal the tables, and the dice that are rolled once the tape is sealed. The bar at the bottom is the clock. The three short steps (seal, dice, seal again) are drawn from the STARK and remainder phases, because only the twelve phase totals in section 3 are measured one by one.</p>
+
+  <!-- ============ 1 ============ -->
+  <h2 id="run">1 · The whole run, from prompt to verdict</h2>
+  <p>This is the order the job script runs things on the GPU machine. Amber steps are the prover's own work. Teal steps can be rerun or checked by anyone with the public data. Times are from the main run at a 4,096-token prompt, unless a row says otherwise.</p>
+
+  <ol class="steps">
+    <li class="step">
+      <div class="num">1</div>
+      <div>
+        <h3>Make the answer</h3>
+        <div class="who">Python · on the card</div>
+        <p>Take a 4,096-token prompt and let the model write 512 new tokens, always picking the single most likely next token. This is the answer that will be proved. Because the pick is always the top one, the answer is fixed by the numbers and nothing else.</p>
+        <p><b>Kind of work:</b> a normal forward pass, but in the fixed arithmetic: 8-bit integer matrix multiplies, 16-bit floats for the rest, an integer softmax. Every operation is written out separately, which is why it is slow.</p>
+        <div class="meta"><span>time <b>197 s</b> <span class="g">log</span></span><span>output <b>512 token ids</b></span></div>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">2</div>
+      <div>
+        <h3>Save every number</h3>
+        <div class="who">Python · on the card, written to disk</div>
+        <p>Run the model again over all 4,608 positions and save, for each layer and each block of 512 positions, every number a rule will later check: the 8-bit activations, the exact 32-bit sums, the scales, the attention scores, the keys and values, the running total between layers. This saved set is called the witness.</p>
+        <p><b>Kind of work:</b> five forward passes (layer 0 alone, then eight layers at a time) and a lot of disk writing. About 122 GB in all.</p>
+        <div class="meta"><span>time <b>771 s</b> <span class="g m">measured</span> in passes of 49, 161, 179, 176 and 206 s</span><span>about <b>0.17 s per position</b> <span class="g d">derived</span></span></div>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">3</div>
+      <div>
+        <h3>Plan the segments</h3>
+        <div class="who">Python · CPU</div>
+        <p>Read the saved files, work out the widest numbers any segment will need (so every segment uses the same table sizes), stop early if any layer would overflow the 31-bit field, and write one line per segment: 9 blocks × 32 layers + 2 output-head segments = 290 lines.</p>
+        <p><b>Kind of work:</b> integer bookkeeping. Seconds.</p>
+        <div class="meta"><span>time <b>not timed</b> in the published numbers</span><span>output <b>plan.txt</b></span></div>
+      </div>
+    </li>
+    <li class="step v">
+      <div class="num">4</div>
+      <div>
+        <h3>Build the GPU rule checkers</h3>
+        <div class="who">Rust + CUDA compiler · once per set of shapes</div>
+        <p>Every rule in the proof is a small formula. This step turns each distinct formula into GPU code, checks that code against the CPU version on random inputs, and rebuilds the prover with it. The proof comes out byte-for-byte the same either way; this step only decides whether the card or the CPU checks the formulas.</p>
+        <p><b>Kind of work:</b> code generation and compiling. Paid once per machine and reused across contexts.</p>
+        <div class="meta"><span>time <b>695 s</b> <span class="g">log</span> (47 kernels, none new, still rebuilt)</span><span>at the long context <b>1,204 s</b> <span class="g m">measured</span></span></div>
+      </div>
+    </li>
+    <li class="step v">
+      <div class="num">5</div>
+      <div>
+        <h3>Seal the model</h3>
+        <div class="who">the weight holder · Rust · once per model</div>
+        <p>Build two Merkle trees that do not depend on any prompt and read off their roots. The <b>shape root</b> covers the lookup tables and constants; anyone can rebuild it. The <b>model root</b> covers the 8-bit weights and their scales; only the weight holder can make it, and everyone can compare against it.</p>
+        <p><b>Kind of work:</b> hashing. 22.9 million weight cells and 4.5 million shape cells per position.</p>
+        <div class="meta"><span>time <b>not timed</b> as a published constant</span><span>output <b>two roots</b></span></div>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">6</div>
+      <div>
+        <h3>Prove all 290 segments</h3>
+        <div class="who">Rust · card and host · the loop</div>
+        <p>Five processes of 64 segments each. While one segment is being proved, the next one is already being loaded and written, so the card is never left waiting for the disk. What happens inside one segment is the animation above and sections 2 to 5.</p>
+        <p><b>Kind of work:</b> the subject of this page.</p>
+        <div class="meta"><span>loop <b>3,683 s</b> (61 min) <span class="g m">measured</span></span><span>per segment <b>12.7 s</b> <span class="g d">derived</span></span><span>card memory peak <b>73.7 GB</b> of 81.6</span></div>
+      </div>
+    </li>
+    <li class="step v">
+      <div class="num">7</div>
+      <div>
+        <h3>Check everything</h3>
+        <div class="who">Rust · CPU only, no card needed</div>
+        <p>For each segment: replay the hashing, rebuild the shape tree and compare roots, compare the model root, run the STARK checker, test the sixteen hand-offs inside the layer. Then check the 537 links between segments, and that each new token is the top pick the previous position's proof says it is.</p>
+        <p><b>Kind of work:</b> hashing, a few hundred Merkle paths, and one big tree rebuild. Section 6.</p>
+        <div class="meta"><span>total <b>119 s</b> <span class="g m">measured</span></span><span>per segment <b>0.41 s</b> <span class="g m">measured</span></span></div>
+      </div>
+    </li>
+  </ol>
+
+  <h3>The timed steps, to scale</h3>
+  <div class="bar" id="stagebar" aria-label="Timed stages of one request, proportional"></div>
+  <div class="legend" id="stagelegend"></div>
+  <p class="note">Saving, proving and checking are from the main run. The answer and kernel times are from a second run on the same kind of card, so the 5,465 s total mixes two runs. SASH's own "from a cold start" figure, saving plus proving, is 4,454 s, 74 minutes <span class="g d">derived</span>. A gate script then throws the run away if any segment skipped a check, any hand-off was left unchecked, any kernel fell back to the CPU, or any link failed.</p>
+
+  <!-- ============ 2 ============ -->
+  <h2 id="segment">2 · One segment, step by step</h2>
+  <p>This is the animation in words. The tree numbers are the order they enter the hash. The rule is simple: a tree's root goes into the hash before any random number that depends on it is drawn, so the prover can never fit its numbers to the dice.</p>
+
+  <ol class="steps">
+    <li class="step"><div class="num">a</div><div>
+      <h3>Load</h3>
+      <p>Read this segment's saved numbers off the disk, unpack them, check them against the plan, and lay them out the way the gadgets want them. The first segment of the run read 1.36 GiB.</p>
+      <div class="meta"><span>phases <b>read, decode, check, construct, alloc, build_rest</b></span><span>share of the loop <b>11.8 %</b></span><span>host CPU</span></div>
+    </div></li>
+    <li class="step"><div class="num">b</div><div>
+      <h3>Write the tape</h3>
+      <p>Every gadget writes its numbers into the big table, as numbers mod 2<sup>31</sup>−1. A 16-bit float becomes two cells. A range check becomes a few small pieces. Each lookup becomes a key. The attention scores become the biggest block of all. 58.5 million cells per position.</p>
+      <div class="meta"><span>phase <b>trace</b></span><span>share <b>35.4 %</b></span><span>mostly host CPU today</span></div>
+    </div></li>
+    <li class="step"><div class="num">c</div><div>
+      <h3>Seal trees 0, 1 and 2</h3>
+      <p>Tree 0 is the shape (the checker can rebuild it). Tree 1 is the model (the weight holder's root). Tree 2 is the tape itself. Sealing means: read each column as a polynomial, evaluate it on twice as many points, hash everything into a Merkle tree.</p>
+      <div class="meta"><span>inside <b>stwo</b> and <b>prove_rest</b></span><span>card</span></div>
+    </div></li>
+    <li class="step"><div class="num">d</div><div>
+      <h3>Roll the dice</h3>
+      <p>Hash the roots so far and read random numbers out of the hash: the point every lookup fraction is taken at, the random vector for the weight-multiply check, the mixing weights. They live in a field of about 2<sup>124</sup> values, so guessing is hopeless.</p>
+      <div class="meta"><span>microseconds</span></div>
+    </div></li>
+    <li class="step"><div class="num">e</div><div>
+      <h3>Lookup bookkeeping and GKR</h3>
+      <p>A lookup says "this value is in that table". The proof handles it with fractions: one fraction per use and one per table row, built from the random number, which must add up to the same total on both sides. A value outside the table can never balance. For the five biggest groups the running totals are not even sealed: a GKR sumcheck shrinks each group to one claim. 17.8 million cells per position.</p>
+      <div class="meta"><span>phase <b>interaction</b></span><span>share <b>41.8 %</b>, the biggest</span><span>host CPU, in the big extension field</span></div>
+    </div></li>
+    <li class="step"><div class="num">f</div><div>
+      <h3>Seal tree 3 and the hand-off trees</h3>
+      <p>Tree 3 holds the fractions. Trees 4 and up hold what the next segment reads: the running total out of this layer, and the keys and values out of this token block. Their roots are the links the final check compares. 2.6 million cells per position.</p>
+      <div class="meta"><span>card</span></div>
+    </div></li>
+    <li class="step"><div class="num">g</div><div>
+      <h3>The STARK proper</h3>
+      <p>Check every rule on every row of the extended table (3,872 kernel calls over 32 segments, 0.138 s on the card). Divide out the points where the rules apply; if any rule failed anywhere, this division leaves a remainder. Open everything at one random point. Then fold with FRI until a constant is left, and answer 100 spot checks.</p>
+      <div class="meta"><span>phase <b>stwo</b></span><span>share <b>4.6 %</b></span><span>about <b>1.07 s</b> per segment</span></div>
+    </div></li>
+    <li class="step"><div class="num">h</div><div>
+      <h3>Write the receipt</h3>
+      <p>Three JSON files: the statement, the claims, and the proof. The middle-sized proof is 25 MiB in memory and 65 MiB as JSON; the extra is the text encoding, not more proof.</p>
+      <div class="meta"><span>phase <b>serialize</b></span><span>share <b>0.5 %</b></span></div>
+    </div></li>
+  </ol>
+
+  <!-- ============ 3 ============ -->
+  <h2 id="twelve">3 · The twelve phases of the loop</h2>
+  <p>SASH timed the loop with one segment at a time over 32 layer segments of the last token block, the one that sees the whole prompt. They did it twice: once with the GPU rule checkers in place, which is the published setup, and once with every checker switched off so the CPU does it. The twelve phases add up to the loop exactly, and the run refuses to publish if they do not.</p>
+
+  <div class="ctl">
+    <fieldset><legend>Loop</legend>
+      <label class="on"><input type="radio" name="loop" id="loop-kernels" value="kernels" checked>GPU checkers on (published)</label>
+      <label><input type="radio" name="loop" id="loop-nokernels" value="nokernels">checkers off (control)</label>
+    </fieldset>
+    <fieldset><legend>Unit</legend>
+      <label class="on"><input type="radio" name="unit" id="unit-sum" value="sum" checked>sum over 32 segments</label>
+      <label><input type="radio" name="unit" id="unit-seg" value="seg">per segment</label>
+    </fieldset>
+  </div>
+  <div class="bar" id="phasebar" aria-label="The twelve loop phases, proportional"></div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--ph-load)"></span>load and lay out</span>
+    <span><span class="sw" style="background:var(--ph-trace)"></span>write the tape</span>
+    <span><span class="sw" style="background:var(--ph-inter)"></span>lookup bookkeeping + GKR</span>
+    <span><span class="sw" style="background:var(--ph-stark)"></span>STARK (stwo)</span>
+    <span><span class="sw" style="background:var(--ph-ser)"></span>write the receipt</span>
+    <span><span class="sw" style="background:var(--ph-rest)"></span>leftovers</span>
+  </div>
+  <div class="tbl"><table id="phasetable">
+    <thead><tr><th>phase</th><th>in plain words</th><th>kind of work · where</th><th class="n">seconds</th><th class="n">share</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <p class="note">All twelve rows <span class="g m">measured</span>; per-segment values are the row divided by 32 <span class="g d">derived</span>. One segment on its own: 23.4 s with the checkers, 148.0 s without. In the main run the loop overlaps one segment's loading and writing with the previous one's proving, and gets down to 12.7 s per segment; the one-at-a-time numbers are the ones that split cleanly.</p>
+
+  <div class="callout">
+    <p><b>What the GPU checkers buy.</b> Same 32 segments, same 32 proofs byte for byte: 748 s with the checkers, 4,737 s without, 6.3 times longer. The whole difference is one phase. The STARK goes from 34 s to 3,984 s, from 4.6 % of its loop to 84 %. The same 3,872 rule evaluations cost 0.138 s on the card and 3,950 s on the host. The other eleven phases barely move.</p>
+  </div>
+
+  <!-- ============ 4 ============ -->
+  <h2 id="gadgets">4 · Which gadget costs what</h2>
+  <p>A gadget is the bundle of columns and rules for one kind of operation. The two big phases are the sum of the gadgets' own timers. The six largest are the ones SASH is moving onto the card first (zk-prover issue 12).</p>
+
+  <div class="tbl"><table>
+    <thead><tr><th>timer</th><th>what it proves</th><th>how the rule works</th><th class="n">s / 32 seg</th><th class="n">calls</th></tr></thead>
+    <tbody>
+      <tr><td class="k">gen/key_tiles</td><td>attention: every query against every key in the prompt so far</td><td>integer softmax (query 12 bits, key 11 bits, a 9-bit table for the exponential); 4 cells per head-key-token; the only part that grows with the prompt length</td><td class="n">120.4</td><td class="n">32</td></tr>
+      <tr><td class="k">gen/residual_stream</td><td>the two normalisations, the two adds, the position rotation</td><td>16-bit float arithmetic as cell pairs, correctly rounded; 24.3 cells per add</td><td class="n">63.6</td><td class="n">32</td></tr>
+      <tr><td class="k">int/gkr</td><td>the five GKR shrinks of the biggest lookup groups</td><td>a sumcheck instead of sealing the running totals; 37.8 % fewer cells overall</td><td class="n">56.8</td><td class="n">32</td></tr>
+      <tr><td class="k">int/dequant</td><td>lookup fractions for turning each 32-bit sum back into a float</td><td>sum × weight scale × token scale, rounded to 16 bits the right way; 26.1 cells per sum</td><td class="n">49.2</td><td class="n">32</td></tr>
+      <tr><td class="k">int/requant</td><td>lookup fractions for the three places a float is turned back into 8 bits</td><td>a per-token scale, a range table and a rounding table; 11.5 cells per value</td><td class="n">45.6</td><td class="n">32</td></tr>
+      <tr><td class="k">gen/requant</td><td>the tape columns of those same three places</td><td>the committed numbers rather than the fractions</td><td class="n">45.0</td><td class="n">32</td></tr>
+      <tr><td class="k">int/key_tiles</td><td>lookup fractions of the attention scores</td><td>the exponential table and range checks</td><td class="n">24.7</td><td class="n">32</td></tr>
+      <tr><td class="k">int/residual_stream</td><td>lookup fractions of the normalisations and adds</td><td>the float operation tables</td><td class="n">23.6</td><td class="n">32</td></tr>
+      <tr><td class="k">evalof/fused, bitrev, pack</td><td>getting columns into the layout the hashing wants</td><td>host-side shuffling before interpolation; counted under prove_rest</td><td class="n">45.0</td><td class="n">1.16 M</td></tr>
+      <tr><td class="k">gen/freivalds</td><td>the seven weight multiplies per layer</td><td>Freivalds' trick: check W·x = y with one random vector against the sealed weights, instead of re-doing the multiply; 0.088 fresh cells per weight</td><td class="n">9.9</td><td class="n">32</td></tr>
+      <tr><td class="k">int/link</td><td>carrying each GKR claim back into the main proof</td><td>the link gadget and its fold; 0.82 M cells per position</td><td class="n">9.3</td><td class="n">32</td></tr>
+      <tr><td class="k">gen/quant</td><td>rounding q and k to 8 bits before attention</td><td>rounding with range tables; 1.15 M cells per position at any context</td><td class="n">7.8</td><td class="n">32</td></tr>
+      <tr><td class="k">gen/embed</td><td>the first lookup from token id to vector, layer 0 only</td><td>ties the block's first running total to the published ids</td><td class="n">6.6</td><td class="n">32</td></tr>
+      <tr><td class="k">gen/attnout</td><td>the attention output rounded straight to 12 bits (the "w12" in the recipe name)</td><td>10.1 cells per sum; the widest integer that fits the field's window</td><td class="n">5.6</td><td class="n">32</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Timers are the prover's own, over the loop with the checkers on <span class="g m">measured</span>. Some timers sit inside others, so they do not add up to a phase. The argmax gadget lives on the two output-head segments, which are not in this 32-segment sample.</p>
+
+  <h3>The same question in cells per position</h3>
+  <div class="twocol">
+    <div class="tbl"><table>
+      <thead><tr><th>tape (tree 2) · 58.5 M</th><th class="n">cells / pos</th></tr></thead>
+      <tbody>
+        <tr><td>sums back to floats (dequant)</td><td class="n">21.06 M</td></tr>
+        <tr><td>normalisations, adds, rotation</td><td class="n">20.75 M</td></tr>
+        <tr><td>attention scores (key tiles)</td><td class="n">7.30 M</td></tr>
+        <tr><td>floats back to 8 bits (requant) + table counts</td><td class="n">5.26 M</td></tr>
+        <tr><td>attention output</td><td class="n">1.21 M</td></tr>
+        <tr><td>q, k rounding</td><td class="n">1.15 M</td></tr>
+        <tr><td>weight-multiply check (Freivalds)</td><td class="n">1.06 M</td></tr>
+        <tr><td>lookup tables</td><td class="n">0.65 M</td></tr>
+        <tr><td>embedding, unattributed</td><td class="n">0.07 M</td></tr>
+      </tbody>
+    </table></div>
+    <div class="tbl"><table>
+      <thead><tr><th>fractions (tree 3) · 17.8 M</th><th class="n">cells / pos</th></tr></thead>
+      <tbody>
+        <tr><td>floats back to 8 bits (requant)</td><td class="n">8.05 M</td></tr>
+        <tr><td>lookup tables</td><td class="n">2.60 M</td></tr>
+        <tr><td>weight-multiply check</td><td class="n">1.74 M</td></tr>
+        <tr><td>q, k rounding</td><td class="n">1.72 M</td></tr>
+        <tr><td>sums back to floats</td><td class="n">1.47 M</td></tr>
+        <tr><td>attention scores</td><td class="n">1.11 M</td></tr>
+        <tr><td>GKR link</td><td class="n">0.82 M</td></tr>
+        <tr><td>attention output, adds, argmax, embedding</td><td class="n">0.34 M</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <p class="note">All <span class="g m">measured</span> at the 4,096 context. Add 2.6 M hand-off cells per position and the total is 79.0 M fresh cells per position: 363.9 billion for the request, about 1.25 billion per segment. The two sealed-once trees come on top: 22.9 M model cells and 4.5 M shape cells per position.</p>
+
+  <!-- ============ 5 ============ -->
+  <h2 id="stark">5 · Inside the STARK second</h2>
+  <p>Per segment, the proof system itself takes about one second on the card. SASH splits it in two: the <b>commit path</b> (turn columns into polynomials, stretch them, hash them into trees) and the <b>prove call</b> (check the rules, divide, open at a random point, fold with FRI).</p>
+
+  <div class="twocol">
+    <div>
+      <div class="kv">
+        <b>commit path</b><span>170.8 s over 290 segments, 0.59 s each <span class="g m">measured</span></span>
+        <b>prove call</b><span>114.4 s, 0.39 s each <span class="g d">derived</span></span>
+        <b>stwo total</b><span>285.2 s, 0.98 s each <span class="g m">measured</span></span>
+        <b>split</b><span>60 % commit, 40 % prove <span class="g d">derived</span></span>
+      </div>
+      <p class="note">So the card seals a segment's 1.25 billion fresh cells, plus the two sealed-once trees, in about six tenths of a second. The host CPU manages 15.9 million cells per second on the same job (microbenchmark), which is why this part lives on the card.</p>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>sealed, in order</th><th class="n">wall s / 32 seg</th></tr></thead>
+      <tbody>
+        <tr><td>tree 0 · shape</td><td class="n">1.8</td></tr>
+        <tr><td>tree 1 · model</td><td class="n">5.5</td></tr>
+        <tr><td>tree 2 · the tape</td><td class="n">27.6</td></tr>
+        <tr><td>tree 3 · fractions</td><td class="n">6.5</td></tr>
+        <tr><td>trees 4+ · hand-offs</td><td class="n">6.8</td></tr>
+        <tr><td>prove call (rules, quotient, FRI)</td><td class="n">13.4</td></tr>
+        <tr><td>write the proof file</td><td class="n">3.5</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <p class="note">The right-hand timers include host-side work, so they overlap the <code>prove_rest</code> phase and add to more than the 34 s STARK phase. They show the order and the proportions, not a second clean split.</p>
+
+  <h3>What each piece does, in one line each</h3>
+  <ul class="plain">
+    <li><b>Interpolation.</b> Read each column as the values of one polynomial. The column's length is the degree limit.</li>
+    <li><b>Stretching (low-degree extension).</b> Evaluate that polynomial on twice as many points. This is why every rule must be degree 2 or less: the quotient has to fit in the stretched table.</li>
+    <li><b>Merkle hashing.</b> Blake2s over the stretched column, one tree per stage. The root goes into the transcript, and the dice come out of it.</li>
+    <li><b>Rule checking.</b> Apply every rule to every row of the stretched table. Card: 3,872 kernel calls, 0.138 s. CPU: 3,950 s. This is the only thing the generated kernels do.</li>
+    <li><b>Quotient.</b> Divide the combined rule polynomial by the polynomial that is zero on the rule rows. A broken rule leaves a remainder, and the quotient stops being low degree.</li>
+    <li><b>Out-of-domain opening.</b> Open every polynomial at one random point outside the table to tie the quotient to the columns.</li>
+    <li><b>FRI.</b> Fold the opened polynomial in half, seal, fold again, until a constant is left; the checker asks for 100 random paths. Without this, a prover could pass the random point with numbers that lie on no polynomial at all.</li>
+  </ul>
+
+  <h3>How fast the building blocks are on the host</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>building block</th><th>size</th><th class="n">packed (SIMD)</th><th class="n">unpacked</th></tr></thead>
+    <tbody>
+      <tr><td>Merkle tree, Blake2s</td><td>16.8 M numbers (65,536 rows × 256 columns)</td><td class="n">1.75 ms</td><td class="n">143.6 ms</td></tr>
+      <tr><td>multiply, base field (M31)</td><td>67.1 M operations</td><td class="n">8.5 ms</td><td class="n">48.8 ms</td></tr>
+      <tr><td>add, base field</td><td>67.1 M operations</td><td class="n"></td><td class="n">13.6 ms</td></tr>
+      <tr><td>multiply, big field (QM31, where the dice live)</td><td>67.1 M operations</td><td class="n"></td><td class="n">797 ms</td></tr>
+      <tr><td>one lookup argument (LogUp)</td><td>65,536 rows</td><td class="n">3.6 ms</td><td class="n">16.7 ms</td></tr>
+      <tr><td>one FRI fold</td><td>a line of 4,096 values</td><td class="n"></td><td class="n">0.73 ms</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">All <span class="g m">measured</span> by the library's own benchmarks on the run host's cores. They explain two things: a big-field multiply costs about 16 small ones, which is why the fraction phase is the expensive one; and the packed backend is 82 times faster at hashing, which is why it exists.</p>
+
+  <!-- ============ 6 ============ -->
+  <h2 id="verify">6 · Checking the proof</h2>
+  <p>The checker never touches the card. For each segment it does, in order:</p>
+  <ol class="steps">
+    <li class="step v"><div class="num">1</div><div><h3>Replay the hashing</h3><p>Hash the roots in the proof in the same order the prover did and re-derive every dice roll. A prover who rolled before sealing cannot reproduce this.</p></div></li>
+    <li class="step v"><div class="num">2</div><div><h3>Rebuild the shape tree, compare roots</h3><p>From the public parameters, build tree 0 again and check its root against the statement. On a small machine this is the slow step.</p></div></li>
+    <li class="step v"><div class="num">3</div><div><h3>Compare the model root</h3><p>The root in the statement must equal the one the weight holder published. The checker never sees a weight.</p></div></li>
+    <li class="step v"><div class="num">4</div><div><h3>Run the STARK checker</h3><p>Check the 100 FRI paths, the Merkle openings, the random-point consistency, and replay the five GKR sumchecks against their link claims.</p></div></li>
+    <li class="step v"><div class="num">5</div><div><h3>Check the sixteen hand-offs</h3><p>Inside the layer: the seven places the running total is passed on, the three float-to-8-bit seams, attention, the weight-multiply check, the two block boundaries, the embedding on layer 0, the strict top-pick on the head.</p></div></li>
+    <li class="step v"><div class="num">6</div><div><h3>The grid</h3><p>Between segments: 281 links down the layers (the running total's root) and 256 links along the prompt (the keys and values' roots). Then the token chain against the prompt and the top picks.</p></div></li>
+  </ol>
+  <div class="tbl"><table>
+    <thead><tr><th>machine</th><th>what</th><th class="n">time</th><th>note</th></tr></thead>
+    <tbody>
+      <tr><td>run host, 16 cores</td><td>290 segments, links and tokens in the same pass</td><td class="n">119.1 s total · 0.41 s median</td><td>0.31 to 0.84 s per segment <span class="g m">measured</span></td></tr>
+      <tr><td>run host</td><td>1,058 segments at the long context</td><td class="n">832 s total · 0.76 s median</td><td>link check alone 12 s <span class="g m">measured</span></td></tr>
+      <tr><td>a 4-core box with 32 GB</td><td>one long-context segment, shape tree rebuilt from the published parameters</td><td class="n">43.2 s</td><td>42.25 s is the tree rebuild, 0.92 s the proof itself; 28.5 GiB peak memory <span class="g m">measured</span></td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Proving one segment took 12.7 s on the card against 0.41 s to check it, about 31 times <span class="g d">derived</span>. Checking is cheap because the checker reads a few hundred opened cells per query, not the 1.25 billion the prover wrote.</p>
+
+  <!-- ============ 7 ============ -->
+  <h2 id="cells">7 · Cells and bytes</h2>
+  <p>A cell is one number in one row of one column. It is the unit SASH prices everything in, because every phase scales with it: cells to write, cells to hash, cells to fold.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>quantity</th><th class="n">4,096 context</th><th class="n">16,384 context</th><th>grade</th></tr></thead>
+    <tbody>
+      <tr><td>fresh cells per position</td><td class="n">79.0 M</td><td class="n">105.1 M</td><td><span class="g m">measured</span></td></tr>
+      <tr><td>fresh cells per request</td><td class="n">363.9 G</td><td class="n">1,775.4 G</td><td><span class="g m">measured</span></td></tr>
+      <tr><td>fresh cells per segment (mean)</td><td class="n">1.25 G</td><td class="n">1.68 G</td><td><span class="g d">derived</span></td></tr>
+      <tr><td>sealed-once cells per position (model + shape)</td><td class="n">22.9 M + 4.5 M</td><td class="n"></td><td><span class="g m">measured</span></td></tr>
+      <tr><td>all proofs, as files</td><td class="n">18.46 GiB</td><td class="n">108.9 GiB</td><td><span class="g m">measured</span></td></tr>
+      <tr><td>all proofs, in memory before JSON</td><td class="n">7.19 GiB</td><td class="n"></td><td><span class="g m">measured</span> 38.9 % of the files</td></tr>
+      <tr><td>middle-sized proof per segment</td><td class="n">65.0 MiB</td><td class="n">161 MiB (reference segment)</td><td><span class="g m">measured</span></td></tr>
+      <tr><td>proof bytes per position</td><td class="n">4.10 MiB</td><td class="n"></td><td><span class="g d">derived</span></td></tr>
+      <tr><td>saved numbers on disk</td><td class="n">≈ 122 GB</td><td class="n">too big; saved in groups</td><td><span class="g">log</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- ============ 8 ============ -->
+  <h2 id="scale">8 · Bigger contexts, and the roadmap</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>per request</th><th class="n">4,096 context (4,608 pos)</th><th class="n">16,384 context (16,896 pos)</th></tr></thead>
+    <tbody>
+      <tr><td>segments</td><td class="n">290</td><td class="n">1,058</td></tr>
+      <tr><td>saving the numbers</td><td class="n">771 s</td><td class="n">9,735 s</td></tr>
+      <tr><td>proving loop</td><td class="n">3,683 s</td><td class="n">21,586 s</td></tr>
+      <tr><td>per segment</td><td class="n">12.7 s</td><td class="n">20.4 s</td></tr>
+      <tr><td>positions per second, loop</td><td class="n">1.25</td><td class="n">0.78</td></tr>
+      <tr><td>card memory peak</td><td class="n">73.7 GB</td><td class="n">78.8 GB</td></tr>
+      <tr><td>cost at $3.29 per card-hour, loop · all spans</td><td class="n">$3.37 · $5.01</td><td class="n">$19.73 · $27.35</td></tr>
+      <tr><td>plain vLLM decode, one request at a time</td><td class="n">1,342 pos/s</td><td class="n"></td></tr>
+      <tr><td>slow-down against it, loop · spans</td><td class="n">≈ 1,070× · ≈ 1,600×</td><td class="n"></td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Rates and costs <span class="g d">derived</span> from measured rows; the price is a published list price, not what the card was rented at. Overlapping segments alone is worth 23 %: four long-context segments took 57.2 s each one at a time and 44.0 s overlapped, same proofs <span class="g m">measured</span>.</p>
+
+  <h3>Why the host is the limit, and what moving it buys</h3>
+  <p>The phase split says it plainly. Writing the tape (35 %) and the fraction bookkeeping (42 %) are host CPU work, and with loading they are about 89 % of the loop. The card sits idle for most of a segment's life. Issue 12 moves that work onto the card one gadget at a time.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>one reference segment, layer 16, long context</th><th class="n">host</th><th class="n">card</th><th class="n">factor</th></tr></thead>
+    <tbody>
+      <tr><td>writing the tape</td><td class="n">30.1 s</td><td class="n">21.6 s</td><td class="n">1.40×</td></tr>
+      <tr><td>fractions + GKR</td><td class="n">125.3 s</td><td class="n">18.1 s</td><td class="n">6.93×</td></tr>
+    </tbody>
+  </table></div>
+  <div class="kv">
+    <b>loop today</b><span>3,683 s, 61 min <span class="g m">measured</span></span>
+    <b>with the measured factors</b><span>1,825 s, 30 min <span class="g p">projected</span>, on an asserted phase split</span>
+    <b>with an 8× host speed-up</b><span>710 s, 12 min <span class="g p">projected</span>; the 8 is <span class="g a">asserted</span>, nothing has measured it</span>
+    <b>SASH's stated target</b><span>16 positions per second; the commit path alone would allow about 27 (roadmap, Sep 2026)</span>
+  </div>
+  <p class="note">Both big phases are partly on the card already, which is why the tape factor is only 1.4. The projection's split (fractions 49 %, tape 30 %, STARK 9 %, read 5 %) was taken from an older H200 run; the split measured here on the published setup is 42, 35, 4.6 and 0.5. SASH keeps the projection on its original assumptions and says so.</p>
+
+  <details>
+    <summary>Read it back: five questions this page should let you answer</summary>
+    <ul class="plain">
+      <li>Why is hashing not where the time goes, and what is?</li>
+      <li>Name the nine steps of a segment in order, and say which ones run on the card.</li>
+      <li>What does the fraction phase compute, and why is it the slowest?</li>
+      <li>What do the GPU rule checkers change, and what do they not change?</li>
+      <li>Why does a four-core checker spend 42 of 43 seconds before it even looks at the proof?</li>
+    </ul>
+  </details>
+
+  <!-- ============ 9 ============ -->
+  <h2 id="sources">9 · Sources</h2>
+  <ul class="src">
+    <li><code>zk-inference-results/constants.json</code>: <code>secs.phase.c4096.*</code>, <code>share.phase.c4096.*</code>, <code>secs.headline.c4096.*</code>, <code>secs.headline.c16384.*</code>, <code>verify.*</code>, <code>cells_per_position.headline.c4096.*</code>, <code>proof.headline.*</code>, <code>secs.reference.c16384.*</code>, <code>secs.projected.c4096.*</code>, <code>assumption.loop_*</code>, the <code>hash.*</code>, <code>field.*</code>, <code>lookup.*</code>, <code>fri.*</code> microbenchmarks, and the <code>_timing_scopes</code> definitions.</li>
+    <li><code>zk-inference-results/REPRODUCE.md</code>, section <code>phase-split-c4096</code>: the twelve-term split, the checkers-off control, the six largest host timers, the host-time log (197 s answer, 211 s sample saving, 695 s kernel build).</li>
+    <li><code>runs/2026-09-13-phase-split-c4096-h100/phases.json</code>: the 109 host timers with call counts; <code>runs/2026-09-09-headline-c4096-h100/extract.json</code> and <code>slice_0000.json</code>: the five saving passes and one segment's own timers.</li>
+    <li><code>zk-inference-prover/docs/statement.md</code> and the earlier study pages in this series for the tree order, the five trees and the sixteen hand-offs.</li>
+  </ul>
+  <p class="note">Everything on this page is Llama-3.1-8B on one H100. Nothing bigger than 8B has been run; the 70B, 405B and frontier figures SASH publishes are cost-model projections and are not on this page.</p>
+</div>
+
+<script>
+(function () {
+  function fmt(x, d) { return x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+
+  /* ---------- the twelve-phase bar and table ---------- */
+  var PH = [
+    ['read',        'load',  'Read this segment\'s saved numbers off the disk.', 'disk reading · host'],
+    ['decode',      'load',  'Unpack them into arrays: 8-bit activations, 32-bit sums, float scales.', 'integer unpacking · host'],
+    ['check',       'load',  'The loader checks them: shapes against the plan, values against the table sizes and the 31-bit field.', 'integer comparisons · host'],
+    ['construct',   'load',  'Lay them out the way the gadgets want: per-gadget inputs, the 512 positions at this context, the key and value tiles.', 'memory layout, integer arithmetic · host'],
+    ['alloc',       'load',  'Get and give back the memory the steps above run in.', 'allocation · host and card'],
+    ['build_rest',  'load',  'What those five leave of the loading.', 'leftover'],
+    ['trace',       'trace', 'Write the tape: every gadget writes its numbers into the big table. 58.5 M cells per position.', 'field arithmetic, float splitting, range pieces · mostly host'],
+    ['interaction', 'inter', 'Lookup bookkeeping: one fraction per lookup, the running totals, and the five GKR shrinks. 17.8 M cells per position.', 'big-field inverses and sumchecks · mostly host'],
+    ['stwo',        'stark', 'The proof system: polynomials, stretching, hashing, rule checking, quotient, FRI.', 'hashing and polynomial arithmetic · card'],
+    ['serialize',   'ser',   'Write the statement, the claims and the proof to disk as JSON.', 'disk writing · host'],
+    ['prove_rest',  'rest',  'What the proving half leaves: session setup, the host side of the hashing calls, the part of the tape work that runs inside it.', 'mixed · host'],
+    ['loop_rest',   'rest',  'The loop\'s own per-segment work outside any segment\'s clock.', 'bookkeeping · host']
+  ];
+  var LOOPS = {
+    kernels:   { total: 748.236242, s: [4.04926, 4.635775, 13.213632, 58.404134, 6.619724, 1.280688, 264.896236, 313.054787, 34.145816, 3.738302, 41.783234, 2.414656] },
+    nokernels: { total: 4737.035672, s: [5.554469, 5.000448, 13.092727, 67.853464, 13.58915, 1.339195, 278.816787, 313.783589, 3983.748223, 4.37476, 46.378697, 3.504164] }
+  };
+  var COLOR = { load: 'var(--ph-load)', trace: 'var(--ph-trace)', inter: 'var(--ph-inter)', stark: 'var(--ph-stark)', ser: 'var(--ph-ser)', rest: 'var(--ph-rest)' };
+  var bar = document.getElementById('phasebar');
+  var tbody = document.querySelector('#phasetable tbody');
+  function render() {
+    var loopKey = document.getElementById('loop-nokernels').checked ? 'nokernels' : 'kernels';
+    var perSeg = document.getElementById('unit-seg').checked;
+    var L = LOOPS[loopKey];
+    var div = perSeg ? 32 : 1;
+    bar.innerHTML = '';
+    tbody.innerHTML = '';
+    PH.forEach(function (p, i) {
+      var sec = L.s[i], share = sec / L.total * 100;
+      var d = document.createElement('div');
+      d.style.flex = '0 0 ' + share + '%';
+      d.style.background = COLOR[p[1]];
+      d.className = share < 4 ? 'thin' : '';
+      d.title = p[0] + ' · ' + fmt(share, 1) + ' %';
+      d.innerHTML = '<span>' + p[0] + ' ' + fmt(share, 1) + '%</span>';
+      bar.appendChild(d);
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="k"><span class="sw" style="background:' + COLOR[p[1]] + '"></span>' + p[0] + '</td><td>' + p[2] + '</td><td>' + p[3] + '</td><td class="n">' + fmt(sec / div, perSeg ? 2 : 1) + '</td><td class="n">' + fmt(share, 2) + ' %</td>';
+      tbody.appendChild(tr);
+    });
+    var tr = document.createElement('tr');
+    tr.className = 'sum';
+    tr.innerHTML = '<td class="k">loop</td><td>' + (loopKey === 'kernels' ? 'the published setup, one segment at a time' : 'every GPU checker switched off') + '</td><td>' + (perSeg ? 'per segment' : '32 segments of token block 8') + '</td><td class="n">' + fmt(L.total / div, perSeg ? 2 : 1) + '</td><td class="n">100 %</td>';
+    tbody.appendChild(tr);
+    Array.prototype.forEach.call(document.querySelectorAll('.ctl label'), function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.ctl input'), function (el) { el.addEventListener('change', render); });
+  render();
+
+  /* ---------- the stage bar ---------- */
+  var ST = [
+    ['answer', 197, 'var(--accent)'], ['save numbers', 771, 'var(--accent)'], ['build checkers', 695, 'var(--verify)'], ['prove loop', 3683, 'var(--ph-trace)'], ['check', 119, 'var(--verify)']
+  ];
+  var sb = document.getElementById('stagebar'), sl = document.getElementById('stagelegend');
+  var tot = ST.reduce(function (a, s) { return a + s[1]; }, 0);
+  ST.forEach(function (s) {
+    var share = s[1] / tot * 100;
+    var d = document.createElement('div');
+    d.style.flex = '0 0 ' + share + '%';
+    d.style.background = s[2];
+    d.className = share < 5 ? 'thin' : '';
+    d.title = s[0] + ' · ' + s[1] + ' s';
+    d.innerHTML = '<span>' + s[0] + ' ' + fmt(s[1], 0) + ' s</span>';
+    sb.appendChild(d);
+    var e = document.createElement('span');
+    e.innerHTML = '<span class="sw" style="background:' + s[2] + '"></span>' + s[0] + ' ' + fmt(s[1], 0) + ' s (' + fmt(share, 1) + ' %)';
+    sl.appendChild(e);
+  });
+
+  /* ---------- the segment player ---------- */
+  var cv = document.getElementById('seg-canvas');
+  if (!cv || !cv.getContext) return;
+  var ctx = cv.getContext('2d');
+  var W = 960, H = 360, SEG = 23.38;
+  // steps: [key, start, end, title, plain words, host busy, card busy, color token]
+  var STEPS = [
+    ['load',    0,      2.757,  'a · Load',                     'The segment\'s saved numbers come off the disk, get unpacked, checked and laid out. About 1.4 GB for the first segment of the run.', 1, 0, '--ph-load'],
+    ['trace',   2.757,  11.035, 'b · Write the tape',           'Every gadget writes its numbers into the big table, one field element per cell. About 1.25 billion cells for this segment. Mostly the host CPU.', 1, 0.35, '--ph-trace'],
+    ['seal012', 11.035, 12.035, 'c · Seal three trees',         'The shape, the model weights and the tape are hashed into Merkle trees. Each root is a fingerprint of everything under it. On the card.', 0.4, 1, '--ph-stark'],
+    ['chall',   12.035, 12.335, 'd · Roll the dice',            'The roots are hashed into random numbers. The prover could not have known them before sealing. This takes microseconds; the clock is paused here so you can see it.', 1, 0, '--accent'],
+    ['inter',   12.335, 22.118, 'e · Lookup bookkeeping',       'For every table lookup, one fraction built from the random number, and running totals that must balance. The five biggest groups are shrunk by GKR to one claim each. The longest phase, on the host CPU.', 1, 0, '--ph-inter'],
+    ['seal3b',  22.118, 22.618, 'f · Seal two more trees',      'The fractions, and the values the next segment will read: the running total out, the keys and values out. On the card.', 0.4, 1, '--ph-stark'],
+    ['prove',   22.618, 23.088, 'g · The STARK proper',         'Check every rule on every row, divide out the rule points, open at a random point, fold with FRI, answer 100 spot checks. On the card.', 0.2, 1, '--ph-stark'],
+    ['ser',     23.088, 23.205, 'h · Write the receipt',        'Three JSON files. The proof is about 65 MiB.', 1, 0, '--ph-ser'],
+    ['rest',    23.205, 23.38,  'i · Tidy up',                  'Hand the memory back and start the next segment.', 1, 0, '--ph-rest']
+  ];
+  function css(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function prog(t, a, b) { return clamp01((t - a) / (b - a)); }
+  function stepAt(t) { for (var i = STEPS.length - 1; i >= 0; i--) if (t >= STEPS[i][1]) return i; return 0; }
+  function sprog(t, key) { var s = STEPS.filter(function (x) { return x[0] === key; })[0]; return prog(t, s[1], s[2]); }
+  function ease(x) { return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
+
+  var C = {};
+  function colors() {
+    C.fg = css('--fg'); C.muted = css('--muted'); C.rule = css('--rule'); C.card = css('--card'); C.card2 = css('--card2');
+    C.accent = css('--accent'); C.verify = css('--verify');
+    C.load = css('--ph-load'); C.trace = css('--ph-trace'); C.inter = css('--ph-inter'); C.stark = css('--ph-stark'); C.ser = css('--ph-ser'); C.rest = css('--ph-rest');
+    C.mono = '"IBM Plex Mono", Menlo, Consolas, monospace'; C.disp = '"Archivo", "Helvetica Neue", Arial, sans-serif';
+  }
+  function rect(x, y, w, h, fill, r) {
+    r = r || 0; ctx.fillStyle = fill; ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath(); ctx.fill();
+  }
+  function text(s, x, y, size, color, font, align, weight) {
+    ctx.font = (weight || 400) + ' ' + size + 'px ' + (font || C.mono); ctx.fillStyle = color; ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y);
+  }
+  function label(s, x, y) { text(s.toUpperCase(), x, y, 10.5, C.muted, C.disp, 'left', 600); }
+  function grid(x, y, cols, rows, cell, gap, frac, color, bg) {
+    var n = cols * rows, k = Math.round(frac * n);
+    for (var i = 0; i < n; i++) {
+      var r = Math.floor(i / cols), c = i % cols;
+      rect(x + c * (cell + gap), y + r * (cell + gap), cell, cell, i < k ? color : bg, 1);
+    }
+  }
+  function tree(x, y, state, color, name, sub) {
+    // state: 0 empty, 0..1 sealing, 1 sealed; 'pre' drawn grey-filled
+    var leaves = 8, lw = 7, gap = 3, step = lw + gap, w = leaves * step - gap;
+    var s = state === 'pre' ? 0 : clamp01(state);
+    for (var i = 0; i < leaves; i++) rect(x + i * step, y + 26, lw, 6, (state !== 'pre' && s > 0 && i / leaves < s) ? color : (state === 'pre' ? C.rule : C.card2), 1);
+    ctx.strokeStyle = s >= 1 ? color : C.rule; ctx.lineWidth = 1;
+    var lvl = [[], [], []], j;
+    for (j = 0; j < 4; j++) lvl[0][j] = x + (j * 2 + 1) * step - gap / 2;
+    lvl[1] = [(lvl[0][0] + lvl[0][1]) / 2, (lvl[0][2] + lvl[0][3]) / 2];
+    lvl[2] = [(lvl[1][0] + lvl[1][1]) / 2];
+    ctx.beginPath();
+    for (j = 0; j < 8; j++) { ctx.moveTo(x + j * step + lw / 2, y + 26); ctx.lineTo(lvl[0][Math.floor(j / 2)], y + 17); }
+    for (j = 0; j < 4; j++) { ctx.moveTo(lvl[0][j], y + 17); ctx.lineTo(lvl[1][Math.floor(j / 2)], y + 9); }
+    for (j = 0; j < 2; j++) { ctx.moveTo(lvl[1][j], y + 9); ctx.lineTo(lvl[2][0], y + 1); }
+    ctx.stroke();
+    var nodeCol = s >= 1 ? color : C.rule;
+    for (j = 0; j < 4; j++) rect(lvl[0][j] - 2, y + 15, 4, 4, nodeCol, 1);
+    for (j = 0; j < 2; j++) rect(lvl[1][j] - 2.5, y + 7, 5, 5, nodeCol, 1);
+    rect(lvl[2][0] - 4, y - 3, 8, 8, s >= 1 ? color : (state === 'pre' ? C.rule : C.card2), 2);
+    text(name, x + w + 14, y + 12, 12, C.fg, C.disp, 'left', 600);
+    text(sub, x + w + 14, y + 26, 10.5, C.muted, C.mono);
+    if (s >= 1) { rect(x + w + 112, y + 2, 46, 16, color, 3); text('root ✓', x + w + 135, y + 14, 10, '#fff', C.mono, 'center', 500); }
+    else if (s > 0) { text('hashing…', x + w + 112, y + 14, 10.5, color, C.mono); }
+  }
+  function die(x, y, size, on, color) {
+    rect(x, y, size, size, on ? color : C.card2, 5);
+    var d = on ? '#fff' : C.rule, r = size * 0.09, c = [[0.25, 0.25], [0.75, 0.25], [0.5, 0.5], [0.25, 0.75], [0.75, 0.75]];
+    c.forEach(function (p) { ctx.fillStyle = d; ctx.beginPath(); ctx.arc(x + p[0] * size, y + p[1] * size, r, 0, Math.PI * 2); ctx.fill(); });
+  }
+  function disk(x, y, w, h, frac) {
+    ctx.fillStyle = C.card2; ctx.strokeStyle = C.rule; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(x + w / 2, y + 8, w / 2, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    rect(x, y + 8, w, h - 16, C.card2); ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x, y + h - 8); ctx.moveTo(x + w, y + 8); ctx.lineTo(x + w, y + h - 8); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x + w / 2, y + h - 8, w / 2, 8, 0, 0, Math.PI); ctx.stroke();
+    if (frac > 0) { ctx.strokeStyle = C.load; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, w / 2 + 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke(); }
+  }
+  function pill(x, y, name, level, color) {
+    var on = level > 0;
+    rect(x, y, 118, 22, on ? color : C.card2, 11);
+    text(name, x + 10, y + 15, 11, on ? '#fff' : C.muted, C.disp, 'left', 600);
+    text(on ? (level >= 1 ? 'busy' : 'part') : 'idle', x + 108, y + 15, 10.5, on ? '#fff' : C.muted, C.mono, 'right');
+  }
+  function bars(x, y, w, h, n, color, shrinkTo, frac) {
+    // n bars collapsing to shrinkTo bars
+    var cur = Math.max(shrinkTo, Math.round(n - (n - shrinkTo) * frac));
+    var bw = w / n * (n / cur) - 3, gap = 3;
+    for (var i = 0; i < cur; i++) { var hh = h * (0.5 + 0.5 * Math.abs(Math.sin(i * 1.7 + 1))); rect(x + i * (w / cur), y + h - hh, Math.max(2, w / cur - gap), hh, color, 1); }
+  }
+  function draw(t) {
+    colors();
+    ctx.clearRect(0, 0, W, H);
+    rect(0, 0, W, H, C.card);
+    var i = stepAt(t), S = STEPS[i];
+    var pLoad = sprog(t, 'load'), pTrace = sprog(t, 'trace'), pS012 = sprog(t, 'seal012'), pCh = sprog(t, 'chall'), pInt = sprog(t, 'inter'), pS3 = sprog(t, 'seal3b'), pPr = sprog(t, 'prove'), pSer = sprog(t, 'ser');
+
+    // pills: who is busy
+    pill(20, 14, 'host CPU', S[5], C.accent);
+    pill(148, 14, 'card (GPU)', S[6], C.stark);
+    text('one segment · layer × 512 positions', 290, 29, 11, C.muted, C.mono);
+
+    // ---- left: disk and arrays
+    label('saved numbers', 20, 66);
+    disk(40, 80, 56, 64, pLoad < 1 ? pLoad : 0);
+    text('1.4 GB', 68, 170, 11, C.muted, C.mono, 'center');
+    var arr = ['int8 activations', 'int32 sums', 'bf16 scales', 'keys, values'];
+    for (var a = 0; a < arr.length; a++) {
+      var ap = clamp01(pLoad * 4 - a);
+      if (ap > 0) { rect(20, 190 + a * 24, 180 * ap, 18, C.load, 3); if (ap > 0.7) text(arr[a], 28, 203 + a * 24, 10.5, '#fff', C.mono); }
+      else rect(20, 190 + a * 24, 180, 18, C.card2, 3);
+    }
+    if (pLoad >= 1) text('checked ✓ laid out ✓', 20, 300, 10.5, C.verify, C.mono);
+
+    // ---- middle: the tape
+    label('the tape · tree 2 · 58.5 M cells per position', 232, 66);
+    grid(232, 74, 40, 12, 7, 2, pTrace, C.trace, C.card2);
+    label('lookup fractions · tree 3 · 17.8 M', 232, 196);
+    grid(232, 204, 40, 4, 7, 2, pInt, C.inter, C.card2);
+    label('hand-offs · trees 4+ · 2.6 M', 232, 252);
+    grid(232, 260, 40, 1, 7, 2, clamp01((pTrace - 0.9) * 10), C.ser, C.card2);
+
+    // activity strip
+    var sx = 232, sy = 282, sw = 358, sh = 34;
+    if (i <= 1) {
+      text(i === 0 ? 'waiting for the numbers…' : 'writing ' + fmt(Math.round(pTrace * 1250), 0) + ' M of 1,250 M cells', sx, sy + 22, 11.5, C.muted, C.mono);
+    } else if (S[0] === 'seal012') {
+      text('hashing the tape into tree 2…', sx, sy + 22, 11.5, C.stark, C.mono);
+    } else if (S[0] === 'chall') {
+      text('α, r, β  ←  hash(root0, root1, root2)', sx, sy + 22, 11.5, C.accent, C.mono);
+    } else if (S[0] === 'inter') {
+      text('Σ 1/(α − key)   uses = tables', sx, sy + 12, 11, C.inter, C.mono);
+      text('GKR: running totals → 1 claim', sx + 180, sy + 12, 11, C.inter, C.mono);
+      bars(sx, sy + 16, 170, 18, 16, C.inter, 16, 0);
+      bars(sx + 180, sy + 16, 170, 18, 16, C.inter, 1, ease(pInt));
+    } else if (S[0] === 'seal3b') {
+      text('hashing trees 3 and 4+…', sx, sy + 22, 11.5, C.stark, C.mono);
+    } else if (S[0] === 'prove') {
+      text('rules ✓  quotient ✓  FRI fold → constant', sx, sy + 12, 11, C.stark, C.mono);
+      bars(sx, sy + 16, 200, 18, 32, C.stark, 1, ease(pPr));
+      var q = Math.round(pPr * 100);
+      text(q + ' / 100 spot checks', sx + 215, sy + 28, 11, C.stark, C.mono);
+    } else {
+      rect(sx, sy, 34, sh, C.ser, 3); text('{ }', sx + 17, sy + 22, 12, '#fff', C.mono, 'center', 500);
+      text('proof.json  65 MiB   claims.json   fixed.json', sx + 44, sy + 22, 11.5, S[0] === 'ser' ? C.ser : C.muted, C.mono);
+    }
+
+    // ---- right: seals
+    label('seals', 640, 66);
+    var preDone = pS012 >= 1 ? 1 : (S[0] === 'seal012' ? clamp01(pS012 * 3) : 0);
+    tree(640, 80, pS012 > 0 ? preDone : 'pre', C.stark, 'tree 0 · shape', 'tables, constants');
+    tree(640, 122, pS012 > 0 ? (pS012 >= 1 ? 1 : clamp01(pS012 * 3 - 1)) : 'pre', C.stark, 'tree 1 · model', 'weights, scales');
+    tree(640, 164, pS012 >= 1 ? 1 : clamp01(pS012 * 3 - 2) * (pTrace >= 1 ? 1 : 0), C.stark, 'tree 2 · the tape', 'this segment\'s numbers');
+    tree(640, 206, pS3 >= 1 ? 1 : clamp01(pS3 * 2) * (pInt >= 1 ? 1 : 0), C.stark, 'tree 3 · fractions', 'after the dice');
+    tree(640, 248, pS3 >= 1 ? 1 : clamp01(pS3 * 2 - 1) * (pInt >= 1 ? 1 : 0), C.stark, 'trees 4+ · hand-offs', 'what the next one reads');
+    // dice
+    var diceOn = t >= STEPS[3][1];
+    var dsz = 30, dx = 862, dy = 292;
+    if (S[0] === 'chall') { var wob = Math.sin(pCh * Math.PI * 6) * 6; ctx.save(); ctx.translate(dx + dsz / 2, dy + dsz / 2); ctx.rotate(wob * Math.PI / 180); die(-dsz / 2, -dsz / 2, dsz, true, C.accent); ctx.restore(); }
+    else die(dx, dy, dsz, diceOn, C.accent);
+    text(diceOn ? 'dice rolled' : 'dice not yet', dx + dsz / 2, dy + dsz + 14, 10, diceOn ? C.accent : C.muted, C.mono, 'center');
+    text('from the roots', 640, 312, 10.5, C.muted, C.mono);
+    if (diceOn) { ctx.strokeStyle = C.accent; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(740, 308); ctx.lineTo(dx - 6, 308); ctx.stroke(); ctx.setLineDash([]); }
+
+    // ---- bottom: the clock
+    var bx = 20, by = 332, bw = 920, bh = 14;
+    STEPS.forEach(function (s) { rect(bx + bw * s[1] / SEG, by, Math.max(1, bw * (s[2] - s[1]) / SEG), bh, css(s[7]), 0); });
+    var px = bx + bw * t / SEG;
+    rect(px - 1, by - 5, 2, bh + 10, C.fg, 1);
+    ctx.fillStyle = C.fg; ctx.beginPath(); ctx.moveTo(px - 5, by - 6); ctx.lineTo(px + 5, by - 6); ctx.lineTo(px, by - 1); ctx.closePath(); ctx.fill();
+    text('t = ' + fmt(t, 1) + ' s of 23.4 s', bx + bw, by - 8, 11, C.fg, C.mono, 'right', 500);
+    text('clock · one segment on its own, published setup', bx, by - 8, 10.5, C.muted, C.mono);
+  }
+
+  // controls and the timeline driver
+  var t = SEG, playing = false, last = 0, raf = 0;
+  var btnPlay = document.getElementById('seg-play'), btnPrev = document.getElementById('seg-prev'), btnNext = document.getElementById('seg-next');
+  var selSpeed = document.getElementById('seg-speed'), scrub = document.getElementById('seg-scrub');
+  var capPh = document.getElementById('seg-ph'), capTx = document.getElementById('seg-tx'), capTm = document.getElementById('seg-tm');
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) selSpeed.value = '1';
+  function caption() {
+    var i = stepAt(t), S = STEPS[i];
+    capPh.textContent = S[3];
+    capTx.textContent = S[4];
+    capTm.textContent = 'step ' + (i + 1) + ' of 9 · ' + fmt(S[1], 1) + ' s to ' + fmt(S[2], 1) + ' s · ' + fmt((S[2] - S[1]) / SEG * 100, 1) + ' % of the segment';
+  }
+  function show() { draw(t); caption(); scrub.value = Math.round(t * 100); }
+  function frame(now) {
+    if (!playing) return;
+    var dt = (now - last) / 1000; last = now;
+    var sp = parseFloat(selSpeed.value) || 0.5; // real seconds per segment second
+    t += dt / sp;
+    if (t >= SEG) { t = SEG; playing = false; btnPlay.textContent = 'Replay'; }
+    show();
+    if (playing) raf = requestAnimationFrame(frame);
+  }
+  function play() {
+    if (playing) { playing = false; btnPlay.textContent = 'Play'; cancelAnimationFrame(raf); return; }
+    if (t >= SEG - 0.01) t = 0;
+    playing = true; btnPlay.textContent = 'Pause'; last = performance.now(); raf = requestAnimationFrame(frame);
+  }
+  btnPlay.addEventListener('click', play);
+  btnPrev.addEventListener('click', function () { playing = false; btnPlay.textContent = 'Play'; var i = stepAt(t); t = (t - STEPS[i][1] > 0.05) ? STEPS[i][1] : STEPS[Math.max(0, i - 1)][1]; show(); });
+  btnNext.addEventListener('click', function () { playing = false; btnPlay.textContent = 'Play'; var i = stepAt(t); t = i < STEPS.length - 1 ? STEPS[i + 1][1] : SEG; show(); });
+  scrub.addEventListener('input', function () { playing = false; btnPlay.textContent = 'Play'; t = parseInt(scrub.value, 10) / 100; show(); });
+  document.addEventListener('keydown', function (e) { if (e.code === 'Space' && document.activeElement && document.activeElement.closest && document.activeElement.closest('.player')) { e.preventDefault(); play(); } });
+  function resize() {
+    var w = cv.clientWidth || W, dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * H / W * dpr);
+    ctx.setTransform(dpr * w / W, 0, 0, dpr * w / W, 0, 0);
+    show();
+  }
+  window.addEventListener('resize', resize);
+  if (window.matchMedia) { try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', show); } catch (e) {} }
+  new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(show);
+  resize();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1107 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Llama Decode Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a left "pipeline track" of 16 stations, a right bench where numbers sit in cells and get worked on. Colour encodes number type: decimals indigo, whole numbers amber, the cell being computed teal. */
+:root{
+  --bg:#F3F5F7; --panel:#FFFFFF; --ink:#141C26; --ink2:#4B5868; --ink3:#8391A0; --line:#DCE2E9;
+  --float:#3446C8; --floatbg:#E7EAFB; --int:#A05405; --intbg:#FBEBD3; --hot:#0B8574; --hotbg:#D8F2EC;
+  --pos:#3A5BE0; --neg:#D2405A; --onheat:#FFFFFF; --rail:#E8ECF0;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E131A; --panel:#151C25; --ink:#E5EBF2; --ink2:#A7B3C0; --ink3:#6E7C8B; --line:#29333F;
+  --float:#9AA8FF; --floatbg:#1D2450; --int:#F3B565; --intbg:#3A280F; --hot:#4CD3BE; --hotbg:#0F3530;
+  --pos:#6C88FF; --neg:#FF6680; --onheat:#FFFFFF; --rail:#1B232D; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E131A; --panel:#151C25; --ink:#E5EBF2; --ink2:#A7B3C0; --ink3:#6E7C8B; --line:#29333F;
+  --float:#9AA8FF; --floatbg:#1D2450; --int:#F3B565; --intbg:#3A280F; --hot:#4CD3BE; --hotbg:#0F3530;
+  --pos:#6C88FF; --neg:#FF6680; --onheat:#FFFFFF; --rail:#1B232D; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.6 var(--body);padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:20px}
+header.top{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-end;justify-content:space-between}
+.eyebrow{font:500 11.5px/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+h1{font:700 clamp(26px,4vw,38px)/1.05 var(--display);letter-spacing:-.02em;margin:6px 0 4px;text-wrap:balance}
+.prompt{font:400 14px/1.5 var(--mono);color:var(--ink2)}
+.prompt b{font-weight:500;color:var(--hot)}
+.legend{display:flex;gap:8px;flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
+.lg i{width:22px;height:16px;border-radius:4px;display:inline-block}
+.app{display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px;align-items:start}
+nav.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:grid;gap:14px;background:var(--rail);border-radius:14px;padding:14px 10px}
+.grp{display:grid;gap:2px}
+.grp>span{font:500 11px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);padding:0 8px 6px}
+.st{all:unset;cursor:pointer;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:center;gap:8px;padding:5px 8px;border-radius:8px;font-size:13.5px;color:var(--ink2);position:relative}
+.st em{font:500 11.5px/1 var(--mono);font-style:normal;color:var(--ink3);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel)}
+.st:hover{color:var(--ink)}
+.st:focus-visible,.btn:focus-visible,.dot:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+.st[aria-current="step"]{background:var(--panel);color:var(--ink);font-weight:500}
+.st[aria-current="step"] em{background:var(--hot);border-color:var(--hot);color:var(--panel)}
+.st.seen em{border-color:var(--hot);color:var(--hot)}
+main{display:grid;gap:14px;min-width:0}
+.sh{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:flex-end;justify-content:space-between}
+.sh h2{font:700 clamp(22px,3vw,30px)/1.1 var(--display);letter-spacing:-.015em;margin:4px 0 0;text-wrap:balance}
+.sop{font-size:14px;color:var(--ink2);margin:4px 0 0;max-width:62ch}
+.size{font:500 12px/1.3 var(--mono);color:var(--ink2);background:var(--panel);border:1px solid var(--line);padding:6px 10px;border-radius:8px}
+.ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 13.5px var(--body)}
+.btn:hover{border-color:var(--ink3)}
+.btn.play{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn svg{width:15px;height:15px}
+.dots{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dot{all:unset;cursor:pointer;width:10px;height:10px;border-radius:50%;background:var(--line)}
+.dot.done{background:var(--ink3)}
+.dot.on{background:var(--hot);width:22px;border-radius:6px}
+.count{font:400 12.5px var(--mono);color:var(--ink3);margin-left:auto}
+.cap{font-size:16px;line-height:1.55;margin:0;max-width:68ch;min-height:3.1em;text-wrap:pretty}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:16px;align-content:start;min-height:400px;min-width:0}
+.tk{font:500 .92em/1 var(--mono);background:var(--rail);border-radius:5px;padding:2px 5px;white-space:nowrap;color:var(--ink)}
+.tk .sp{color:var(--ink3);margin-right:1px}
+.tk.bos{color:var(--ink2)}
+.blk{display:grid;gap:6px;min-width:0}
+.bl{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--ink2);flex-wrap:wrap}
+.opchip{font:500 12.5px var(--mono);color:var(--hot)}
+.vec{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:4px;min-width:0}
+.c{height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font:500 12.5px/1 var(--mono);font-variant-numeric:tabular-nums;border:1px solid transparent;min-width:0;overflow:hidden;white-space:nowrap;transition:background .25s,border-color .25s,color .25s,box-shadow .25s}
+.c.f{background:var(--floatbg);color:var(--float)}
+.c.i{background:var(--intbg);color:var(--int)}
+.c.e{border:1px dashed var(--line);background:transparent}
+.c.hot{border-color:var(--hot);box-shadow:inset 0 0 0 1px var(--hot);background:var(--hotbg);color:var(--hot)}
+.c.x{background:transparent;color:var(--ink3);border:1px solid var(--line)}
+.c.sm{height:26px;font-size:11.5px;border-radius:5px}
+.vec.lab{gap:4px}
+.vec.lab>span{font:400 11px/1.2 var(--mono);color:var(--ink3);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow{display:grid;grid-template-columns:var(--lw,112px) minmax(0,1fr);gap:10px;align-items:center;min-width:0}
+.lrow.s3{grid-template-columns:var(--lw,112px) minmax(0,1fr) var(--rw,96px)}
+.lrow>.l{font-size:12.5px;color:var(--ink2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow.hl>.l{color:var(--hot);font-weight:500}
+.rows{display:grid;gap:4px;min-width:0}
+.calc{font:400 12.5px/1.8 var(--mono);color:var(--ink2);background:var(--bg);border-radius:9px;padding:8px 12px;overflow-wrap:anywhere;min-height:40px}
+.calc b{font-weight:500;color:var(--hot)}
+.calc .mut{color:var(--ink3)}
+.cards{display:flex;gap:10px;flex-wrap:wrap}
+.card{background:var(--bg);border-radius:10px;padding:8px 14px;min-width:120px}
+.card span{display:block;font-size:12px;color:var(--ink2)}
+.card b{display:block;font:500 18px/1.3 var(--mono);font-variant-numeric:tabular-nums}
+.note{font-size:13px;color:var(--ink2);margin:0;padding-left:12px;border-left:2px solid var(--line);max-width:70ch}
+.scroll{overflow-x:auto;min-width:0;padding-bottom:2px}
+.mat{display:grid;grid-template-columns:repeat(var(--n),minmax(34px,1fr));gap:3px;width:max-content;min-width:min(100%,var(--mw,0px))}
+.mat.h{grid-template-columns:repeat(var(--n),18px);gap:2px}
+.m{height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font:400 11px/1 var(--mono);font-variant-numeric:tabular-nums;padding:0 3px;transition:box-shadow .2s,opacity .2s}
+.m.i{background:var(--intbg);color:var(--int)}
+.m.f{background:var(--floatbg);color:var(--float)}
+.m.h{height:18px;padding:0}
+.mat.dimmed .m{opacity:.35}
+.mat .m.hc{opacity:1;box-shadow:0 0 0 1.5px var(--hot)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.chips.joined{gap:0}
+.chips .chip{font:500 15px/1 var(--mono);padding:10px 10px;border-radius:8px;background:var(--rail);border:1px solid var(--line);transition:all .5s}
+.chips.joined .chip{border-color:transparent;border-radius:0;background:transparent;padding:10px 0}
+.chip .sp{color:var(--ink3)}
+.chip.hot{border-color:var(--hot);background:var(--hotbg)}
+.chip.new{opacity:0;transform:translateX(-14px);transition:all .5s}
+.chip.new.in{opacity:1;transform:none}
+.chipcol{display:grid;gap:6px;justify-items:center}
+.slot{font:500 13px var(--mono);color:var(--int);background:var(--intbg);border-radius:6px;padding:4px 8px;min-width:46px;text-align:center;min-height:26px}
+.slot:empty{background:transparent;border:1px dashed var(--line)}
+.dict{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px}
+.dict div{display:flex;justify-content:space-between;gap:10px;font:400 12.5px/1 var(--mono);padding:7px 10px;border-radius:7px;background:var(--bg);border:1px solid transparent;transition:all .25s}
+.dict div b{font-weight:500;color:var(--int)}
+.dict div.hot{border-color:var(--hot);background:var(--hotbg)}
+.typebox{font:500 clamp(17px,2.4vw,22px)/1.4 var(--mono);padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--bg);min-height:62px}
+.caret{display:inline-block;width:2px;height:1.1em;background:var(--hot);vertical-align:-3px;margin-left:2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.charrow{display:flex;flex-wrap:wrap;gap:4px}
+.ch{width:30px;height:34px;display:grid;place-items:center;font:500 14px var(--mono);border:1px solid var(--line);border-radius:6px}
+.ch.spc{color:var(--ink3)}
+.bars{display:grid;gap:5px}
+.br{display:grid;grid-template-columns:var(--lw,110px) minmax(0,1fr) 54px;gap:10px;align-items:center;padding:2px 6px;border-radius:7px;border:1px solid transparent;transition:all .25s}
+.br .bl2{font-size:12.5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bt{height:14px;background:var(--bg);border-radius:4px;overflow:hidden}
+.bf{height:100%;width:0;background:var(--float);border-radius:4px;transition:width .4s}
+.bv{font:500 12.5px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.br.hot{border-color:var(--hot);background:var(--hotbg)}
+.br.hot .bf{background:var(--hot)}
+.br.win .bf{background:var(--hot)}
+.br.win .bv{color:var(--hot)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.pairs{display:grid;grid-template-columns:repeat(var(--g),minmax(0,1fr));gap:8px}
+.pr{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:5px;border:1px solid var(--line);border-radius:9px}
+.pr small{grid-column:1/-1;font:400 11px/1.2 var(--mono);color:var(--ink3);text-align:center}
+.pr.v{border-style:dashed}
+.dials{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:10px}
+.dial{display:grid;justify-items:center;gap:2px;background:var(--bg);border-radius:12px;padding:8px 6px}
+.dial svg{width:100%;max-width:120px;height:auto}
+.dial span{font:400 11.5px/1.3 var(--mono);color:var(--ink2);text-align:center}
+.dial b{font:500 12px var(--mono);color:var(--hot)}
+.hg{display:grid;grid-template-columns:70px repeat(8,minmax(0,1fr));gap:2px;font:400 11px/1 var(--mono)}
+.hg>.hl{color:var(--ink3);display:flex;align-items:center;white-space:nowrap}
+.hg>.hl.on{color:var(--hot);font-weight:500}
+.hg>.hc{height:19px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;border:1px dashed var(--line);transition:background .2s}
+.hg>.hc.full{border-color:transparent}
+.seq{display:flex;flex-wrap:wrap;gap:6px}
+.seq .chip{font:500 13.5px/1 var(--mono);padding:8px 9px;border-radius:7px;background:var(--rail);border:1px solid var(--line)}
+.seq .chip.out{background:var(--hotbg);border-color:var(--hot);color:var(--hot)}
+.sentence{font:500 clamp(17px,2.4vw,22px)/1.4 var(--mono)}
+.sentence em{font-style:normal;color:var(--hot)}
+footer.fine{font-size:13px;color:var(--ink3);max-width:80ch}
+.fine p{margin:0 0 6px}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  nav.rail{position:static;display:flex;overflow-x:auto;gap:12px;padding:10px}
+  .grp{display:flex;gap:4px;align-items:center}
+  .grp>span{padding:0 4px;writing-mode:horizontal-tb;white-space:nowrap}
+  .st{grid-template-columns:24px;padding:4px}
+  .st b{display:none}
+}
+@media (max-width:640px){
+  .vec.wide{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .vec.big{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .lrow{grid-template-columns:minmax(0,1fr) !important;gap:3px}
+  .lrow.s3{grid-template-columns:minmax(0,1fr) auto !important;grid-template-areas:"l r" "c c"}
+  .lrow.s3>:nth-child(1){grid-area:l}
+  .lrow.s3>:nth-child(2){grid-area:c}
+  .lrow.s3>:nth-child(3){grid-area:r;min-width:96px}
+  .hg{grid-template-columns:54px repeat(8,minmax(0,1fr))}
+  .pairs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stage{padding:12px}
+  .c{font-size:11.5px}
+  .br{--lw:84px !important}
+  .count{margin-left:0;width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Llama 3 8B · replayed on a toy-sized copy</div>
+      <h1>Llama decode walkthrough</h1>
+      <div class="prompt">The capital of France is → <b>a city of romance</b></div>
+    </div>
+    <div class="legend" aria-label="Colour key">
+      <span class="lg"><i style="background:var(--floatbg);box-shadow:inset 0 0 0 1px var(--float)"></i>decimal number</span>
+      <span class="lg"><i style="background:var(--intbg);box-shadow:inset 0 0 0 1px var(--int)"></i>whole number</span>
+      <span class="lg"><i style="background:var(--hotbg);box-shadow:inset 0 0 0 1.5px var(--hot)"></i>being worked on</span>
+    </div>
+  </header>
+
+  <div class="app">
+    <nav class="rail" id="rail" aria-label="Steps"></nav>
+    <main>
+      <div class="sh">
+        <div>
+          <div class="eyebrow" id="seye">Step 1</div>
+          <h2 id="sname">Prompt</h2>
+          <p class="sop" id="sop"></p>
+        </div>
+        <div class="size" id="ssize"></div>
+      </div>
+      <div class="ctl">
+        <button class="btn" id="back" aria-label="Previous part"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
+        <button class="btn play" id="play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg><span>Play</span></button>
+        <button class="btn" id="next" aria-label="Next part">Next<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        <div class="dots" id="dots"></div>
+        <span class="count" id="count"></span>
+      </div>
+      <p class="cap" id="cap" aria-live="polite"></p>
+      <div class="stage" id="stage"></div>
+    </main>
+  </div>
+
+  <footer class="fine">
+    <p>Every number on this page is computed live by a toy copy of the model with the same steps: notebooks of 8 numbers instead of 4,096, 2 attention heads sharing 1 key/value head instead of 32 sharing 8, a 16-wide MLP instead of 14,336, a 12-piece dictionary, and the full 32 layers. Its weights are random, except the final output matrix, which was set so the toy gives the same answer as the real model. Token numbers in step 2 are the real Llama 3 ones. Values are shown rounded.</p>
+    <p>Keys: ← and → step through, or use the buttons.</p>
+  </footer>
+</div>
+
+<script>
+const MODEL = (() => {
+  let seed = 20261009;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => { let u = 0; while (u === 0) u = rnd(); const v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const D = 8, NH = 2, HD = 4, KVD = 4, F = 16, L = 32, THETA = 500000, EPS = 1e-5;
+  const VOCAB = [
+    { p: '<|begin_of_text|>', id: 128000 }, { p: 'The', id: 791 }, { p: ' capital', id: 6864 },
+    { p: ' of', id: 315 }, { p: ' France', id: 9822 }, { p: ' is', id: 374 }, { p: ' a', id: 264 },
+    { p: ' Paris', id: 12366 }, { p: ' city', id: 3363 }, { p: ' romance', id: 30363 },
+    { p: ' the', id: 279 }, { p: ' known', id: 3967 }
+  ];
+  const V = VOCAB.length;
+  const SEQ = [0, 1, 2, 3, 4, 5, 6, 8, 3, 9];
+  const PROMPT_LEN = 6;
+
+  const vec = (n, fn) => Array.from({ length: n }, fn);
+  const mat = (o, i, s) => vec(o, () => vec(i, () => gauss() * s));
+  const mv = (W, x) => W.map(r => r.reduce((a, w, k) => a + w * x[k], 0));
+  const maxAbs = x => Math.max(...x.map(Math.abs));
+  const quant = x => { const m = maxAbs(x); const s = m > 0 ? m / 127 : 1; return { i: x.map(v => Math.max(-127, Math.min(127, Math.round(v / s)))), s, m, mi: x.map(Math.abs).indexOf(m) }; };
+  const quantW = W => { const m = Math.max(...W.map(maxAbs)); const s = m / 127; return { i: W.map(r => r.map(v => Math.round(v / s))), s }; };
+  const rms = (x, g) => { const sq = x.map(v => v * v); const mean = sq.reduce((a, b) => a + b, 0) / x.length; const r = Math.sqrt(mean + EPS); const n = x.map(v => v / r); const y = n.map((v, k) => v * g[k]); return { sq, mean, r, n, y }; };
+
+  const E = vec(V, () => vec(D, () => gauss() * 0.9));
+  const layers = vec(L, () => {
+    const Wq = mat(D, D, 0.5), Wk = mat(KVD, D, 0.5), Wv = mat(KVD, D, 0.4);
+    return {
+      g1: vec(D, () => 1 + 0.15 * gauss()), Wq, Wk, Wv, Qq: quantW(Wq), Qk: quantW(Wk), Qv: quantW(Wv),
+      Wo: mat(D, D, 0.22), g2: vec(D, () => 1 + 0.15 * gauss()),
+      Wg: mat(F, D, 0.4), Wu: mat(F, D, 0.4), Wd: mat(D, F, 0.16)
+    };
+  });
+  const gF = vec(D, () => 1 + 0.15 * gauss());
+  const freq = j => Math.pow(THETA, -2 * j / HD);
+  const rope = (x, pos, nHeads) => {
+    const out = x.slice(), ang = [];
+    for (let h = 0; h < nHeads; h++) for (let j = 0; j < HD / 2; j++) {
+      const a = h * HD + 2 * j, b = a + 1, th = pos * freq(j), c = Math.cos(th), s = Math.sin(th);
+      out[a] = x[a] * c - x[b] * s; out[b] = x[a] * s + x[b] * c; ang.push(th);
+    }
+    return { out, ang };
+  };
+  const silu = z => z / (1 + Math.exp(-z));
+
+  function forward(seq) {
+    const T = seq.length;
+    let X = seq.map(t => E[t].slice());
+    const embed = X.map(r => r.slice());
+    const rec = [];
+    for (let l = 0; l < L; l++) {
+      const W = layers[l], R = [];
+      for (let t = 0; t < T; t++) {
+        const x = X[t], n1 = rms(x, W.g1), xq = quant(n1.y);
+        const acc = { q: mv(W.Qq.i, xq.i), k: mv(W.Qk.i, xq.i), v: mv(W.Qv.i, xq.i) };
+        const deq = { q: acc.q.map(v => v * xq.s * W.Qq.s), k: acc.k.map(v => v * xq.s * W.Qk.s), v: acc.v.map(v => v * xq.s * W.Qv.s) };
+        const rq = rope(deq.q, t, NH), rk = rope(deq.k, t, 1);
+        R.push({ x, n1, xq, acc, deq, rq, rk, qq: quant(rq.out), kq: quant(rk.out), vq: quant(deq.v) });
+      }
+      for (let t = 0; t < T; t++) {
+        const r = R[t], heads = [];
+        for (let h = 0; h < NH; h++) {
+          const si = [], sc = [];
+          for (let u = 0; u <= t; u++) {
+            let s = 0; for (let d = 0; d < HD; d++) s += r.qq.i[h * HD + d] * R[u].kq.i[d];
+            si.push(s); sc.push(s * r.qq.s * R[u].kq.s / Math.sqrt(HD));
+          }
+          const mx = Math.max(...sc), ex = sc.map(s => Math.exp(s - mx)), sum = ex.reduce((a, b) => a + b, 0), w = ex.map(e => e / sum);
+          const out = vec(HD, (_, d) => w.reduce((a, wu, u) => a + wu * R[u].vq.i[d] * R[u].vq.s, 0));
+          heads.push({ si, sc, mx, ex, sum, w, out });
+        }
+        r.heads = heads; r.ao = heads.flatMap(hh => hh.out);
+        r.o = mv(W.Wo, r.ao); r.xm = r.x.map((v, k) => v + r.o[k]);
+        r.n2 = rms(r.xm, W.g2); r.gate = mv(W.Wg, r.n2.y); r.up = mv(W.Wu, r.n2.y);
+        r.sg = r.gate.map(silu); r.prod = r.sg.map((v, k) => v * r.up[k]); r.down = mv(W.Wd, r.prod);
+        r.xo = r.xm.map((v, k) => v + r.down[k]);
+      }
+      X = R.map(r => r.xo);
+      rec.push(R);
+    }
+    const fin = X.map(x => rms(x, gF));
+    return { embed, rec, X, fin };
+  }
+
+  const run = forward(SEQ);
+  const targets = [
+    [-2.1, 1.3, 2.6, 3.1, 3.4, 2.2, 7.42, 7.39, 4.1, 0.9, 6.35, 5.8],
+    [-1.8, 0.6, 4.9, 1.2, 2.0, 0.8, 0.4, 2.4, 8.15, 3.6, 0.2, 2.9],
+    [-2.4, 1.1, 1.7, 9.05, 2.2, 5.9, 3.4, 1.6, 0.7, 2.1, 3.0, 6.2],
+    [-2.0, 0.9, 1.4, 0.5, 2.6, 0.3, 5.2, 3.9, 2.8, 6.88, 6.1, 1.1]
+  ];
+  const Hm = [5, 6, 7, 8].map(t => run.fin[t].y);
+  const solve = (A, b) => {
+    const n = A.length, M = A.map((r, i) => [...r, b[i]]);
+    for (let c = 0; c < n; c++) {
+      let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+      [M[c], M[p]] = [M[p], M[c]];
+      for (let r = 0; r < n; r++) if (r !== c) { const k = M[r][c] / M[c][c]; for (let j = c; j <= n; j++) M[r][j] -= k * M[c][j]; }
+    }
+    return M.map((r, i) => r[n] / r[i]);
+  };
+  const HHt = Hm.map(a => Hm.map(b => a.reduce((s, v, k) => s + v * b[k], 0)));
+  const Whead = vec(V, (_, r) => {
+    const w0 = vec(D, () => gauss() * 0.6);
+    const resid = Hm.map((hv, j) => targets[j][r] - hv.reduce((s, v, k) => s + v * w0[k], 0));
+    const c = solve(HHt, resid);
+    return w0.map((v, k) => v + Hm.reduce((s, hv, j) => s + c[j] * hv[k], 0));
+  });
+  const logits = run.fin.map(fh => mv(Whead, fh.y));
+  const argmax = a => a.indexOf(Math.max(...a));
+
+  return { D, NH, HD, KVD, F, L, THETA, EPS, VOCAB, SEQ, PROMPT_LEN, E, layers, gF, Whead, run, logits, argmax, freq, silu, mv };
+})();
+if (typeof module !== 'undefined') module.exports = MODEL;
+
+</script>
+<script>
+(() => {
+const M = MODEL, R = M.run, P = 5, VOC = M.VOCAB, W0 = M.layers[0], L0 = R.rec[0][P];
+const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let timers = [], rafs = [];
+const T = (ms, fn) => { timers.push(setTimeout(fn, RM ? 0 : ms)); };
+const clearAll = () => { timers.forEach(clearTimeout); timers = []; rafs.forEach(cancelAnimationFrame); rafs = []; };
+const MINUS = '−';
+const f = (v, d = 2) => { const s = Math.abs(v).toFixed(d); return (v < 0 && +s !== 0 ? MINUS : '') + s; };
+const fi = v => (v < 0 ? MINUS : '') + Math.abs(v).toLocaleString('en-US');
+const fv = (v, t, d) => t === 'i' ? fi(v) : f(v, d);
+const par = s => s.startsWith(MINUS) ? '(' + s + ')' : s;
+const $ = id => document.getElementById(id);
+
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === 'class') e.className = attrs[k];
+    else if (k === 'style') e.style.cssText = attrs[k];
+    else if (k.startsWith('on')) e[k] = attrs[k];
+    else e.setAttribute(k, attrs[k]);
+  }
+  for (const c of kids.flat()) { if (c == null || c === false) continue; e.append(c.nodeType ? c : document.createTextNode(String(c))); }
+  return e;
+}
+function tk(p) { const e = h('span', { class: 'tk' }); if (p.startsWith(' ')) e.append(h('span', { class: 'sp' }, '␣'), p.slice(1)); else e.append(p); return e; }
+const tokOf = v => v === 0 ? h('span', { class: 'tk bos' }, 'start') : tk(VOC[v].p);
+const tokAt = pos => tokOf(M.SEQ[pos]);
+const plain = v => v === 0 ? 'start' : VOC[v].p.replace(/^ /, '␣');
+function rich(s) { return s.split(/(⟨[^⟩]*⟩)/).filter(Boolean).map(part => part.startsWith('⟨') ? tk(part.slice(1, -1)) : document.createTextNode(part)); }
+
+function setC(c, v, t = 'f', d = 2) {
+  c.classList.remove('f', 'i', 'e', 'x');
+  if (v == null) { c.classList.add('e'); c.textContent = ''; return; }
+  c.classList.add(t); c.textContent = fv(v, t, d);
+}
+function cell(v, t, d, extra) { const c = h('div', { class: 'c' + (extra ? ' ' + extra : '') }); setC(c, v, t, d); return c; }
+function row(vals, t = 'f', d = 2, o = {}) {
+  const w = h('div', { class: 'vec' + (vals.length > 8 ? ' wide' : '') });
+  w.style.setProperty('--n', vals.length);
+  if (vals.length >= 8 && Math.max(...vals.map(v => v == null ? 0 : fv(v, t, d).length)) >= 6) w.classList.add('big');
+  vals.forEach(v => w.append(cell(o.empty ? null : v, t, d, o.sm ? 'sm' : '')));
+  w.cells = [...w.children];
+  return w;
+}
+function labRow(nodes) { const w = h('div', { class: 'vec lab' }); w.style.setProperty('--n', nodes.length); nodes.forEach(n => w.append(h('span', null, n))); return w; }
+function block(label, content, right) {
+  return h('div', { class: 'blk' }, h('div', { class: 'bl' }, h('span', null, ...(typeof label === 'string' ? rich(label) : [label])), right ? h('span', { class: 'opchip' }, right) : null), content);
+}
+function lrow(lab, content, third, o = {}) {
+  const r = h('div', { class: 'lrow' + (third ? ' s3' : '') + (o.hl ? ' hl' : '') }, h('div', { class: 'l' }, ...(typeof lab === 'string' ? rich(lab) : [lab])), content, third || null);
+  if (o.lw) r.style.setProperty('--lw', o.lw);
+  if (o.rw) r.style.setProperty('--rw', o.rw);
+  return r;
+}
+function cards(list) { return h('div', { class: 'cards' }, list.map(([l, v]) => h('div', { class: 'card' }, h('span', null, ...rich(l)), h('b', null, v)))); }
+const note = s => h('p', { class: 'note' }, ...rich(s));
+const scroll = el => h('div', { class: 'scroll' }, el);
+function heat(v, m) {
+  const a = Math.min(1, Math.abs(v) / m), p = Math.round(12 + a * 68);
+  return { bg: `color-mix(in srgb, var(${v < 0 ? '--neg' : '--pos'}) ${p}%, var(--panel))`, strong: p > 48 };
+}
+function matrix(W, o = {}) {
+  const nOut = W.length, nIn = W[0].length, t = o.t || 'i';
+  const m = o.m || Math.max(...W.flat().map(Math.abs));
+  const g = h('div', { class: 'mat' + (t === 'h' ? ' h' : '') });
+  g.style.setProperty('--n', nOut);
+  const cells = [];
+  for (let i = 0; i < nIn; i++) {
+    cells.push([]);
+    for (let j = 0; j < nOut; j++) {
+      const v = W[j][i];
+      let c;
+      if (t === 'h') { c = h('div', { class: 'm h', title: f(v, 3) }); c.style.background = heat(v, m).bg; }
+      else c = h('div', { class: 'm ' + t }, fv(v, t, o.d ?? 2));
+      g.append(c); cells[i].push(c);
+    }
+  }
+  g.cellsRC = cells;
+  g.col = j => { g.classList.add('dimmed'); cells.forEach(r => r[j].classList.add('hc')); };
+  g.uncol = () => { g.classList.remove('dimmed'); cells.flat().forEach(c => c.classList.remove('hc')); };
+  return g;
+}
+function bars(items, o = {}) {
+  const w = h('div', { class: 'bars' });
+  if (o.lw) w.style.setProperty('--lw', o.lw);
+  w.rows = items.map(it => {
+    const fill = h('div', { class: 'bf' }), val = h('span', { class: 'bv' }, '');
+    const r = h('div', { class: 'br' }, h('span', { class: 'bl2' }, it.lab), h('div', { class: 'bt' }, fill), val);
+    w.append(r); return { r, fill, val };
+  });
+  w.set = (k, v) => { const rr = w.rows[k]; rr.fill.style.width = (Math.max(0, v) / o.max * 100) + '%'; rr.val.textContent = f(v, o.d ?? 2); };
+  return w;
+}
+function hot(els, on = true) { (Array.isArray(els) ? els : [els]).forEach(e => e && e.classList.toggle('hot', on)); }
+function seqFill(target, vals, t, d, start, gap, src) {
+  vals.forEach((v, k) => T(start + k * gap, () => {
+    target.cells.forEach(c => c.classList.remove('hot'));
+    if (src) src.forEach(s => { s.cells.forEach(c => c.classList.remove('hot')); if (s.cells[k]) s.cells[k].classList.add('hot'); });
+    setC(target.cells[k], v, t, d); target.cells[k].classList.add('hot');
+  }));
+  const end = start + vals.length * gap;
+  T(end + 250, () => { target.cells.forEach(c => c.classList.remove('hot')); if (src) src.forEach(s => s.cells.forEach(c => c.classList.remove('hot'))); });
+  return end + 300;
+}
+function termEl(a, b, i, at, ad, bt, bd) { return h('span', null, (i ? ' + ' : '') + fv(a, at, ad) + '×' + par(fv(b, bt, bd))); }
+
+function mm(st, o) {
+  const xt = o.xt || 'f', wt = o.wt || 'f', ot = o.ot || 'f', xd = o.xd ?? 2, od = o.od ?? 2;
+  const ct = wt === 'h' ? 'f' : wt;
+  const xr = row(o.x, xt, xd);
+  const mt = matrix(o.W, { t: wt, d: 2 });
+  const orow = row(o.out, ot, od);
+  orow.cells.forEach((c, j) => { if (j >= o.start) setC(c, null); });
+  const cl = h('div', { class: 'calc' }, h('span', { class: 'mut' }, 'The sum for the highlighted column appears here.'));
+  st.append(block(o.xLab, xr), block(o.wLab, scroll(mt), o.wRight), cl, block(o.oLab, orow, o.oRight));
+  let t = 300;
+  const end = o.end ?? o.out.length;
+  for (let j = o.start; j < end; j++) {
+    const slow = o.slow && j === o.start;
+    const terms = o.x.map((xv, i) => [xv, o.W[j][i]]);
+    T(t, () => { mt.uncol(); mt.col(j); orow.cells.forEach(c => c.classList.remove('hot')); xr.cells.forEach(c => c.classList.add('hot')); cl.replaceChildren(); });
+    if (slow) {
+      terms.forEach(([a, b], i) => T(t + 250 + i * 280, () => {
+        xr.cells.forEach(c => c.classList.remove('hot')); xr.cells[i].classList.add('hot');
+        mt.cellsRC.forEach(r => r[j].classList.remove('hc')); mt.cellsRC[i][j].classList.add('hc');
+        cl.append(termEl(a, b, i, xt, xd, ct, 2));
+      }));
+      t += 250 + terms.length * 280 + 250;
+    } else {
+      T(t, () => cl.replaceChildren(...terms.map(([a, b], i) => termEl(a, b, i, xt, xd, ct, 2))));
+      t += o.gap ?? 420;
+    }
+    T(t, () => {
+      cl.append(h('span', null, ' = '), h('b', null, fv(o.out[j], ot, od)));
+      setC(orow.cells[j], o.out[j], ot, od); orow.cells[j].classList.add('hot');
+      if (slow) { mt.col(j); xr.cells.forEach(c => c.classList.add('hot')); }
+    });
+    t += slow ? 1100 : 160;
+  }
+  T(t, () => { mt.uncol(); xr.cells.forEach(c => c.classList.remove('hot')); orow.cells.forEach(c => c.classList.remove('hot')); });
+  return t + 200;
+}
+function addAnim(st, la, a, lb, b, lc, c) {
+  const ra = row(a), rb = row(b), rc = row(c, 'f', 2, { empty: true });
+  st.append(h('div', { class: 'rows' }, lrow(la, ra), lrow('+ ' + lb, rb), lrow('= ' + lc, rc)));
+  return seqFill(rc, c, 'f', 2, 300, 260, [ra, rb]);
+}
+function pairBox(vals, t, d, heads, empty) {
+  const g = h('div', { class: 'pairs' }); const groups = vals.length / 2;
+  g.style.setProperty('--g', groups); g.cells = [];
+  for (let p = 0; p < groups; p++) {
+    const hd = Math.floor(p / 2) + 1, pi = p % 2 + 1;
+    const c1 = cell(empty ? null : vals[2 * p], t, d), c2 = cell(empty ? null : vals[2 * p + 1], t, d);
+    g.append(h('div', { class: 'pr' }, h('small', null, heads ? `head ${hd} · pair ${pi}` : `pair ${pi}`), c1, c2));
+    g.cells.push(c1, c2);
+  }
+  return g;
+}
+function seqChips(n, outFrom) {
+  const s = h('div', { class: 'seq' });
+  for (let i = 0; i < n; i++) s.append(h('span', { class: 'chip' + (outFrom != null && i >= outFrom ? ' out' : '') }, i === 0 ? '<|begin_of_text|>' : VOC[M.SEQ[i]].p.replace(/^ /, '␣')));
+  return s;
+}
+function sentence(n) {
+  const words = M.SEQ.slice(1, n).map(v => VOC[v].p);
+  const e = h('div', { class: 'sentence' });
+  words.forEach((w, i) => { if (i + 1 >= M.PROMPT_LEN) e.append(h('em', null, w)); else e.append(w); });
+  return e;
+}
+
+const NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+function dial(a, b, th, maxLen, label) {
+  const R0 = 46, cx = 60, cy = 60, len = Math.max(10, R0 * Math.hypot(a, b) / maxLen), p0 = Math.atan2(b, a);
+  const deg = th * 180 / Math.PI;
+  const svg = svgEl('svg', { viewBox: '0 0 120 120', role: 'img', 'aria-label': `${label}, turned ${deg.toFixed(1)} degrees` });
+  svg.append(svgEl('circle', { cx, cy, r: R0, fill: 'none', style: 'stroke:var(--line)', 'stroke-width': 1 }));
+  svg.append(svgEl('line', { x1: cx - R0, y1: cy, x2: cx + R0, y2: cy, style: 'stroke:var(--line)', 'stroke-width': 1 }));
+  svg.append(svgEl('line', { x1: cx, y1: cy - R0, x2: cx, y2: cy + R0, style: 'stroke:var(--line)', 'stroke-width': 1 }));
+  const pt = (ang, r) => [cx + r * Math.cos(ang), cy - r * Math.sin(ang)];
+  const [bx, by] = pt(p0, len);
+  svg.append(svgEl('line', { x1: cx, y1: cy, x2: bx, y2: by, style: 'stroke:var(--ink3)', 'stroke-width': 2, 'stroke-dasharray': '3 3', 'stroke-linecap': 'round' }));
+  const arc = svgEl('path', { d: '', fill: 'none', style: 'stroke:var(--hot)', 'stroke-width': 2 });
+  svg.append(arc);
+  const after = svgEl('line', { x1: cx, y1: cy, x2: bx, y2: by, style: 'stroke:var(--float)', 'stroke-width': 2.5, 'stroke-linecap': 'round' });
+  const tip = svgEl('circle', { cx: bx, cy: by, r: 3.5, style: 'fill:var(--float)' });
+  svg.append(after, tip);
+  const setAng = frac => {
+    const ang = p0 + th * frac, [x, y] = pt(ang, len);
+    after.setAttribute('x2', x); after.setAttribute('y2', y); tip.setAttribute('cx', x); tip.setAttribute('cy', y);
+    const sweep = th * frac;
+    if (Math.abs(sweep) < 0.02) { arc.setAttribute('d', ''); return; }
+    const r = 18, [x0, y0] = pt(p0, r), [x1, y1] = pt(ang, r);
+    arc.setAttribute('d', `M ${x0} ${y0} A ${r} ${r} 0 ${sweep > Math.PI ? 1 : 0} 0 ${x1} ${y1}`);
+  };
+  const wrap = h('div', { class: 'dial' }, svg, h('span', null, label), h('b', null, 'turn ' + (deg < 1 ? deg.toFixed(2) : deg.toFixed(1)) + '°'));
+  wrap.play = (delay, dur) => T(delay, () => {
+    if (RM) { setAng(1); return; }
+    const t0 = performance.now();
+    const step = now => { const k = Math.min(1, (now - t0) / dur); setAng(1 - Math.pow(1 - k, 3)); if (k < 1) rafs.push(requestAnimationFrame(step)); };
+    rafs.push(requestAnimationFrame(step));
+  });
+  return wrap;
+}
+
+const N1 = L0.n1, XQ = L0.xq;
+const xIs = R.embed[P];
+const keysQ = R.rec[0].slice(0, 6).map(r => r.kq);
+const vDec = R.rec[0].slice(0, 6).map(r => r.vq.i.map(v => v * r.vq.s));
+const H0 = L0.heads;
+const lastX = R.rec[M.L - 1][P].xo, finIs = R.fin[P];
+const logIs = M.logits[P], logA = M.logits[6];
+const L06 = R.rec[0][6];
+
+const STEPS = [];
+const add = o => STEPS.push(o);
+
+add({ n: 1, grp: 'Input', name: 'Prompt', op: 'You type text. The model cannot use letters, so it stays text until step 2.', size: '24 characters', subs: [
+  { cap: 'You type a sentence. To the computer it is a row of characters. Nothing has been computed yet.', run(st) {
+    const txt = 'The capital of France is', span = h('span'), box = h('div', { class: 'typebox' }, span, h('span', { class: 'caret' }));
+    const chars = h('div', { class: 'charrow' });
+    st.append(block('Your prompt', box), block('Stored as characters, one box each', chars));
+    [...txt].forEach((ch, i) => T(i * 60, () => { span.textContent += ch; chars.append(h('div', { class: 'ch' + (ch === ' ' ? ' spc' : '') }, ch === ' ' ? '␣' : ch)); }));
+    T(txt.length * 60 + 200, () => st.append(cards([['characters', '24'], ['numbers so far', '0']])));
+    return txt.length * 60 + 500;
+  } }
+] });
+
+const DICT = VOC.map((v, i) => ({ ...v, i })).sort((a, b) => a.id - b.id);
+add({ n: 2, grp: 'Input', name: 'Tokenise', op: 'The text is cut into pieces from a fixed dictionary, and each piece becomes its number.', size: 'dictionary: toy 12 pieces · real 128,256', subs: [
+  { cap: 'The text is cut into pieces that exist in the dictionary. Most pieces carry the space in front of them, shown here as ␣.', run(st) {
+    const line = h('div', { class: 'chips joined' });
+    M.SEQ.slice(1, 6).forEach(v => line.append(h('div', { class: 'chip' }, tk(VOC[v].p))));
+    st.append(block('The prompt, cut into pieces', line));
+    T(600, () => line.classList.remove('joined'));
+    return 1400;
+  } },
+  { cap: 'A start marker, <|begin_of_text|>, is put in front. It marks where the text begins.', run(st) {
+    const bos = h('div', { class: 'chip new' }, '<|begin_of_text|>');
+    const line = h('div', { class: 'chips' }, bos, ...M.SEQ.slice(1, 6).map(v => h('div', { class: 'chip' }, tk(VOC[v].p))));
+    st.append(block('Six pieces', line));
+    T(80, () => bos.classList.add('in'));
+    return 900;
+  } },
+  { cap: 'Each piece is looked up in the dictionary and replaced by its entry number.', run(st) {
+    const cols = M.SEQ.slice(0, 6).map(v => { const chip = h('div', { class: 'chip' }, v === 0 ? '<|begin_of_text|>' : tk(VOC[v].p)); const slot = h('div', { class: 'slot' }); return { v, chip, slot, el: h('div', { class: 'chipcol' }, chip, slot) }; });
+    const line = h('div', { class: 'chips' }, cols.map(c => c.el));
+    const drows = {};
+    const dict = h('div', { class: 'dict' }, DICT.map(d => { const e = h('div', null, h('b', null, d.id.toLocaleString('en-US')), h('span', null, d.i === 0 ? '<|begin_of_text|>' : d.p.replace(/^ /, '␣'))); drows[d.i] = e; return e; }));
+    st.append(block('Pieces', line), block('Dictionary (12 of 128,256 entries shown, sorted by number)', dict));
+    cols.forEach((c, k) => T(300 + k * 700, () => {
+      cols.forEach(o => o.chip.classList.remove('hot')); Object.values(drows).forEach(e => e.classList.remove('hot'));
+      c.chip.classList.add('hot'); drows[c.v].classList.add('hot');
+      T(300, () => { c.slot.textContent = VOC[c.v].id.toLocaleString('en-US'); });
+    }));
+    T(300 + 6 * 700 + 300, () => { cols.forEach(o => o.chip.classList.remove('hot')); Object.values(drows).forEach(e => e.classList.remove('hot')); });
+    return 300 + 6 * 700 + 500;
+  } },
+  { cap: 'The sentence is now six whole numbers. From here on, the model only sees these numbers.', run(st) {
+    const ids = M.SEQ.slice(0, 6).map(v => VOC[v].id);
+    st.append(block('Token numbers', h('div', { class: 'rows' }, row(ids, 'i'), labRow(M.SEQ.slice(0, 6).map(tokOf)))));
+    return 300;
+  } }
+] });
+
+function embTable(hiRow) {
+  const rows = VOC.map((v, r) => { const vr = row(M.E[r], 'f', 2, { sm: true }); const lr = lrow(h('span', null, VOC[r].id.toLocaleString('en-US') + ' ', tokOf(r)), vr, null, { lw: '150px' }); return { lr, vr }; });
+  const el = h('div', { class: 'rows' }, rows.map(r => r.lr));
+  el.tr = rows;
+  return el;
+}
+add({ n: 3, grp: 'Input', name: 'Embed', op: 'Each token number picks one row from a big table. The row is copied out as that token’s notebook.', size: 'table: toy 12 × 8 · real 128,256 × 4,096', subs: [
+  { cap: 'The model keeps a table with one row per dictionary entry. Each row is a list of decimals, fixed during training.', run(st) {
+    st.append(block('Embedding table (12 of 128,256 rows, 8 of 4,096 columns)', embTable()));
+    return 300;
+  } },
+  { cap: 'Each token number picks its row, and that row is copied out. The copy is the token’s notebook.', run(st) {
+    const tbl = embTable();
+    const nbs = M.SEQ.slice(0, 6).map(v => row(M.E[v], 'f', 2, { empty: true }));
+    st.append(block('Embedding table', tbl), block('Notebooks, one per token', h('div', { class: 'rows' }, nbs.map((r, k) => lrow(tokAt(k), r)))));
+    M.SEQ.slice(0, 6).forEach((v, k) => T(300 + k * 650, () => {
+      tbl.tr.forEach(r => r.vr.cells.forEach(c => c.classList.remove('hot')));
+      nbs.forEach(n => n.cells.forEach(c => c.classList.remove('hot')));
+      tbl.tr[v].vr.cells.forEach(c => c.classList.add('hot'));
+      T(250, () => nbs[k].cells.forEach((c, j) => { setC(c, M.E[v][j]); c.classList.add('hot'); }));
+    }));
+    T(300 + 6 * 650 + 400, () => { tbl.tr.forEach(r => r.vr.cells.forEach(c => c.classList.remove('hot'))); nbs.forEach(n => n.cells.forEach(c => c.classList.remove('hot'))); });
+    return 300 + 6 * 650 + 600;
+  } },
+  { cap: 'Six notebooks, one per token. From here we follow the notebook of ⟨ is⟩, the last token. The other five go through exactly the same steps.', run(st) {
+    st.append(block('Notebooks', h('div', { class: 'rows' }, R.embed.slice(0, 6).map((x, k) => lrow(tokAt(k), row(x), null, { hl: k === P })))));
+    st.append(cards([['numbers per notebook', '8 (real 4,096)'], ['notebooks', '6, one per token']]));
+    return 300;
+  } }
+] });
+
+const g1 = W0.g1;
+const normSubs = (x, n, g, labA, mk) => [
+  { cap: `Start: the notebook of ⟨ is⟩${mk}.`, run(st) { st.append(block(labA, row(x)), block('Result', row(x, 'f', 2, { empty: true }))); return 300; } },
+  { cap: 'Square every number.', run(st) { const a = row(x), b = row(n.sq, 'f', 3, { empty: true }); st.append(block(labA, a), block('Result', b, 'x × x')); return seqFill(b, n.sq, 'f', 3, 300, 200, [a]); } },
+  { cap: 'Add up the 8 squares and divide by 8. This is their average.', run(st) {
+    const a = row(x), b = row(n.sq, 'f', 3); st.append(block(labA, a), block('Squares', b, 'sum ÷ 8'));
+    const cd = h('div'); st.append(cd);
+    T(250, () => hot(b.cells)); T(900, () => { hot(b.cells, false); cd.append(cards([['average of squares', f(n.mean, 4)]])); });
+    return 1100;
+  } },
+  { cap: 'Add a tiny 0.00001 (so nothing is ever divided by zero), then take the square root. Call the result rms.', run(st) {
+    st.append(block(labA, row(x)), block('Squares', row(n.sq, 'f', 3)), cards([['average of squares', f(n.mean, 4)], ['rms = √(average + 0.00001)', f(n.r, 4)]]));
+    return 400;
+  } },
+  { cap: 'Divide every notebook number by rms.', run(st) { const a = row(x), b = row(n.n, 'f', 2, { empty: true }); st.append(block(labA, a), block('Result', b, '÷ ' + f(n.r, 3)), cards([['rms', f(n.r, 4)]])); return seqFill(b, n.n, 'f', 2, 300, 200, [a]); } },
+  { cap: 'Multiply each number by its own learned weight. The notebook itself is left as it was; this normalised copy is what moves on.', run(st) {
+    const a = row(n.n), gw = row(g), b = row(n.y, 'f', 2, { empty: true });
+    st.append(block('After dividing by rms', a), block('Learned weight (fixed, from training)', gw), block('Normalised copy', b, '× weight'));
+    return seqFill(b, n.y, 'f', 2, 300, 200, [a, gw]);
+  } }
+];
+add({ n: 4, grp: 'Layer 0', name: 'Norm 1', op: 'The notebook is rescaled to a standard size. The layer works on a normalised copy.', size: 'toy 8 numbers · real 4,096', subs: normSubs(xIs, N1, g1, 'Notebook of ⟨ is⟩', ', straight from the embedding table') });
+
+const qs = XQ.s;
+add({ n: 5, grp: 'Layer 0', name: 'Requantise', op: 'Decimals are rounded to whole numbers between −127 and 127, with one scale per token. Done for the proof; normal serving skips it.', size: 'toy 8 numbers · real 4,096', subs: [
+  { cap: 'Start: the normalised copy from step 4. These are still decimals.', run(st) { st.append(block('Normalised copy', row(N1.y)), block('Result', row(N1.y, 'f', 2, { empty: true }))); return 300; } },
+  { cap: 'Find the number furthest from zero, ignoring its sign.', run(st) {
+    const a = row(N1.y); st.append(block('Normalised copy', a));
+    a.cells.forEach((c, k) => T(200 + k * 160, () => { a.cells.forEach(x => x.classList.remove('hot')); c.classList.add('hot'); }));
+    T(200 + 8 * 160 + 100, () => { a.cells.forEach(x => x.classList.remove('hot')); a.cells[XQ.mi].classList.add('hot'); st.append(cards([['largest size', f(XQ.m, 4)]])); });
+    return 200 + 8 * 160 + 400;
+  } },
+  { cap: 'Divide that largest size by 127. This one number is the token’s scale.', run(st) {
+    const a = row(N1.y); a.cells[XQ.mi].classList.add('hot');
+    st.append(block('Normalised copy', a), cards([['largest size', f(XQ.m, 4)], ['scale = largest ÷ 127', f(qs, 5)]]));
+    return 400;
+  } },
+  { cap: 'Divide every number by the scale. The largest one lands exactly on ±127.', run(st) {
+    const a = row(N1.y), dv = N1.y.map(v => v / qs), b = row(dv, 'f', 1, { empty: true });
+    st.append(block('Normalised copy', a), block('Result', b, '÷ ' + f(qs, 5)), cards([['scale', f(qs, 5)]]));
+    return seqFill(b, dv, 'f', 1, 300, 200, [a]);
+  } },
+  { cap: 'Round each to the nearest whole number. What is stored: 8 whole numbers and 1 scale.', run(st) {
+    const dv = N1.y.map(v => v / qs), a = row(dv, 'f', 1), b = row(XQ.i, 'i', 0, { empty: true });
+    st.append(block('Divided by scale', a), block('Whole numbers', b, 'round'), cards([['scale (kept)', f(qs, 5)]]));
+    return seqFill(b, XQ.i, 'i', 0, 300, 220, [a]);
+  } }
+] });
+
+add({ n: 6, grp: 'Layer 0', name: 'q, k, v matmul', op: 'Three weight matrices turn the notebook into a query, a key and a value.', size: 'toy 8 → q 8, k 4, v 4 · real 4,096 → 4,096, 1,024, 1,024', subs: [
+  { cap: 'The weights are stored as whole numbers too. Each output number comes from one column of the matrix: 8 rows in, one column per output.', run(st) {
+    st.append(block('Input: whole numbers from step 5', row(XQ.i, 'i')), block('q weight matrix (8 × 8; real 4,096 × 4,096)', scroll(matrix(W0.Qq.i))), block('q output', row(L0.acc.q, 'i', 0, { empty: true })));
+    return 300;
+  } },
+  { cap: 'First q number: multiply each input number by the matching number in column 1, then add up all 8 results.', run(st) {
+    return mm(st, { x: XQ.i, xt: 'i', W: W0.Qq.i, wt: 'i', out: L0.acc.q, ot: 'i', start: 0, end: 1, slow: true, xLab: 'Input', wLab: 'q weight matrix', oLab: 'q output' });
+  } },
+  { cap: 'Every other column works the same way, which gives all 8 q numbers.', run(st) {
+    return mm(st, { x: XQ.i, xt: 'i', W: W0.Qq.i, wt: 'i', out: L0.acc.q, ot: 'i', start: 1, gap: 450, xLab: 'Input', wLab: 'q weight matrix', oLab: 'q output' });
+  } },
+  { cap: 'k uses its own matrix. It has only 4 columns, so k has 4 numbers. In the real model k is 1,024 numbers while q is 4,096.', run(st) {
+    return mm(st, { x: XQ.i, xt: 'i', W: W0.Qk.i, wt: 'i', out: L0.acc.k, ot: 'i', start: 0, gap: 450, xLab: 'Input (same as for q)', wLab: 'k weight matrix (8 × 4; real 4,096 × 1,024)', oLab: 'k output' });
+  } },
+  { cap: 'v is made the same way with a third matrix. Each sum is a big whole number; in the real model every sum adds up 4,096 products.', run(st) {
+    const ms = mm(st, { x: XQ.i, xt: 'i', W: W0.Qv.i, wt: 'i', out: L0.acc.v, ot: 'i', start: 0, gap: 450, xLab: 'Input (same again)', wLab: 'v weight matrix (8 × 4; real 4,096 × 1,024)', oLab: 'v output' });
+    return ms;
+  } }
+] });
+
+const deqAll = [...L0.deq.q, ...L0.deq.k, ...L0.deq.v];
+add({ n: 7, grp: 'Layer 0', name: 'Dequantise', op: 'The whole-number sums are multiplied by the scales to get decimals back.', size: 'toy 16 numbers · real 6,144', subs: [
+  { cap: 'Two scales are needed: the token’s scale from step 5 and the scale stored with each weight matrix.', run(st) {
+    st.append(block('q sums', row(L0.acc.q, 'i')), h('div', { class: 'two' }, block('k sums', row(L0.acc.k, 'i')), block('v sums', row(L0.acc.v, 'i'))));
+    st.append(cards([['token scale', f(qs, 5)], ['q weights scale', f(W0.Qq.s, 5)], ['k weights scale', f(W0.Qk.s, 5)], ['v weights scale', f(W0.Qv.s, 5)]]));
+    return 300;
+  } },
+  { cap: 'Multiply every sum by the token scale and by its matrix’s scale.', run(st) {
+    const aq = row(L0.acc.q, 'i'), ak = row(L0.acc.k, 'i'), av = row(L0.acc.v, 'i');
+    const bq = row(L0.deq.q, 'f', 2, { empty: true }), bk = row(L0.deq.k, 'f', 2, { empty: true }), bv = row(L0.deq.v, 'f', 2, { empty: true });
+    const cl = h('div', { class: 'calc' }, `${fi(L0.acc.q[0])} × ${f(qs, 5)} × ${f(W0.Qq.s, 5)} = `, h('b', null, f(L0.deq.q[0], 2)));
+    st.append(block('q sums', aq), block('q decimals', bq, '× token scale × q scale'), cl,
+      h('div', { class: 'two' }, h('div', { class: 'rows' }, block('k sums', ak), block('k decimals', bk)), h('div', { class: 'rows' }, block('v sums', av), block('v decimals', bv))));
+    let t = seqFill(bq, L0.deq.q, 'f', 2, 300, 180, [aq]);
+    t = seqFill(bk, L0.deq.k, 'f', 2, t, 180, [ak]);
+    return seqFill(bv, L0.deq.v, 'f', 2, t, 180, [av]);
+  } }
+] });
+
+const ropeAng = L0.rq.ang;
+add({ n: 8, grp: 'Layer 0', name: 'RoPE + quantise', op: 'Pairs of numbers in q and k are rotated by an angle that depends on the token’s position. Then q, k, v are rounded to whole numbers.', size: 'toy 4 + 2 pairs · real 2,048 + 512 pairs', subs: [
+  { cap: 'q and k are taken two numbers at a time. q has 4 pairs (2 per head), k has 2 pairs. v is not touched.', run(st) {
+    st.append(block('q (2 heads × 4 numbers)', pairBox(L0.deq.q, 'f', 2, true)), h('div', { class: 'two' }, block('k', pairBox(L0.deq.k, 'f', 2, false)), block('v (not rotated)', row(L0.deq.v))));
+    st.append(cards([['position of ⟨ is⟩', '5'], ['counting from', 'start = 0']]));
+    return 300;
+  } },
+  { cap: 'Each pair gets an angle: position × a fixed speed. Pair 1 in each head turns fast, pair 2 turns very slowly.', run(st) {
+    st.append(cards([['pair 1 speed', '1'], ['pair 1 angle = 5 × 1', `${f(ropeAng[0], 3)} rad (${f(ropeAng[0] * 180 / Math.PI, 1)}°)`], ['pair 2 speed', f(M.freq(1), 5)], ['pair 2 angle = 5 × ' + f(M.freq(1), 5), `${f(ropeAng[1], 4)} rad (${f(ropeAng[1] * 180 / Math.PI, 2)}°)`]]));
+    st.append(note('Speed of pair j = 500,000 to the power of −j ÷ (half the head size). Toy heads have 2 pairs; real heads have 64 pairs, with speeds from 1 down to about 0.0000025.'));
+    return 300;
+  } },
+  { cap: 'Rotate each pair by its angle: new first = a·cos − b·sin, new second = a·sin + b·cos. The dashed arrow is before, the solid arrow is after.', run(st) {
+    const q0 = L0.deq.q, k0 = L0.deq.k, q1 = L0.rq.out, k1 = L0.rk.out;
+    const pairs = [];
+    for (let p = 0; p < 4; p++) pairs.push({ a: q0[2 * p], b: q0[2 * p + 1], th: ropeAng[p], lab: `q head ${Math.floor(p / 2) + 1} · pair ${p % 2 + 1}` });
+    for (let p = 0; p < 2; p++) pairs.push({ a: k0[2 * p], b: k0[2 * p + 1], th: L0.rk.ang[p], lab: `k · pair ${p + 1}` });
+    const maxLen = Math.max(...pairs.map(p => Math.hypot(p.a, p.b)));
+    const dials = pairs.map(p => dial(p.a, p.b, p.th, maxLen, p.lab));
+    const qb = pairBox(q1, 'f', 2, true, true), kb = pairBox(k1, 'f', 2, false, true);
+    st.append(h('div', { class: 'dials' }, dials), block('q after rotation', qb), block('k after rotation', kb));
+    dials.forEach(d => d.play(300, 1600));
+    T(2000, () => { qb.cells.forEach((c, i) => setC(c, q1[i])); kb.cells.forEach((c, i) => setC(c, k1[i])); hot(qb.cells); hot(kb.cells); });
+    T(2700, () => { hot(qb.cells, false); hot(kb.cells, false); });
+    return 2800;
+  } },
+  { cap: 'q, k and v are each rounded to whole numbers again, the same way as step 5. Each gets its own scale.', run(st) {
+    const aq = row(L0.rq.out), bq = row(L0.qq.i, 'i', 0, { empty: true });
+    const ak = row(L0.rk.out), bk = row(L0.kq.i, 'i', 0, { empty: true });
+    const av = row(L0.deq.v), bv = row(L0.vq.i, 'i', 0, { empty: true });
+    st.append(block('q', aq), block('q whole numbers', bq, 'scale ' + f(L0.qq.s, 5)),
+      h('div', { class: 'two' }, h('div', { class: 'rows' }, block('k', ak), block('k whole numbers', bk, 'scale ' + f(L0.kq.s, 5))), h('div', { class: 'rows' }, block('v', av), block('v whole numbers', bv, 'scale ' + f(L0.vq.s, 5)))));
+    let t = seqFill(bq, L0.qq.i, 'i', 0, 300, 150, [aq]);
+    t = seqFill(bk, L0.kq.i, 'i', 0, t, 150, [ak]);
+    return seqFill(bv, L0.vq.i, 'i', 0, t, 150, [av]);
+  } }
+] });
+
+const toks6 = M.SEQ.slice(0, 6);
+const qHead = hh => L0.qq.i.slice(hh * 4, hh * 4 + 4);
+function keyTable(hiRow) {
+  const rws = keysQ.map((k, u) => { const r = row(k.i, 'i'); return { r, el: lrow(tokAt(u), r, h('span', { class: 'l' }, '× ' + f(k.s, 5)), { hl: u === hiRow, rw: '84px' }) }; });
+  const el = h('div', { class: 'rows' }, rws.map(x => x.el)); el.rws = rws; return el;
+}
+function scoreGrid(vals, t, d, empty) {
+  const rs = [0, 1].map(hh => row(vals[hh], t, d, { empty }));
+  const el = h('div', { class: 'rows' }, lrow('', labRow(toks6.map(tokOf))), rs.map((r, hh) => lrow(`head ${hh + 1}`, r)));
+  el.rs = rs; return el;
+}
+add({ n: 9, grp: 'Layer 0', name: 'Attention', op: 'The only step where tokens look at each other. q is compared with every earlier k; the scores become weights that add up to 1.', size: 'toy 2 heads × 6 tokens · real 32 heads × every token', subs: [
+  { cap: 'Every token made its own k in this layer (each rotated at its own position). ⟨ is⟩ compares its q with all six keys, its own included.', run(st) {
+    st.append(h('div', { class: 'two' }, block('q of ⟨ is⟩, head 1', row(qHead(0), 'i')), block('q of ⟨ is⟩, head 2', row(qHead(1), 'i'))), block('k of every token (one shared key head)', keyTable(P)));
+    st.append(note('Real model: 32 query heads share 8 key heads, 4 query heads per key head. The toy has 2 query heads sharing 1.'));
+    return 300;
+  } },
+  { cap: 'One score: multiply q and k number by number, then add. Here, head 1 against the start marker.', run(st) {
+    const qr = row(qHead(0), 'i'), kt = keyTable(-1), sg = scoreGrid(H0.map(x => x.si), 'i', 0, true), cl = h('div', { class: 'calc' }, h('span', { class: 'mut' }, ' '));
+    st.append(block('q of ⟨ is⟩, head 1', qr), block('k of every token', kt), cl, block('Scores', sg));
+    T(300, () => { hot(qr.cells); hot(kt.rws[0].r.cells); });
+    const qv = qHead(0), kv = keysQ[0].i;
+    qv.forEach((a, i) => T(700 + i * 400, () => cl.replaceChildren(...qv.slice(0, i + 1).map((x, j) => termEl(x, kv[j], j, 'i', 0, 'i', 0)))));
+    T(700 + 4 * 400 + 200, () => { cl.append(h('span', null, ' = '), h('b', null, fi(H0[0].si[0]))); setC(sg.rs[0].cells[0], H0[0].si[0], 'i'); hot(sg.rs[0].cells[0]); });
+    return 700 + 4 * 400 + 800;
+  } },
+  { cap: 'Both heads do this against all six keys. They use the same keys, but different q numbers.', run(st) {
+    const kt = keyTable(-1), sg = scoreGrid(H0.map(x => x.si), 'i', 0, true);
+    setC(sg.rs[0].cells[0], H0[0].si[0], 'i');
+    st.append(h('div', { class: 'two' }, block('q of ⟨ is⟩, head 1', row(qHead(0), 'i')), block('q of ⟨ is⟩, head 2', row(qHead(1), 'i'))), block('k of every token', kt), block('Scores (whole numbers)', sg));
+    let t = 300;
+    for (let hh = 0; hh < 2; hh++) for (let u = 0; u < 6; u++) {
+      if (hh === 0 && u === 0) continue;
+      T(t, () => { kt.rws.forEach(x => hot(x.r.cells, false)); sg.rs.forEach(r => hot(r.cells, false)); hot(kt.rws[u].r.cells); setC(sg.rs[hh].cells[u], H0[hh].si[u], 'i'); hot(sg.rs[hh].cells[u]); });
+      t += 260;
+    }
+    T(t + 200, () => { kt.rws.forEach(x => hot(x.r.cells, false)); sg.rs.forEach(r => hot(r.cells, false)); });
+    return t + 300;
+  } },
+  { cap: 'Scale the scores back to decimals: × q scale × that token’s k scale, then ÷ √4, because each toy head has 4 numbers (÷ √128 in the real model).', run(st) {
+    const a = scoreGrid(H0.map(x => x.si), 'i', 0), b = scoreGrid(H0.map(x => x.sc), 'f', 2, true);
+    const cl = h('div', { class: 'calc' }, `${fi(H0[0].si[0])} × ${f(L0.qq.s, 5)} × ${f(keysQ[0].s, 5)} ÷ 2 = `, h('b', null, f(H0[0].sc[0], 2)));
+    st.append(block('Scores (whole numbers)', a), cl, block('Scores (decimals)', b));
+    let t = seqFill(b.rs[0], H0[0].sc, 'f', 2, 300, 180, [a.rs[0]]);
+    return seqFill(b.rs[1], H0[1].sc, 'f', 2, t, 180, [a.rs[1]]);
+  } },
+  { cap: 'A token may only look at itself and earlier tokens; later positions are blocked. ⟨ is⟩ is last, so nothing is blocked for it. Shown: head 1 for all six tokens.', run(st) {
+    const grid = h('div', { class: 'rows' }, lrow('key from →', labRow(toks6.map(tokOf))));
+    const rowsEls = [];
+    for (let t = 0; t < 6; t++) {
+      const sc = R.rec[0][t].heads[0].sc;
+      const r = row(Array.from({ length: 6 }, (_, u) => u <= t ? sc[u] : null));
+      r.cells.forEach((c, u) => { if (u > t) { c.className = 'c x'; c.textContent = MINUS + '∞'; c.style.opacity = '0'; } });
+      rowsEls.push(r); grid.append(lrow(h('span', null, tokAt(t)), r, null, { hl: t === P }));
+    }
+    st.append(block('Head 1 scores, one row per token', grid));
+    rowsEls.forEach((r, t) => r.cells.forEach((c, u) => { if (u > t) T(400 + (t * 6 + u) * 40, () => { c.style.transition = 'opacity .3s'; c.style.opacity = '1'; }); }));
+    T(1500, () => hot(rowsEls[P].cells));
+    return 1800;
+  } },
+  { cap: 'Turn each row of scores into weights: take e to the power of (score − largest score), then divide each by the total. The weights add up to 1.', run(st) {
+    const hd = H0[0], a = row(hd.sc), b = row(hd.ex, 'f', 3, { empty: true }), c = row(hd.w, 'f', 2, { empty: true });
+    st.append(h('div', { class: 'rows' }, lrow('', labRow(toks6.map(tokOf))), lrow('score', a), lrow('e^(score − ' + f(hd.mx, 2) + ')', b), lrow('weight', c)));
+    const cd = h('div'); st.append(cd);
+    let t = seqFill(b, hd.ex, 'f', 3, 300, 160, [a]);
+    T(t, () => cd.append(cards([['total', f(hd.sum, 3)]])));
+    t = seqFill(c, hd.w, 'f', 2, t + 300, 160, [b]);
+    const b1 = bars(toks6.map(tokOf), { max: 1 }), b2 = bars(toks6.map(tokOf), { max: 1 });
+    b1.querySelectorAll('.bl2').forEach((e, i) => { e.replaceChildren(tokAt(i)); });
+    b2.querySelectorAll('.bl2').forEach((e, i) => { e.replaceChildren(tokAt(i)); });
+    T(t + 100, () => { st.append(h('div', { class: 'two' }, block('Head 1 weights', b1), block('Head 2 weights', b2))); H0[0].w.forEach((w, i) => b1.set(i, w)); H0[1].w.forEach((w, i) => b2.set(i, w)); });
+    return t + 700;
+  } }
+] });
+
+function vTable(withW) {
+  const rws = vDec.map((v, u) => { const r = row(v), w = withW ? row([H0[0].w[u], H0[1].w[u]]) : null; return { r, w, el: lrow(tokAt(u), r, w, { rw: '110px' }) }; });
+  const head = withW ? lrow('', labRow(['v1', 'v2', 'v3', 'v4']), labRow(['head 1', 'head 2']), { rw: '110px' }) : null;
+  const el = h('div', { class: 'rows' }, head, rws.map(x => x.el)); el.rws = rws; return el;
+}
+function mixAnim(st, hh, quick) {
+  const tbl = vTable(true), out = row(H0[hh].out, 'f', 2, { empty: true }), cl = h('div', { class: 'calc' });
+  st.append(block('v of every token (decimals) and the weights from step 9', tbl), cl, block(`Head ${hh + 1} result`, out));
+  const acc = [0, 0, 0, 0]; const gap = quick ? 380 : 700;
+  vDec.forEach((v, u) => T(300 + u * gap, () => {
+    tbl.rws.forEach(x => { hot(x.r.cells, false); hot(x.w.cells, false); });
+    hot(tbl.rws[u].r.cells); hot(tbl.rws[u].w.cells[hh]);
+    const w = H0[hh].w[u];
+    v.forEach((x, d) => { acc[d] += w * x; setC(out.cells[d], acc[d]); });
+    hot(out.cells);
+    cl.append(h('span', null, (u ? ' + ' : '') + f(w, 2) + ' × v(' + plain(M.SEQ[u]) + ')'));
+  }));
+  T(300 + 6 * gap + 200, () => { tbl.rws.forEach(x => { hot(x.r.cells, false); hot(x.w.cells, false); }); hot(out.cells, false); });
+  return 300 + 6 * gap + 300;
+}
+add({ n: 10, grp: 'Layer 0', name: 'Attention out', op: 'Each head collects a weighted mix of the v rows. This is where information is copied between tokens.', size: 'toy 2 heads × 4 · real 32 heads × 128', subs: [
+  { cap: 'Each token’s v is turned back into decimals (its whole numbers × its scale). The weights from step 9 sit next to each row.', run(st) { st.append(block('v of every token', vTable(true))); return 300; } },
+  { cap: 'Head 1: multiply each token’s v by its weight, and add the results together.', run(st) { return mixAnim(st, 0, false); } },
+  { cap: 'Head 2 mixes the same v rows, using its own weights.', run(st) { return mixAnim(st, 1, true); } },
+  { cap: 'Put the two head results side by side: 4 + 4 = 8 numbers, the same length as a notebook.', run(st) {
+    const a = row(H0[0].out), b = row(H0[1].out), c = row(L0.ao, 'f', 2, { empty: true });
+    st.append(h('div', { class: 'two' }, block('Head 1 result', a), block('Head 2 result', b)), block('Joined', c));
+    return seqFill(c, L0.ao, 'f', 2, 300, 150);
+  } }
+] });
+
+add({ n: 11, grp: 'Layer 0', name: 'o + residual', op: 'A fourth matrix mixes the attention result, and the result is added to the notebook.', size: 'toy 8 × 8 · real 4,096 × 4,096', subs: [
+  { cap: 'The o weight matrix: the same row-times-column sums as step 6.', run(st) {
+    const ms = mm(st, { x: L0.ao, W: W0.Wo, wt: 'f', out: L0.o, start: 0, slow: true, gap: 380, xLab: 'Attention result from step 10', wLab: 'o weight matrix (8 × 8)', oLab: 'o output' });
+    st.append(note('In the proof version this multiply also goes round → whole-number multiply → scale back, like steps 5 to 7. Here it is shown directly in decimals.'));
+    return ms;
+  } },
+  { cap: 'Add the o output to the notebook, number by number. Added, not replaced, so nothing earlier is lost.', run(st) { return addAnim(st, 'notebook', xIs, 'o output', L0.o, 'notebook', L0.xm); } }
+] });
+
+const n2 = L0.n2;
+add({ n: 12, grp: 'Layer 0', name: 'MLP + residual', op: 'Each token on its own: normalise, expand to 16, gate, shrink back to 8, add to the notebook.', size: 'toy 8 → 16 → 8 · real 4,096 → 14,336 → 4,096', subs: [
+  { cap: 'Normalise the notebook again, exactly like step 4 but with a different learned weight.', run(st) {
+    const a = row(L0.xm), b = row(n2.y, 'f', 2, { empty: true });
+    st.append(block('Notebook (after step 11)', a), block('Normalised copy', b, '÷ rms × weight'), cards([['rms', f(n2.r, 4)]]));
+    return seqFill(b, n2.y, 'f', 2, 300, 160, [a]);
+  } },
+  { cap: 'Two matrices expand the 8 numbers into 16 each: a “gate” list and an “up” list. Colour shows each weight’s sign and size.', run(st) {
+    const x = row(n2.y), mg = matrix(W0.Wg, { t: 'h' }), mu = matrix(W0.Wu, { t: 'h' });
+    const og = row(L0.gate, 'f', 2, { empty: true }), ou = row(L0.up, 'f', 2, { empty: true });
+    st.append(block('Normalised copy', x), h('div', { class: 'two' }, block('gate matrix (8 × 16)', scroll(mg)), block('up matrix (8 × 16)', scroll(mu))), block('gate output', og), block('up output', ou));
+    let t = 300;
+    for (let j = 0; j < 16; j++) T(t + j * 130, () => { mg.uncol(); mg.col(j); og.cells.forEach(c => c.classList.remove('hot')); setC(og.cells[j], L0.gate[j]); og.cells[j].classList.add('hot'); });
+    t += 16 * 130 + 200;
+    for (let j = 0; j < 16; j++) T(t + j * 130, () => { mg.uncol(); mu.uncol(); mu.col(j); og.cells.forEach(c => c.classList.remove('hot')); ou.cells.forEach(c => c.classList.remove('hot')); setC(ou.cells[j], L0.up[j]); ou.cells[j].classList.add('hot'); });
+    t += 16 * 130 + 200;
+    T(t, () => { mu.uncol(); ou.cells.forEach(c => c.classList.remove('hot')); });
+    return t + 200;
+  } },
+  { cap: 'Apply SiLU to every gate number: z ÷ (1 + e^(−z)). Negative numbers are squashed towards zero; positive ones mostly pass through.', run(st) {
+    const a = row(L0.gate), b = row(L0.sg, 'f', 2, { empty: true });
+    const cl = h('div', { class: 'calc' }, `${f(L0.gate[0], 2)} ÷ (1 + e^(${f(-L0.gate[0], 2)})) = `, h('b', null, f(L0.sg[0], 2)));
+    st.append(block('gate', a), cl, block('SiLU(gate)', b));
+    return seqFill(b, L0.sg, 'f', 2, 300, 130, [a]);
+  } },
+  { cap: 'Multiply SiLU(gate) and up, position by position. Where the gate is near zero, that feature is switched off.', run(st) {
+    const a = row(L0.sg), b = row(L0.up), c = row(L0.prod, 'f', 2, { empty: true });
+    st.append(block('SiLU(gate)', a), block('up', b), block('Product', c, '×'));
+    return seqFill(c, L0.prod, 'f', 2, 300, 130, [a, b]);
+  } },
+  { cap: 'A third matrix shrinks the 16 numbers back to 8.', run(st) {
+    return mm(st, { x: L0.prod, W: W0.Wd, wt: 'h', out: L0.down, start: 0, slow: true, gap: 380, xLab: 'Product (16 numbers)', wLab: 'down matrix (16 × 8; real 14,336 × 4,096)', oLab: 'down output' });
+  } },
+  { cap: 'Add the result to the notebook again. That finishes layer 0.', run(st) { return addAnim(st, 'notebook', L0.xm, 'down output', L0.down, 'notebook', L0.xo); } }
+] });
+
+const layerRows = [xIs, ...R.rec.map(r => r[P].xo)];
+const hmMax = Math.max(...layerRows.flat().map(Math.abs));
+function heatGrid(filled) {
+  const g = h('div', { class: 'hg' }); const rs = [];
+  layerRows.forEach((x, k) => {
+    const lab = h('span', { class: 'hl' }, k === 0 ? 'embed' : 'layer ' + (k - 1));
+    g.append(lab); const cs = x.map(() => h('div', { class: 'hc' })); cs.forEach(c => g.append(c)); rs.push({ lab, cs });
+  });
+  g.fill = k => { rs[k].cs.forEach((c, j) => { const v = layerRows[k][j], hc = heat(v, hmMax); c.style.background = hc.bg; c.style.color = hc.strong ? 'var(--onheat)' : 'var(--ink)'; c.textContent = f(v, 1); c.classList.add('full'); }); rs.forEach(r => r.lab.classList.remove('on')); rs[k].lab.classList.add('on'); };
+  for (let k = 0; k < filled; k++) g.fill(k);
+  return g;
+}
+add({ n: 13, grp: 'Layers 1 to 31', name: 'Layers 1 to 31', op: 'Steps 4 to 12 are one layer. The same steps run 31 more times, each layer with its own weights.', size: 'toy and real: 32 layers', subs: [
+  { cap: 'Each row below is the notebook of ⟨ is⟩ at one point. So far: straight from the table, and after layer 0.', run(st) {
+    st.append(block('Notebook of ⟨ is⟩, layer by layer', scroll(heatGrid(2))));
+    return 300;
+  } },
+  { cap: 'Layers 1 to 31 repeat steps 4 to 12, each with its own weights. All six tokens go through every layer, because later layers need every token’s k and v.', run(st) {
+    const g = heatGrid(2), cnt = h('b', null, 'layer 0');
+    st.append(h('div', { class: 'cards' }, h('div', { class: 'card' }, h('span', null, 'now finished'), cnt), h('div', { class: 'card' }, h('span', null, 'weights per layer (real)'), h('b', null, '218 million'))), block('Notebook of ⟨ is⟩, layer by layer', scroll(g)));
+    for (let k = 2; k < layerRows.length; k++) T(300 + (k - 2) * 140, () => { g.fill(k); cnt.textContent = 'layer ' + (k - 1); });
+    return 300 + (layerRows.length - 2) * 140 + 300;
+  } },
+  { cap: 'The notebook of ⟨ is⟩ after layer 31. Only this last token’s notebook is used to predict what comes next.', run(st) {
+    st.append(block('Notebook of ⟨ is⟩ after layer 31', row(lastX)), cards([['layers run', '32'], ['real weights in all layers', '≈ 7 billion']]));
+    return 300;
+  } }
+] });
+
+const headLabels = VOC.map((v, i) => tokOf(i));
+add({ n: 14, grp: 'Output', name: 'Head', op: 'One more normalise, then the largest matrix turns the last notebook into one score per dictionary piece.', size: 'toy 12 scores · real 128,256', subs: [
+  { cap: 'Normalise the final notebook, the same way as step 4, with its own learned weight.', run(st) {
+    const a = row(lastX), b = row(finIs.y, 'f', 2, { empty: true });
+    st.append(block('Notebook after layer 31', a), block('Normalised copy', b, '÷ rms × weight'), cards([['rms', f(finIs.r, 4)]]));
+    return seqFill(b, finIs.y, 'f', 2, 300, 160, [a]);
+  } },
+  { cap: 'The output matrix has one column per dictionary piece. Each column’s row-times-column sum is that piece’s score.', run(st) {
+    const x = row(finIs.y), mt = matrix(M.Whead, { t: 'h' });
+    const bl = bars(headLabels, { max: Math.max(...logIs), lw: '120px' });
+    bl.querySelectorAll('.bl2').forEach((e, i) => e.replaceChildren(tokOf(i)));
+    st.append(block('Normalised copy', x), block('Output matrix (8 × 12; real 4,096 × 128,256)', scroll(mt)), block('Scores', bl));
+    VOC.forEach((_, j) => T(300 + j * 260, () => { mt.uncol(); mt.col(j); bl.rows.forEach(r => r.r.classList.remove('hot')); bl.rows[j].r.classList.add('hot'); bl.set(j, logIs[j]); }));
+    T(300 + 12 * 260 + 200, () => { mt.uncol(); bl.rows.forEach(r => r.r.classList.remove('hot')); });
+    return 300 + 12 * 260 + 400;
+  } }
+] });
+
+const win = M.argmax(logIs);
+function scoreBars(lg) {
+  const bl = bars(headLabels, { max: Math.max(...lg), lw: '120px' });
+  bl.querySelectorAll('.bl2').forEach((e, i) => e.replaceChildren(tokOf(i)));
+  lg.forEach((v, i) => bl.set(i, v));
+  return bl;
+}
+add({ n: 15, grp: 'Output', name: 'Argmax', op: 'Pick the highest score. That is greedy decoding: no randomness.', size: 'toy 12 scores · real 128,256', subs: [
+  { cap: 'Walk down the list of scores, keeping the biggest seen so far.', run(st) {
+    const bl = scoreBars(logIs), best = h('b', null, '—'); let bi = -1;
+    st.append(h('div', { class: 'cards' }, h('div', { class: 'card' }, h('span', null, 'biggest so far'), best)), block('Scores', bl));
+    logIs.forEach((v, i) => T(300 + i * 330, () => {
+      bl.rows.forEach(r => r.r.classList.remove('hot')); bl.rows[i].r.classList.add('hot');
+      if (bi < 0 || v > logIs[bi]) { if (bi >= 0) bl.rows[bi].r.classList.remove('win'); bi = i; bl.rows[i].r.classList.add('win'); best.textContent = plain(i) + '  ' + f(v, 2); }
+    }));
+    T(300 + 12 * 330 + 100, () => bl.rows.forEach(r => r.r.classList.remove('hot')));
+    return 300 + 12 * 330 + 300;
+  } },
+  { cap: `⟨ a⟩ wins with ${f(logIs[win], 2)}, just ahead of ⟨ Paris⟩ at ${f(logIs[7], 2)}. It is added to the text.`, run(st) {
+    const order = logIs.map((v, i) => i).sort((a, b) => logIs[b] - logIs[a]).slice(0, 4);
+    const bl = bars(order.map(i => tokOf(i)), { max: logIs[win], lw: '120px' });
+    bl.querySelectorAll('.bl2').forEach((e, k) => e.replaceChildren(tokOf(order[k])));
+    order.forEach((i, k) => bl.set(k, logIs[i])); bl.rows[0].r.classList.add('win');
+    st.append(block('Top 4 scores', bl), cards([['winner', VOC[win].p.replace(/^ /, '␣')], ['margin over ␣Paris', f(logIs[win] - logIs[7], 2)]]), block('Text so far', sentence(7)));
+    return 300;
+  } }
+] });
+
+const kc = R.rec[0].map(r => r.kq), vc = R.rec[0].map(r => r.vq);
+function cacheTable(list, n, hiNew) {
+  const el = h('div', { class: 'rows' });
+  const rs = [];
+  for (let u = 0; u < n; u++) { const r = row(list[u].i, 'i', 0, { empty: hiNew && u === n - 1 }); rs.push(r); el.append(lrow(h('span', null, tokAt(u), u === n - 1 && hiNew ? ' new' : ''), r, null, { hl: hiNew && u === n - 1 })); }
+  el.rs = rs; return el;
+}
+add({ n: 16, grp: 'Output', name: 'Next tokens', op: 'Append the chosen piece and run all 32 layers again, for the new position only. Repeat.', size: 'cache grows by 1 row per layer per token', subs: [
+  { cap: 'Append ⟨ a⟩ (number 264) to the sequence. Only this new token goes through the model. Its row is looked up in the embedding table, like step 3.', run(st) {
+    const nb = row(R.embed[6], 'f', 2, { empty: true });
+    st.append(block('Sequence', seqChips(7, 6)), block('New notebook for ⟨ a⟩', nb));
+    return seqFill(nb, R.embed[6], 'f', 2, 400, 120);
+  } },
+  { cap: 'Every layer kept the k and v of the six earlier tokens. They are reused as they are, not computed again. The new token adds one row.', run(st) {
+    const kt = cacheTable(kc, 7, true), vt = cacheTable(vc, 7, true);
+    st.append(h('div', { class: 'two' }, block('Layer 0 key cache', kt), block('Layer 0 value cache', vt)));
+    st.append(note('Real model: each new token adds 1,024 k numbers and 1,024 v numbers to the cache of each of the 32 layers.'));
+    T(600, () => { kt.rs[6].cells.forEach((c, i) => { setC(c, kc[6].i[i], 'i'); c.classList.add('hot'); }); });
+    T(1000, () => { vt.rs[6].cells.forEach((c, i) => { setC(c, vc[6].i[i], 'i'); c.classList.add('hot'); }); });
+    return 1400;
+  } },
+  { cap: 'Attention for ⟨ a⟩: its q is compared with all 7 keys, then the weights mix the 7 value rows, exactly as in steps 9 and 10.', run(st) {
+    const toks7 = M.SEQ.slice(0, 7);
+    const mk = hh => { const b = bars(toks7.map(tokOf), { max: 1 }); b.querySelectorAll('.bl2').forEach((e, i) => e.replaceChildren(tokAt(i))); return b; };
+    const b1 = mk(0), b2 = mk(1);
+    st.append(h('div', { class: 'two' }, block('Head 1 weights for ⟨ a⟩', b1), block('Head 2 weights for ⟨ a⟩', b2)));
+    T(300, () => { L06.heads[0].w.forEach((w, i) => b1.set(i, w)); L06.heads[1].w.forEach((w, i) => b2.set(i, w)); });
+    return 900;
+  } },
+  { cap: 'After all 32 layers, the final normalise and the output matrix, ⟨ city⟩ has the top score.', run(st) {
+    const bl = scoreBars(logA); bl.rows[M.argmax(logA)].r.classList.add('win');
+    st.append(block('Scores for the next piece', bl), cards([['winner', '␣city'], ['score', f(Math.max(...logA), 2)]]));
+    return 300;
+  } },
+  { cap: 'The loop repeats: append the winner, run one new token through all 32 layers, pick the top score.', run(st) {
+    const seq = seqChips(8, 6), sent = h('div'); sent.append(sentence(8));
+    const cd = h('div');
+    st.append(block('Sequence', seq), block('Text', sent), cd);
+    const steps = [[8, 7], [9, 8]];
+    steps.forEach(([n, pos], k) => T(700 + k * 1100, () => {
+      const s2 = seqChips(n + 1, 6); seq.replaceChildren(...s2.children);
+      sent.replaceChildren(sentence(n + 1));
+      const lg = M.logits[pos], w = M.argmax(lg);
+      cd.replaceChildren(cards([['picked', VOC[w].p.replace(/^ /, '␣')], ['score', f(lg[w], 2)], ['cache rows per layer', String(pos + 1)]]));
+    }));
+    return 700 + 2 * 1100 + 300;
+  } }
+] });
+
+/* ---------- shell ---------- */
+let cur = { s: 0, k: 0 }, playing = false, playT = null;
+const seen = new Set();
+const rail = $('rail');
+const groups = [];
+STEPS.forEach((st, i) => {
+  let g = groups.find(x => x.name === st.grp);
+  if (!g) { g = { name: st.grp, el: h('div', { class: 'grp' }, h('span', null, st.grp)) }; groups.push(g); rail.append(g.el); }
+  st.btn = h('button', { class: 'st', type: 'button', 'aria-label': `Step ${st.n}: ${st.name}`, onclick: () => { stop(); show(i, 0); } }, h('em', null, st.n), h('b', null, st.name));
+  st.btn.querySelector('b').style.fontWeight = 'inherit';
+  g.el.append(st.btn);
+});
+
+function show(s, k) {
+  clearAll();
+  cur = { s, k }; const st = STEPS[s], sub = st.subs[k];
+  seen.add(s);
+  $('seye').textContent = `Step ${st.n} of 16 · ${st.grp}`;
+  $('sname').textContent = st.name;
+  $('sop').textContent = st.op;
+  $('ssize').textContent = st.size;
+  $('cap').replaceChildren(...rich(sub.cap));
+  const dots = $('dots'); dots.replaceChildren();
+  st.subs.forEach((_, j) => dots.append(h('button', { class: 'dot' + (j === k ? ' on' : j < k ? ' done' : ''), type: 'button', 'aria-label': `Part ${j + 1} of ${st.subs.length}`, onclick: () => { stop(); show(s, j); } })));
+  $('count').textContent = `part ${k + 1} of ${st.subs.length}`;
+  STEPS.forEach((x, i) => { if (i === s) x.btn.setAttribute('aria-current', 'step'); else x.btn.removeAttribute('aria-current'); x.btn.classList.toggle('seen', seen.has(i) && i !== s); });
+  if (window.innerWidth <= 860) { try { st.btn.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) {} }
+  const stage = $('stage'); stage.replaceChildren();
+  let ms = 300;
+  try { ms = sub.run(stage) || 300; } catch (e) { stage.append(h('p', { class: 'note' }, 'This part could not be drawn: ' + e.message)); console.error(e); }
+  try { localStorage.setItem('llama-walk', JSON.stringify(cur)); } catch (e) {}
+  if (playing) playT = setTimeout(() => { if (!next()) stop(); }, (RM ? 0 : ms) + 2400);
+}
+function next() {
+  const st = STEPS[cur.s];
+  if (cur.k < st.subs.length - 1) { show(cur.s, cur.k + 1); return true; }
+  if (cur.s < STEPS.length - 1) { show(cur.s + 1, 0); return true; }
+  return false;
+}
+function prev() {
+  if (cur.k > 0) return show(cur.s, cur.k - 1);
+  if (cur.s > 0) return show(cur.s - 1, STEPS[cur.s - 1].subs.length - 1);
+}
+function setPlayBtn() {
+  const b = $('play');
+  b.querySelector('span').textContent = playing ? 'Pause' : 'Play';
+  b.querySelector('svg').innerHTML = playing ? '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>' : '<path d="M7 4v16l13-8z"/>';
+}
+function stop() { playing = false; clearTimeout(playT); setPlayBtn(); }
+$('next').onclick = () => { stop(); next(); };
+$('back').onclick = () => { stop(); prev(); };
+$('play').onclick = () => {
+  if (playing) { stop(); return; }
+  playing = true; setPlayBtn();
+  const last = cur.s === STEPS.length - 1 && cur.k === STEPS[cur.s].subs.length - 1;
+  if (last) show(0, 0); else show(cur.s, cur.k);
+};
+document.addEventListener('keydown', e => {
+  if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); stop(); next(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); stop(); prev(); }
+});
+let start = { s: 0, k: 0 };
+try { const sv = JSON.parse(localStorage.getItem('llama-walk') || 'null'); if (sv && STEPS[sv.s] && STEPS[sv.s].subs[sv.k]) start = sv; } catch (e) {}
+show(start.s, start.k);
+window.__walk = { STEPS, show, cur: () => cur };
+})();
+
+</script>
+
+</body></html>

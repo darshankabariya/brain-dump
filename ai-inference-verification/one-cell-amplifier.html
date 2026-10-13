@@ -1,0 +1,695 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>The One-Cell Amplifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap">
+<style>
+/* Layout: companion to the agreement-bound page; one 880px column, the animation stage is the framed object, explanation and playground on the open page */
+:root{
+  --paper:#edf1f6;
+  --surface:#fbfcfe;
+  --raised:#e3e9f1;
+  --ink:#121c29;
+  --muted:#536074;
+  --rule:#ccd5e1;
+  --grid:#e2e8ef;
+  --axis:#98a5b6;
+  --f:#1f4fc9;
+  --g:#c0306a;
+  --h:#0b7c61;
+  --hit:#d08700;
+  --hit-soft:#fbeed3;
+  --g-soft:#f8dde8;
+  --focus:#1f4fc9;
+  --font-math:"STIX Two Text", Cambria, "Times New Roman", serif;
+  --font-body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d141e; --surface:#121b28; --raised:#1a2536; --ink:#e3e9f1; --muted:#94a2b6;
+    --rule:#26344a; --grid:#1a2535; --axis:#475870;
+    --f:#7fa5ff; --g:#ff7fac; --h:#4fd2a5; --hit:#ffc240; --hit-soft:#2e2511; --g-soft:#36182a; --focus:#7fa5ff;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d141e; --surface:#121b28; --raised:#1a2536; --ink:#e3e9f1; --muted:#94a2b6;
+  --rule:#26344a; --grid:#1a2535; --axis:#475870;
+  --f:#7fa5ff; --g:#ff7fac; --h:#4fd2a5; --hit:#ffc240; --hit-soft:#2e2511; --g-soft:#36182a; --focus:#7fa5ff;
+  color-scheme:dark;
+}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.55}
+.wrap{max-width:880px;margin:0 auto;padding-inline:20px;padding-block:44px 72px;display:grid;gap:56px}
+@media (max-width:520px){.wrap{padding-inline:16px;padding-block:28px 52px;gap:40px}}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.eyebrow{font:500 12px/1 var(--font-mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
+h1{font-family:var(--font-math);font-weight:600;font-size:clamp(28px,4.6vw,44px);line-height:1.15;letter-spacing:-.005em;text-wrap:balance;margin:0;max-width:24ch}
+.note{max-width:62ch;color:var(--muted);margin:18px 0 0}
+.m{font-family:var(--font-math);font-style:italic;font-size:1.1em;line-height:1}
+.key{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 0;font-size:14px;color:var(--muted)}
+.key span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none}
+.sw.diff{background:var(--g)}
+.sw.same{background:var(--hit)}
+.sw.val{background:linear-gradient(90deg,var(--surface),var(--f));border:1px solid var(--rule)}
+
+/* stage */
+.stage{background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--rule)}
+.tab{appearance:none;background:none;border:0;border-right:1px solid var(--rule);padding:12px 14px 15px;font:inherit;color:var(--muted);cursor:pointer;position:relative;display:flex;gap:8px;align-items:baseline;min-width:0;text-align:left}
+.tab:last-child{border-right:0}
+.tab:hover{color:var(--ink)}
+.tab .n{font:500 12px var(--font-mono)}
+.tab .t{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--raised)}
+.tab .prog{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--f)}
+@media (max-width:560px){.tab{padding:11px 6px 14px;justify-content:center}.tab .n{display:none}.tab .t{font-size:13px}}
+.cv-box{position:relative;aspect-ratio:16/10;max-width:100%}
+.cv-box canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+@media (max-width:560px){.stage .cv-box{aspect-ratio:4/5}}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--rule)}
+.ctrls{display:flex;flex-wrap:wrap;gap:8px}
+.readout{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:500 13px/1.2 var(--font-mono);padding:7px 11px;border:1px solid var(--rule);border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
+.chip b{color:var(--ink);font-weight:600}
+.chip.live{border-color:var(--g);background:var(--g-soft);color:var(--ink)}
+.chip.bump{animation:bump .45s ease}
+@keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.08)}100%{transform:scale(1)}}
+.caption{padding:6px 20px 24px;min-height:10em}
+@media (max-width:560px){.caption{min-height:14em;padding:6px 16px 20px}}
+.cap-meta{font:500 12px var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:10px 0 8px}
+.caption h2{font-family:var(--font-math);font-weight:600;font-size:23px;line-height:1.25;margin:0 0 8px;text-wrap:balance}
+.caption p.body{margin:0;max-width:62ch}
+
+.btn{appearance:none;font:500 14px var(--font-body);color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:8px 14px;min-height:38px;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.btn:hover{background:var(--raised)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink);min-width:92px;justify-content:center}
+.btn.primary:hover{background:var(--ink);opacity:.88}
+.btn.icon{padding:8px 11px}
+.btn svg{width:14px;height:14px;fill:currentColor;flex:none}
+
+/* explanation */
+section > h2{font-family:var(--font-math);font-weight:600;font-size:30px;line-height:1.2;margin:0 0 20px;text-wrap:balance}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:22px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:2.25rem minmax(0,1fr);gap:14px;counter-increment:s;align-items:start}
+.steps li::before{content:counter(s);font:500 13px var(--font-mono);color:var(--muted);border:1px solid var(--rule);border-radius:50%;width:2rem;height:2rem;display:grid;place-items:center;margin-top:-2px}
+.steps p{margin:0;max-width:64ch}
+.steps strong{font-weight:600}
+.gain{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px 20px;align-items:center;margin:32px 0 0;padding:20px 0;border-block:1px solid var(--rule)}
+.gain .side{display:grid;gap:4px}
+.gain .lab{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.gain .num{font-family:var(--font-math);font-weight:600;font-size:clamp(30px,5vw,42px);line-height:1;font-variant-numeric:tabular-nums}
+.gain .sub{font-size:14px;color:var(--muted)}
+.gain .arrow{font-family:var(--font-math);font-size:28px;color:var(--muted)}
+.gain .formula{grid-column:1/-1;font-family:var(--font-math);font-size:18px;color:var(--ink)}
+@media (max-width:560px){.gain{grid-template-columns:minmax(0,1fr)}.gain .arrow{transform:rotate(90deg);justify-self:start}}
+.more{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 32px;margin-top:28px}
+@media (max-width:640px){.more{grid-template-columns:minmax(0,1fr)}}
+.more h3{font:600 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.more p{margin:0}
+
+/* playground */
+.play .lede{margin:0 0 18px;max-width:64ch}
+.pg-top{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-bottom:12px}
+.pg-top .lbl{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{appearance:none;border:0;border-right:1px solid var(--rule);background:none;color:var(--ink);font:500 14px var(--font-body);padding:7px 14px;min-height:36px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--raised)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.pg-frame{border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--surface)}
+.pg-sub{font:500 12px var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0;padding:16px 16px 8px}
+.tape{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:4px;padding:0 16px 8px}
+@media (max-width:560px){.tape{grid-template-columns:repeat(8,minmax(0,1fr))}}
+.tape button{appearance:none;aspect-ratio:1/1;min-width:0;border:1px solid var(--rule);border-radius:5px;background:var(--surface);color:var(--muted);font:500 14px var(--font-mono);cursor:pointer;padding:0}
+.tape button[data-v="1"]{background:var(--f);border-color:var(--f);color:var(--surface)}
+.tape button.changed{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--g)}
+.tape button:hover{filter:brightness(1.06)}
+.pg-grid{width:min(100% - 32px,460px);margin:4px auto 16px;aspect-ratio:1/1;position:relative}
+.pg-grid canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pg-msg{margin:14px 0 0;max-width:64ch;min-height:3.2em}
+</style>
+
+<main class="wrap">
+  <header>
+    <p class="eyebrow">Low-degree encoding · distance</p>
+    <h1>Change one cell of the tape and the curve through the cells changes almost everywhere.</h1>
+    <p class="note">This is the agreement bound put to work. The old tape and the new tape give two different polynomials of degree below <span class="m">n</span>, so they agree on at most <span class="m">n</span> − 1 points. Read the curve at far more than <span class="m">n</span> places and nearly every reading differs. A one-cell change becomes a change you can’t miss.</p>
+    <div class="key" aria-label="Color key">
+      <span><i class="sw diff"></i>differs from before</span>
+      <span><i class="sw same"></i>same as before</span>
+      <span><i class="sw val"></i>a reading’s value, 0 to 256</span>
+    </div>
+  </header>
+
+  <section class="stage" aria-label="Animated explanation">
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-i="0"><span class="n">1</span><span class="t">One cell</span><span class="prog"></span></button>
+      <button class="tab" role="tab" data-i="1"><span class="n">2</span><span class="t">Why</span><span class="prog"></span></button>
+      <button class="tab" role="tab" data-i="2"><span class="n">3</span><span class="t">Mod 257</span><span class="prog"></span></button>
+      <button class="tab" role="tab" data-i="3"><span class="n">4</span><span class="t">Spot-check</span><span class="prog"></span></button>
+    </div>
+    <div class="cv-box"><canvas id="stage" role="img" aria-label="Animation"></canvas></div>
+    <div class="bar">
+      <div class="ctrls">
+        <button class="btn icon" id="prev" aria-label="Previous scene"><svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg></button>
+        <button class="btn primary" id="play"><svg viewBox="0 0 16 16" id="play-ico"><path d="M4 2l10 6-10 6z"/></svg><span id="play-txt">Play</span></button>
+        <button class="btn icon" id="next" aria-label="Next scene"><svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg></button>
+      </div>
+      <div class="readout">
+        <span class="chip live" id="ro-chip"><b id="ro-main">0</b> <span id="ro-label">readings changed</span></span>
+        <span class="chip" id="ro-side"></span>
+      </div>
+    </div>
+    <div class="caption">
+      <p class="cap-meta" id="cap-meta"></p>
+      <h2 id="cap-title"></h2>
+      <p class="body" id="cap-body"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why one cell turns into almost all of them</h2>
+    <ol class="steps">
+      <li><p><strong>Encode.</strong> Put the tape’s <span class="m">n</span> cells at <span class="m">x</span> = 0, 1, …, <span class="m">n</span> − 1 and take the one polynomial of degree below <span class="m">n</span> that passes through them. Write down its value at <span class="m">N</span> points, with <span class="m">N</span> much larger than <span class="m">n</span>. On this page <span class="m">n</span> = 16, <span class="m">N</span> = 256, and the arithmetic is mod 257.</p></li>
+      <li><p><strong>Change one cell.</strong> The new tape has its own polynomial, also of degree below <span class="m">n</span>, and it’s a different polynomial from the old one because it passes through a different value at that cell.</p></li>
+      <li><p><strong>Count where they still agree.</strong> Two different polynomials of degree below <span class="m">n</span> agree on at most <span class="m">n</span> − 1 points. The <span class="m">n</span> − 1 untouched cells already use up that budget, so every other reading changes: at least <span class="m">N</span> − (<span class="m">n</span> − 1) of them, which is 241 of 256 here. The same count holds for any change to the tape, not just one cell.</p></li>
+    </ol>
+    <div class="gain">
+      <div class="side"><span class="lab">Tape</span><span class="num">1 of 16</span><span class="sub">6.25% of cells changed</span></div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="side"><span class="lab">Readings of the curve</span><span class="num">241 of 256</span><span class="sub">94.1% of readings changed</span></div>
+      <p class="formula">share of readings that change ≥ 1 − (<i>n</i> − 1) / <i>N</i></p>
+    </div>
+    <div class="more">
+      <div>
+        <h3>Why it’s called an amplifier</h3>
+        <p>On the raw tape, a single wrong cell is a needle in a haystack: a checker reading random cells needs about <span class="m">n</span> tries to find it. After encoding, the same lie shows up in nearly every reading, so a handful of random reads finds it. The proof only ever looks at a few spots, and this is what makes a few spots enough.</p>
+      </div>
+      <div>
+        <h3>The other half of the job</h3>
+        <p>A cheater could also hand over a table that isn’t the readings of any low-degree curve at all. A separate low-degree test checks for that. Once the table is known to be close to some curve, the amplification here takes over.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="play">
+    <h2>Flip cells yourself</h2>
+    <p class="lede">Click tape cells to flip them. The grid holds all 256 readings, compared with the encoding of the starting tape. Then switch to plain copying to see what happens without the curve.</p>
+    <div class="pg-top">
+      <span class="lbl" id="enc-label">Encoding</span>
+      <div class="seg" id="enc" role="group" aria-labelledby="enc-label">
+        <button data-e="curve" aria-pressed="true">Curve, mod 257</button>
+        <button data-e="copy" aria-pressed="false">Copy the tape 16×</button>
+      </div>
+    </div>
+    <div class="pg-frame">
+      <p class="pg-sub">Tape · 16 cells</p>
+      <div class="tape" id="tape" aria-label="Tape cells"></div>
+      <p class="pg-sub">256 readings</p>
+      <div class="pg-grid"><canvas id="pg" role="img" aria-label="Grid of 256 readings"></canvas></div>
+      <div class="bar">
+        <div class="ctrls">
+          <button class="btn" id="pg-rand">Flip a random cell</button>
+          <button class="btn" id="pg-reset">Reset tape</button>
+        </div>
+        <div class="readout" aria-live="polite">
+          <span class="chip"><b id="pg-k">0</b> of 16 tape cells changed</span>
+          <span class="chip live"><b id="pg-m">0</b> of 256 readings changed</span>
+        </div>
+      </div>
+    </div>
+    <p class="pg-msg" id="pg-msg"></p>
+  </section>
+</main>
+
+<script id="core">
+window.AMP = (function(){
+  "use strict";
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const smooth=u=>{u=clamp(u,0,1);return u*u*(3-2*u);};
+  const lerp=(a,b,u)=>a+(b-a)*u;
+  const seg=(t,t0,t1)=>smooth((t-t0)/(t1-t0));
+  function keys(t,ks){
+    if(t<=ks[0][0]) return ks[0][1];
+    for(let i=0;i<ks.length-1;i++){
+      const a=ks[i], b=ks[i+1];
+      if(t<=b[0]) return lerp(a[1],b[1],smooth((t-a[0])/(b[0]-a[0])));
+    }
+    return ks[ks.length-1][1];
+  }
+  // Real-number picture: 8 cells at x = 0..7
+  const X8=[0,1,2,3,4,5,6,7], T8=[1,0,1,1,0,0,1,0];
+  const B8=X8.map((_,i)=>x=>{let L=1; for(let j=0;j<8;j++) if(j!==i) L*=(x-X8[j])/(X8[i]-X8[j]); return L;});
+  const curve8=vals=>x=>{let s=0; for(let i=0;i<8;i++) if(vals[i]) s+=vals[i]*B8[i](x); return s;};
+  function flipped8(i,u){ const v=T8.slice(); v[i]=T8[i]+u*(1-2*T8[i]); return v; }
+  // Finite field picture: 16 cells, 256 readings, mod 257
+  const P=257, n=16, N=256;
+  const md=a=>((a%P)+P)%P;
+  function pw(b,e){let r=1;b=md(b);while(e>0){if(e&1)r=r*b%P;b=b*b%P;e>>=1;}return r;}
+  const L=[];
+  for(let i=0;i<n;i++){
+    let den=1; for(let j=0;j<n;j++) if(j!==i) den=den*md(i-j)%P;
+    const di=pw(den,P-2), row=new Uint16Array(N);
+    for(let x=0;x<N;x++){ let num=1; for(let j=0;j<n;j++) if(j!==i) num=num*md(x-j)%P; row[x]=num*di%P; }
+    L.push(row);
+  }
+  function encodeCurve(tape){ const out=new Uint16Array(N); for(let x=0;x<N;x++){ let s=0; for(let i=0;i<n;i++) if(tape[i]) s+=tape[i]*L[i][x]; out[x]=s%P; } return out; }
+  function encodeCopy(tape){ const out=new Uint16Array(N); for(let x=0;x<N;x++) out[x]=tape[x%n]; return out; }
+  const T16=[1,0,1,1,0,1,0,0,1,1,1,0,0,1,0,1];
+  const FLIP=9;
+  function rng(seed){ let a=seed>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  // A fixed, typical run of 20 spot-checks: raw tape caught once, encoding caught 19 times.
+  function probes(diff){
+    for(let seed=1;seed<5000;seed++){
+      const r=rng(seed), a=[], b=[]; let rc=0, cc=0, firstRaw=-1;
+      for(let k=0;k<20;k++){ a.push(Math.floor(r()*n)); b.push(Math.floor(r()*N)); if(a[k]===FLIP){rc++; if(firstRaw<0) firstRaw=k;} if(diff[b[k]]) cc++; }
+      if(rc===1 && cc===19 && firstRaw>=6 && firstRaw<=14) return {a,b,seed};
+    }
+    const r=rng(7), a=[], b=[]; for(let k=0;k<20;k++){a.push(Math.floor(r()*n)); b.push(Math.floor(r()*N));} return {a,b,seed:7};
+  }
+  return {clamp,smooth,lerp,seg,keys,X8,T8,B8,curve8,flipped8,P,n,N,encodeCurve,encodeCopy,T16,FLIP,rng,probes};
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+const A=window.AMP, {clamp,lerp,seg,keys}=A;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const TAU=Math.PI*2;
+
+let C={};
+function rgbOf(s){
+  s=s.trim();
+  if(s[0]==='#'){ let h=s.slice(1); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const v=parseInt(h,16); return [v>>16&255,v>>8&255,v&255]; }
+  const m=s.match(/[\d.]+/g); return m?[+m[0],+m[1],+m[2]]:[128,128,128];
+}
+function readColors(){
+  const cs=getComputedStyle(document.documentElement), v=n=>cs.getPropertyValue(n).trim();
+  C={surface:v('--surface'),ink:v('--ink'),muted:v('--muted'),rule:v('--rule'),grid:v('--grid'),axis:v('--axis'),
+     f:v('--f'),g:v('--g'),h:v('--h'),hit:v('--hit'),math:v('--font-math'),mono:v('--font-mono'),body:v('--font-body')};
+  C.rgb={surface:rgbOf(C.surface),f:rgbOf(C.f),g:rgbOf(C.g),hit:rgbOf(C.hit),ink:rgbOf(C.ink)};
+}
+readColors();
+const mixA=(a,b,u)=>[a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u,a[2]+(b[2]-a[2])*u];
+const css=c=>`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;
+const shadeV=v=>mixA(C.rgb.surface,C.rgb.f,0.07+0.78*v/256);
+
+function setupCanvas(cv,onResize){
+  const st={cv,ctx:cv.getContext('2d'),w:0,h:0};
+  new ResizeObserver(()=>{
+    const r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
+    st.w=r.width; st.h=r.height;
+    cv.width=Math.max(1,Math.round(r.width*dpr)); cv.height=Math.max(1,Math.round(r.height*dpr));
+    st.ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(onResize) onResize();
+  }).observe(cv);
+  return st;
+}
+function makePlot(rect,xr,yr){
+  return {rect,xr,yr,
+    X:x=>rect.x+(x-xr[0])/(xr[1]-xr[0])*rect.w,
+    Y:y=>rect.y+rect.h-(y-yr[0])/(yr[1]-yr[0])*rect.h};
+}
+
+/* ---------- drawing helpers ---------- */
+function drawPanel(ctx,p,label){
+  const {x,y,w,h}=p.rect;
+  ctx.save();
+  ctx.fillStyle=C.surface; ctx.fillRect(x,y,w,h);
+  ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  ctx.lineWidth=1; ctx.strokeStyle=C.grid; ctx.beginPath();
+  for(let gx=Math.ceil(p.xr[0]);gx<=p.xr[1];gx++){ const X=Math.round(p.X(gx))+.5; ctx.moveTo(X,y); ctx.lineTo(X,y+h); }
+  const span=p.yr[1]-p.yr[0], step=span>8?2:(span>3?1:0.5);
+  for(let gy=Math.ceil(p.yr[0]/step)*step;gy<=p.yr[1];gy+=step){ if(Math.abs(gy)<1e-9) continue; const Y=Math.round(p.Y(gy))+.5; ctx.moveTo(x,Y); ctx.lineTo(x+w,Y); }
+  ctx.stroke();
+  const Y0=Math.round(p.Y(0))+.5;
+  ctx.strokeStyle=C.axis; ctx.beginPath(); ctx.moveTo(x,Y0); ctx.lineTo(x+w,Y0); ctx.stroke();
+  ctx.restore();
+  if(label){
+    ctx.save(); ctx.font=`italic 16px ${C.math}`; ctx.fillStyle=C.muted; ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.fillText(label,x+14,y+12); ctx.restore();
+  }
+}
+function drawCurve(ctx,p,fn,color,o){
+  o=o||{}; const {x,y,w,h}=p.rect; const rev=o.reveal==null?1:o.reveal; if(rev<=0) return;
+  const x1=p.xr[0]+(p.xr[1]-p.xr[0])*rev, N=Math.max(80,Math.ceil(w*rev/2));
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); ctx.beginPath();
+  for(let i=0;i<=N;i++){
+    const xx=p.xr[0]+(x1-p.xr[0])*i/N, Y=clamp(p.Y(fn(xx)),y-400,y+h+400);
+    if(i===0) ctx.moveTo(p.X(xx),Y); else ctx.lineTo(p.X(xx),Y);
+  }
+  ctx.globalAlpha=o.alpha==null?1:o.alpha; ctx.strokeStyle=color; ctx.lineWidth=o.width||2.75;
+  ctx.lineJoin='round'; ctx.lineCap='round'; if(o.dash) ctx.setLineDash(o.dash);
+  ctx.stroke(); ctx.restore();
+}
+function dot(ctx,X,Y,r,fill,stroke,lw,alpha){
+  ctx.save(); if(alpha!=null) ctx.globalAlpha=alpha;
+  ctx.beginPath(); ctx.arc(X,Y,r,0,TAU); ctx.fillStyle=fill; ctx.fill();
+  if(stroke){ ctx.lineWidth=lw||2; ctx.strokeStyle=stroke; ctx.stroke(); }
+  ctx.restore();
+}
+function halo(ctx,text,X,Y){ ctx.lineWidth=5; ctx.strokeStyle=C.surface; ctx.lineJoin='round'; ctx.strokeText(text,X,Y); ctx.fillText(text,X,Y); }
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function tag(ctx,text,a,pos){
+  if(a<=0.01) return;
+  const W=stage.w, H=stage.h;
+  ctx.save(); ctx.globalAlpha=a;
+  let fs=13; ctx.font=`500 ${fs}px ${C.body}`;
+  let tw=ctx.measureText(text).width; const maxW=(pos.anchor==='right'?W-150:W-32);
+  if(tw>maxW){ fs=Math.max(10,fs*maxW/tw); ctx.font=`500 ${fs}px ${C.body}`; tw=ctx.measureText(text).width; }
+  const px=10, ht=fs+13, bw=tw+2*px;
+  const X=pos.anchor==='right'? W-12-bw : (W-bw)/2, Y=pos.y;
+  ctx.fillStyle=C.surface; ctx.strokeStyle=C.g; ctx.lineWidth=1.25;
+  roundRect(ctx,X,Y,bw,ht,ht/2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle=C.ink; ctx.textBaseline='middle'; ctx.textAlign='left'; ctx.fillText(text,X+px,Y+ht/2+0.5);
+  ctx.restore();
+}
+const win=(t,t0,t1,fd=0.35)=>Math.min(seg(t,t0,t0+fd),1-seg(t,t1-fd,t1));
+function smallLabel(ctx,text,X,Y,color){
+  ctx.save(); ctx.font=`500 11px ${C.mono}`; ctx.fillStyle=color||C.muted; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillText(text.toUpperCase(),X,Y); ctx.restore();
+}
+
+/* ---------- precomputed data ---------- */
+const OLD8=A.curve8(A.T8);
+function rangeOf(fns,x0,x1){
+  let lo=1e9,hi=-1e9;
+  for(const f of fns) for(let k=0;k<=500;k++){ const y=f(x0+(x1-x0)*k/500); if(y<lo) lo=y; if(y>hi) hi=y; }
+  const pad=(hi-lo)*0.16; return [lo-pad,hi+pad];
+}
+const XR8=[-0.5,7.5];
+const S1CELL=3;
+const Y1=rangeOf([OLD8,A.curve8(A.flipped8(S1CELL,1))],-0.15,7.15);
+const S2CELLS=[3,6,1,5];
+const Y2T=rangeOf([OLD8,...S2CELLS.map(i=>A.curve8(A.flipped8(i,1)))],-0.15,7.15);
+let HMAX=0; S2CELLS.forEach(i=>{ for(let k=0;k<=500;k++){ const v=Math.abs(A.B8[i](-0.15+7.3*k/500)); if(v>HMAX) HMAX=v; } });
+const Y2B=[-HMAX*1.25,HMAX*1.25];
+const READ_X=Array.from({length:57},(_,k)=>k/8);
+
+const CW0=A.encodeCurve(A.T16);
+const T16B=A.T16.slice(); T16B[A.FLIP]^=1;
+const CW1=A.encodeCurve(T16B);
+const DIFF=new Uint8Array(256); let DIFFN=0;
+for(let k=0;k<256;k++){ if(CW0[k]!==CW1[k]){DIFF[k]=1;DIFFN++;} }
+const PROBES=A.probes(DIFF);
+
+/* ---------- stage ---------- */
+const stage=setupCanvas($('stage'),()=>{dirty=true;});
+let clock=0;
+const pulseOn=()=>playing&&!reduce;
+
+function tapeStrip(ctx,p,y,h,bitsOld,flipIdx,fu){
+  const cw=Math.min(38,(p.X(1)-p.X(0))*0.78), ch=Math.min(h-14,cw);
+  smallLabel(ctx,'tape',8,y+11);
+  for(let i=0;i<8;i++){
+    const X=p.X(i), bx=X-cw/2, by=y+(h-ch)/2+4;
+    const isF=i===flipIdx && fu>0;
+    roundRect(ctx,bx,by,cw,ch,5);
+    ctx.fillStyle=isF?css(mixA(C.rgb.surface,C.rgb.g,0.16*Math.min(1,fu*3))):C.surface; ctx.fill();
+    ctx.lineWidth=isF?2:1; ctx.strokeStyle=isF?C.g:C.rule; ctx.stroke();
+    ctx.save(); ctx.font=`600 15px ${C.mono}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const oldB=bitsOld[i];
+    if(i===flipIdx){
+      ctx.globalAlpha=1-fu; ctx.fillStyle=C.ink; ctx.fillText(String(oldB),X,by+ch/2-6*fu);
+      ctx.globalAlpha=fu; ctx.fillStyle=C.g; ctx.fillText(String(1-oldB),X,by+ch/2+6*(1-fu));
+    } else { ctx.fillStyle=C.ink; ctx.fillText(String(oldB),X,by+ch/2); }
+    ctx.restore();
+  }
+}
+
+function gridLayout(W,H){
+  const s=Math.max(8,Math.floor(Math.min((W-32)/16,(H-112)/17)));
+  const gw=16*s, x0=Math.round((W-gw)/2), tapeY=34, gridY=tapeY+s+36;
+  return {s,x0,tapeY,gridY,gw,bottom:gridY+gw};
+}
+function cellRect(ctx,x,y,s,fill){ ctx.fillStyle=fill; ctx.fillRect(x+0.75,y+0.75,s-1.5,s-1.5); }
+
+const SCENES=[
+{ dur:11.5, still:6.2,
+  meta:'8 cells · the curve of degree below 8 through them',
+  title:'Flip one cell and the whole curve moves.',
+  body:'The curve is the one polynomial of degree below 8 that passes through the 8 cells. Read it at 57 evenly spaced spots. Flip one cell from 1 to 0 and the readings between the cells all shift. Only the 7 cells you didn’t touch stay put.',
+  draw(ctx,t){
+    const W=stage.w,H=stage.h, TH=Math.min(70,H*0.16);
+    const p=makePlot({x:0,y:0,w:W,h:H-TH},XR8,Y1);
+    drawPanel(ctx,p);
+    ctx.fillStyle=C.rule; ctx.fillRect(0,H-TH,W,1);
+    const u=keys(t,[[0,0],[2.6,0],[4.0,1],[9.4,1],[10.8,0],[11.5,0]]);
+    const cur=A.curve8(A.flipped8(S1CELL,u));
+    const rev=seg(t,0.15,1.4);
+    drawCurve(ctx,p,OLD8,C.f,{reveal:rev,alpha:u>0.001?0.55:1,dash:u>0.001?[6,6]:null});
+    if(u>0.001) drawCurve(ctx,p,cur,C.g);
+    let changed=0;
+    const ra=seg(t,1.0,1.8);
+    READ_X.forEach(x=>{
+      if(x>XR8[0]+(XR8[1]-XR8[0])*rev) return;
+      const yo=OLD8(x), yn=cur(x), d=Math.abs(yn-yo)>1e-9, isCell=Math.abs(x-Math.round(x))<1e-9;
+      if(d) changed++;
+      const X=p.X(x);
+      if(d){
+        ctx.save(); ctx.strokeStyle=C.g; ctx.globalAlpha=0.55*ra; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(X,p.Y(yo)); ctx.lineTo(X,p.Y(yn)); ctx.stroke(); ctx.restore();
+      }
+      if(isCell) return;
+      dot(ctx,X,p.Y(yn),2.6,d?C.g:C.f,null,0,ra);
+    });
+    for(let i=0;i<8;i++){
+      const y=A.T8[i]+(i===S1CELL?u*(1-2*A.T8[i]):0), X=p.X(i), Y=p.Y(y);
+      if(i===S1CELL && u>0.001) dot(ctx,X,Y,7.5,C.g,C.surface,2.5,seg(t,0.4,1.0));
+      else dot(ctx,X,Y,7,u>0.001?C.hit:C.surface,u>0.001?C.surface:C.ink,2.5,seg(t,0.2+0.08*i,0.6+0.08*i));
+    }
+    tapeStrip(ctx,p,H-TH,TH,A.T8,S1CELL,clamp(u,0,1));
+    tag(ctx,'57 readings of the curve',win(t,1.4,2.7),{anchor:'right',y:12});
+    tag(ctx,`one cell changed, ${changed} of 57 readings changed`,win(t,4.0,9.4),{anchor:'right',y:12});
+    const cells=u>0.5?1:0;
+    return {main:`${changed} of 57`,label:'readings changed',side:`${cells} of 8 cells changed`};
+  }},
+{ dur:13, still:1.8,
+  meta:'the agreement bound at work',
+  title:'The difference is zero at the 7 untouched cells, and nowhere else.',
+  body:'Subtract the old curve from the new one. The difference has degree below 8 and has to be zero at the 7 cells you didn’t touch. That’s already the most zeros it’s allowed, so it’s nonzero everywhere else. Whichever cell you flip, the same thing happens.',
+  draw(ctx,t){
+    const W=stage.w,H=stage.h, TH=Math.min(64,H*0.15), hh=(H-TH-1)/2;
+    const top=makePlot({x:0,y:0,w:W,h:hh},XR8,Y2T);
+    const bot=makePlot({x:0,y:hh+1,w:W,h:hh},XR8,Y2B);
+    drawPanel(ctx,top,'old and new curve'); drawPanel(ctx,bot,'new − old');
+    ctx.fillStyle=C.rule; ctx.fillRect(0,hh,W,1); ctx.fillRect(0,H-TH,W,1);
+    const per=13/S2CELLS.length, k=Math.min(S2CELLS.length-1,Math.floor(t/per)), tau=t-k*per;
+    const a=Math.min(seg(tau,0,0.45),1-seg(tau,per-0.45,per));
+    const ci=S2CELLS[k], dlt=1-2*A.T8[ci];
+    const cur=A.curve8(A.flipped8(ci,1)), h=x=>dlt*A.B8[ci](x);
+    drawCurve(ctx,top,OLD8,C.f,{alpha:0.55,dash:[6,6]});
+    drawCurve(ctx,top,cur,C.g,{alpha:a});
+    drawCurve(ctx,bot,h,C.h,{alpha:a,width:3});
+    let zeros=0;
+    for(let i=0;i<8;i++){
+      const X=top.X(i);
+      if(i===ci){
+        dot(ctx,X,top.Y(A.T8[i]+dlt),7.5,C.g,C.surface,2.5,a);
+        dot(ctx,X,bot.Y(dlt),7.5,C.g,C.surface,2.5,a);
+      } else {
+        zeros++;
+        ctx.save(); ctx.globalAlpha=a*0.7; ctx.setLineDash([3,4]); ctx.strokeStyle=C.hit; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(X,top.Y(A.T8[i])+9); ctx.lineTo(X,bot.Y(0)-9); ctx.stroke(); ctx.restore();
+        dot(ctx,X,top.Y(A.T8[i]),6.5,C.hit,C.surface,2.5);
+        dot(ctx,X,bot.Y(0),6.5,C.hit,C.surface,2.5,a);
+      }
+    }
+    tapeStrip(ctx,top,H-TH,TH,A.T8,ci,a>0.5?1:a*2);
+    tag(ctx,'zero at the 7 untouched cells, nowhere else',win(t,1.0,12.6),{anchor:'right',y:bot.rect.y+10});
+    return {main:`${zeros}`,label:'zeros of new − old',side:'most allowed: 8 − 1 = 7'};
+  }},
+{ dur:13, still:9.5,
+  meta:'16 cells → 256 readings · arithmetic mod 257',
+  title:'In a real encoding, 1 changed cell becomes 241 changed readings.',
+  body:'Proofs do this arithmetic mod a prime, so there’s no smooth curve to draw, but the agreement bound works the same way. Here the curve through 16 cells is read at <span class="m">x</span> = 0, 1, …, 255, mod 257. Row 1 of the grid is the tape itself. Flip one cell and every reading changes except the 15 untouched tape cells.',
+  draw(ctx,t){
+    const W=stage.w,H=stage.h, G=gridLayout(W,H), s=G.s;
+    ctx.fillStyle=C.surface; ctx.fillRect(0,0,W,H);
+    const fu=seg(t,2.6,3.0);
+    smallLabel(ctx,'tape · 16 cells',G.x0,G.tapeY-10);
+    for(let i=0;i<16;i++){
+      const bx=G.x0+i*s, b0=A.T16[i], isF=i===A.FLIP;
+      const bit=isF&&fu>0.5?1-b0:b0;
+      roundRect(ctx,bx+1.5,G.tapeY+1.5,s-3,s-3,4);
+      ctx.fillStyle=bit?C.f:C.surface; ctx.fill();
+      ctx.lineWidth=isF&&fu>0?2.5:1; ctx.strokeStyle=isF&&fu>0?C.g:(bit?C.f:C.rule); ctx.stroke();
+      if(s>=16){ ctx.save(); ctx.font=`600 ${Math.round(s*0.48)}px ${C.mono}`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle=bit?C.surface:C.muted; ctx.fillText(String(bit),bx+s/2,G.tapeY+s/2+1); ctx.restore(); }
+    }
+    smallLabel(ctx,'the curve read at x = 0 … 255',G.x0,G.gridY-10);
+    const rows=seg(t,0.2,1.6)*16, dm=seg(t,6.8,7.8);
+    let changed=0;
+    for(let k=0;k<256;k++){
+      const r=k>>4, c=k&15; const ra=clamp(rows-r,0,1); if(ra<=0) continue;
+      const uk=3.05+2.6*k/256, upd=t>=uk, v=upd?CW1[k]:CW0[k];
+      if(upd&&DIFF[k]) changed++;
+      let col=shadeV(v);
+      if(dm>0) col=mixA(col,DIFF[k]?C.rgb.g:C.rgb.hit,dm);
+      ctx.globalAlpha=ra; cellRect(ctx,G.x0+c*s,G.gridY+r*s,s,css(col)); ctx.globalAlpha=1;
+      if(upd&&DIFF[k]&&t-uk<0.6&&!reduce){
+        ctx.save(); ctx.globalAlpha=1-(t-uk)/0.6; ctx.strokeStyle=C.g; ctx.lineWidth=2;
+        ctx.strokeRect(G.x0+c*s+1,G.gridY+r*s+1,s-2,s-2); ctx.restore();
+      }
+    }
+    if(rows>=1){
+      ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle=C.ink; ctx.lineWidth=1.25; ctx.globalAlpha=0.7;
+      ctx.strokeRect(G.x0-3.5,G.gridY-3.5,G.gw+7,s+7); ctx.restore();
+      const lx=G.x0+G.gw+12;
+      if(lx+120<W){ ctx.save(); ctx.font=`500 12px ${C.body}`; ctx.fillStyle=C.muted; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText('← row 1 is the tape',lx,G.gridY+s/2); ctx.restore(); }
+    }
+    const ty=Math.min(H-34,G.bottom+10);
+    tag(ctx,'flip one tape cell',win(t,2.5,3.9),{anchor:'center',y:ty});
+    tag(ctx,`${changed} of 256 readings changed`,win(t,4.6,6.9),{anchor:'center',y:ty});
+    tag(ctx,'only the 15 untouched tape cells still match',win(t,7.6,13.2),{anchor:'center',y:ty});
+    return {main:`${changed} of 256`,label:'readings changed',side:`${fu>0.5?1:0} of 16 tape cells changed`};
+  }},
+{ dur:12.5, still:12.2,
+  meta:'20 random checks, one cell read each time',
+  title:'A few random checks catch the change almost every time.',
+  body:'A checker reading one random cell of the raw tape finds the change 1 time in 16. Reading one random spot of the encoding, it finds a changed reading 241 times in 256. After 10 checks, a change to the raw tape goes unnoticed 52% of the time. On the encoding, about 5 times in 10 trillion.',
+  draw(ctx,t){
+    const W=stage.w,H=stage.h, G=gridLayout(W,H), s=G.s;
+    ctx.fillStyle=C.surface; ctx.fillRect(0,0,W,H);
+    smallLabel(ctx,'raw tape · 1 of 16 cells differs',G.x0,G.tapeY-10);
+    for(let i=0;i<16;i++){ const d=i===A.FLIP; roundRect(ctx,G.x0+i*s+1.5,G.tapeY+1.5,s-3,s-3,4); ctx.fillStyle=d?C.g:C.hit; ctx.fill(); }
+    smallLabel(ctx,`encoding · ${DIFFN} of 256 readings differ`,G.x0,G.gridY-10);
+    for(let k=0;k<256;k++){ cellRect(ctx,G.x0+(k&15)*s,G.gridY+(k>>4)*s,s,DIFF[k]?C.g:C.hit); }
+    let done=0, rc=0, cc=0;
+    for(let k=0;k<20;k++){
+      const tk=0.9+0.5*k; if(t<tk) break;
+      const age=t-tk, a=PROBES.a[k], b=PROBES.b[k];
+      const tx=G.x0+a*s+s/2, ty=G.tapeY+s/2, gx=G.x0+(b&15)*s+s/2, gy=G.gridY+(b>>4)*s+s/2;
+      const caughtR=a===A.FLIP, caughtC=DIFF[b]===1;
+      if(age<0.45&&!reduce){
+        const rr=lerp(s*2.2,s*0.42,A.smooth(age/0.45));
+        [[tx,ty],[gx,gy]].forEach(([X,Y])=>{ ctx.save(); ctx.globalAlpha=0.9; ctx.strokeStyle=C.ink; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(X,Y,rr,0,TAU); ctx.stroke(); ctx.restore(); });
+      } else {
+        dot(ctx,tx,ty,Math.max(2.5,s*0.18),caughtR?C.surface:C.ink);
+        dot(ctx,gx,gy,Math.max(2.5,s*0.18),caughtC?C.surface:C.ink);
+      }
+      if(age>=0.3){ done++; if(caughtR) rc++; if(caughtC) cc++; }
+    }
+    const ty=Math.min(H-34,G.bottom+10);
+    tag(ctx,'each check reads one random cell',win(t,0.1,1.9),{anchor:'center',y:ty});
+    tag(ctx,`raw tape: caught ${rc} of 20 · encoding: caught ${cc} of 20`,win(t,11.0,12.6),{anchor:'center',y:ty});
+    return {main:`${cc} of ${done}`,label:'caught on encoding',side:`caught on raw tape: ${rc} of ${done}`};
+  }}
+];
+
+const tabs=[...document.querySelectorAll('#tabs .tab')];
+const progs=tabs.map(b=>b.querySelector('.prog'));
+let si=0, t=reduce?SCENES[0].still:0, playing=!reduce, dirty=true, last=performance.now();
+
+function setCaption(){
+  const s=SCENES[si];
+  $('cap-meta').textContent=s.meta; $('cap-title').textContent=s.title; $('cap-body').innerHTML=s.body;
+  $('stage').setAttribute('aria-label',s.title);
+  tabs.forEach((b,i)=>{ b.setAttribute('aria-selected',i===si?'true':'false'); b.tabIndex=i===si?0:-1; progs[i].style.width=i<si?'100%':'0%'; });
+}
+function goTo(i){ si=(i+SCENES.length)%SCENES.length; t=playing?0:SCENES[si].still; setCaption(); dirty=true; }
+function setPlaying(v){
+  playing=v;
+  $('play-txt').textContent=v?'Pause':'Play';
+  $('play-ico').innerHTML=v?'<path d="M3 2h3.5v12H3zM9.5 2H13v12H9.5z"/>':'<path d="M4 2l10 6-10 6z"/>';
+  dirty=true;
+}
+tabs.forEach((b,i)=>b.addEventListener('click',()=>goTo(i)));
+$('tabs').addEventListener('keydown',e=>{
+  if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft') return;
+  goTo(si+(e.key==='ArrowRight'?1:-1)); tabs[si].focus(); e.preventDefault();
+});
+$('prev').addEventListener('click',()=>goTo(si-1));
+$('next').addEventListener('click',()=>goTo(si+1));
+$('play').addEventListener('click',()=>setPlaying(!playing));
+
+let lastRO='';
+function setReadout(main,label,side){
+  const key=main+'|'+label+'|'+side; if(key===lastRO) return;
+  const prevMain=lastRO.split('|')[0]; lastRO=key;
+  $('ro-main').textContent=main; $('ro-label').textContent=label; $('ro-side').textContent=side;
+  if(prevMain&&prevMain!==main&&!reduce&&playing){ const c=$('ro-chip'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+}
+function render(){
+  if(!stage.w) return;
+  const ctx=stage.ctx; ctx.clearRect(0,0,stage.w,stage.h);
+  const s=SCENES[si], R=s.draw(ctx,t);
+  setReadout(R.main,R.label,R.side);
+  progs[si].style.width=(clamp(t/s.dur,0,1)*100).toFixed(2)+'%';
+}
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(playing){
+    clock+=dt; t+=dt;
+    if(t>=SCENES[si].dur){ si=(si+1)%SCENES.length; t=0; setCaption(); }
+    render();
+  } else if(dirty){ render(); }
+  dirty=false;
+  requestAnimationFrame(frame);
+}
+setCaption(); setPlaying(playing);
+requestAnimationFrame(frame);
+
+/* ---------- playground ---------- */
+const pg=setupCanvas($('pg'),()=>pgDraw());
+let tape=A.T16.slice(), enc='curve';
+const tapeEl=$('tape');
+const tbtn=A.T16.map((_,i)=>{
+  const b=document.createElement('button');
+  b.type='button'; b.addEventListener('click',()=>{ tape[i]^=1; pgUpdate(); });
+  tapeEl.appendChild(b); return b;
+});
+function pct(x){ return (x*100).toFixed(x===0||x===1?0:1)+'%'; }
+let PGcur=null, PGbase=null;
+function pgUpdate(){
+  const E=enc==='curve'?A.encodeCurve:A.encodeCopy;
+  PGbase=E(A.T16); PGcur=E(tape);
+  let k=0;
+  tbtn.forEach((b,i)=>{
+    const ch=tape[i]!==A.T16[i]; if(ch) k++;
+    b.textContent=String(tape[i]); b.dataset.v=String(tape[i]); b.classList.toggle('changed',ch);
+    b.setAttribute('aria-label',`Cell ${i+1}: ${tape[i]}${ch?', flipped':''}`);
+  });
+  let m=0; for(let x=0;x<256;x++) if(PGcur[x]!==PGbase[x]) m++;
+  $('pg-k').textContent=k; $('pg-m').textContent=m;
+  document.querySelectorAll('#enc button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.e===enc)));
+  const msg=$('pg-msg');
+  if(k===0) msg.textContent=enc==='curve'
+    ? 'Nothing flipped yet. Click any tape cell and watch how much of the grid changes.'
+    : 'Nothing flipped yet. With plain copying, every row of the grid is the tape again.';
+  else if(enc==='curve') msg.textContent=`${k} of 16 tape cells changed (${pct(k/16)}), and ${m} of 256 readings changed (${pct(m/256)}). Any change to the tape, however small, changes at least 241.`;
+  else msg.textContent=`${k} of 16 tape cells changed, and ${m} of 256 readings changed (${pct(m/256)}). Copying only repeats the change, so a random check still usually misses it.`;
+  pgDraw();
+}
+function pgDraw(){
+  if(!pg.w||!PGcur) return;
+  const ctx=pg.ctx, s=pg.w/16; ctx.clearRect(0,0,pg.w,pg.h);
+  ctx.fillStyle=C.surface; ctx.fillRect(0,0,pg.w,pg.h);
+  for(let x=0;x<256;x++){
+    const d=PGcur[x]!==PGbase[x];
+    const col=d?C.g:css(enc==='curve'?shadeV(PGcur[x]):mixA(C.rgb.surface,C.rgb.f,PGcur[x]?0.5:0.07));
+    cellRect(ctx,(x&15)*s,(x>>4)*s,s,col);
+  }
+}
+$('pg-rand').addEventListener('click',()=>{ const i=Math.floor(Math.random()*16); tape[i]^=1; pgUpdate(); });
+$('pg-reset').addEventListener('click',()=>{ tape=A.T16.slice(); pgUpdate(); });
+document.querySelectorAll('#enc button').forEach(b=>b.addEventListener('click',()=>{ enc=b.dataset.e; pgUpdate(); }));
+pgUpdate();
+
+/* ---------- theme + fonts ---------- */
+function refresh(){ readColors(); dirty=true; pgDraw(); }
+const mq=matchMedia('(prefers-color-scheme: dark)');
+if(mq.addEventListener) mq.addEventListener('change',refresh);
+new MutationObserver(refresh).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme','class','style']});
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(refresh);
+})();
+</script>
+
+</body></html>
